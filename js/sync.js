@@ -34,10 +34,22 @@ export function payloadOf(S) {
   return o;
 }
 
+// Segurança: tudo que chega da nuvem passa por aqui antes de virar tela.
+// id só com letras/números/-/_ e campos numéricos viram número de verdade (bloqueia HTML injetado).
+const ID_OK = /^[A-Za-z0-9_-]{1,64}$/;
+const NUMS = ['k', 'p', 'c', 'f', 'g', 'q', 'st', 't', 'ml', 'kg', 'min', 'rpe', 'kcal', 'rounds', 'sets', 'reps', 'load'];
+function clean(it) {
+  if (!it || typeof it !== 'object' || typeof it.id !== 'string' || !ID_OK.test(it.id)) return null;
+  const o = { ...it };
+  for (const k of NUMS) if (k in o) { const n = Number(o[k]); o[k] = Number.isFinite(n) ? n : 0; }
+  for (const k of Object.keys(o)) if (typeof o[k] === 'string' && o[k].length > 500) o[k] = o[k].slice(0, 500);
+  return o;
+}
 function unionById(x = [], y = [], del = {}) {
   const m = new Map();
-  for (const it of [...x, ...y]) {
-    if (!it || !it.id || del[it.id]) continue;
+  for (const raw of [...x, ...y]) {
+    const it = clean(raw);
+    if (!it || del[it.id]) continue;
     const cur = m.get(it.id);
     if (!cur || (it.t || 0) > (cur.t || 0)) m.set(it.id, it); // edição mais recente vence
   }

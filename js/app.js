@@ -154,11 +154,11 @@ views.onboarding = () => {
     <h2>${S.profile ? 'Editar perfil' : 'Vamos te conhecer'}</h2>
     <div class="grid2">
       <label>Sexo biológico ${sel('sex', { m: 'Masculino', f: 'Feminino' }, p.sex || 'm')}</label>
-      <label>Idade <input name="age" inputmode="numeric" value="${p.age ?? ''}" required placeholder="anos"></label>
-      <label>Altura (cm) <input name="height" inputmode="decimal" value="${p.height ?? ''}" required placeholder="178"></label>
-      <label>Peso (kg) <input name="weight" inputmode="decimal" value="${p.weight ?? ''}" required placeholder="80"></label>
+      <label>Idade <input name="age" inputmode="numeric" value="${esc(p.age ?? '')}" required placeholder="anos"></label>
+      <label>Altura (cm) <input name="height" inputmode="decimal" value="${esc(p.height ?? '')}" required placeholder="178"></label>
+      <label>Peso (kg) <input name="weight" inputmode="decimal" value="${esc(p.weight ?? '')}" required placeholder="80"></label>
     </div>
-    <label>% de gordura <small>(opcional, melhora a precisão)</small><input name="bf" inputmode="decimal" value="${p.bf ?? ''}" placeholder="ex.: 15"></label>
+    <label>% de gordura <small>(opcional, melhora a precisão)</small><input name="bf" inputmode="decimal" value="${esc(p.bf ?? '')}" placeholder="ex.: 15"></label>
     <label>Dia a dia fora do treino ${sel('neat', NEAT, p.neat || 1.3)}</label>
     <label>Objetivo ${sel('goal', GOALS, p.goal || 'recomp')}</label>
     <label class="cut-only">Ritmo de perda ${sel('rate', { 0.5: '0,5% do peso/semana (recomendado)', 0.75: '0,75%/semana', 1: '1%/semana (agressivo)' }, p.rate || 0.5)}</label>
@@ -172,7 +172,7 @@ views.onboarding = () => {
         <label class="check big"><input type="checkbox" name="sp_${id}" ${on ? 'checked' : ''}><span><b class="mk">${S0.mark}</b>${esc(S0.n)}</span></label>
         <div class="sport-cfg grid2">
           <label>Dias/semana ${sel('sd_' + id, { 1: '1', 2: '2', 3: '3', 4: '4', 5: '5', 6: '6' }, v.days || 3)}</label>
-          <label>Min. por treino <input name="sm_${id}" inputmode="numeric" value="${v.min || 60}"></label>
+          <label>Min. por treino <input name="sm_${id}" inputmode="numeric" value="${esc(v.min || 60)}"></label>
           <label>Tipo mais comum ${sel('st_' + id, Object.fromEntries(Object.entries(S0.types).map(([k, t]) => [k, t.n])), v.type || S0.defaultType)}</label>
           <label>Onde ${sel('sw_' + id, id === 'corrida' ? { rua: 'Rua / parque', esteira: 'Esteira' } : { casa: 'Em casa', academia: 'Academia / equipe' }, v.where || (id === 'corrida' ? 'rua' : 'casa'))}</label>
         </div></div>`;
@@ -182,7 +182,7 @@ views.onboarding = () => {
     <div class="grid2">
       <label>Onde ${sel('env', { casa: 'Em casa / calistenia', academia: 'Academia' }, p.env || 'casa')}</label>
       <label>Dias por semana ${sel('liftDays', { 0: '0 (por enquanto)', 1: '1', 2: '2', 3: '3', 4: '4', 5: '5', 6: '6' }, p.liftDays ?? 2)}</label>
-      <label>Min. por sessão <input name="liftMin" inputmode="numeric" value="${p.liftMin ?? 40}"></label>
+      <label>Min. por sessão <input name="liftMin" inputmode="numeric" value="${esc(p.liftMin ?? 40)}"></label>
     </div>
     <fieldset class="equip"><legend>O que você tem em casa?</legend>
       ${Object.entries(EQUIP).map(([k, v]) => `<label class="check"><input type="checkbox" name="equip" value="${k}" ${(p.equip || []).includes(k) ? 'checked' : ''}><span>${esc(v)}</span></label>`).join('')}
@@ -297,7 +297,7 @@ function mealCard(m, list) {
 function foodPickHTML(i) {
   const fd = FOODS[i];
   return `<form id="pickForm" class="pick" data-i="${i}"><b>${esc(fd.n)}</b>
-    <div class="row gap"><input name="g" inputmode="decimal" value="${fd.g}" aria-label="quantidade"><span>${/\(ml\)/.test(fd.n) ? 'ml' : 'g'}</span><button class="btn small primary" type="submit">Adicionar</button></div>
+    <div class="row gap"><input name="g" inputmode="decimal" value="${esc(fd.g)}" aria-label="quantidade"><span>${/\(ml\)/.test(fd.n) ? 'ml' : 'g'}</span><button class="btn small primary" type="submit">Adicionar</button></div>
     <small class="muted" id="pickInfo"></small></form>`;
 }
 
@@ -344,8 +344,8 @@ views.sessao = (idx) => {
     const rows = Array.from({ length: it.sets }, (_, s) => {
       const v = draft.sets[it.ex]?.[s] || {};
       return `<div class="set ${v.reps ? 'done' : ''}"><span class="mono">${s + 1}</span>
-        ${e.inc ? `<input data-set="${it.ex}|${s}|kg" inputmode="decimal" placeholder="${sg.kg ?? 'kg'}" value="${v.kg ?? ''}">` : `<span class="muted small">${e.band ? 'elástico' : e.t === 'power' ? 'explosivo' : 'peso corporal'}</span>`}
-        <input data-set="${it.ex}|${s}|reps" inputmode="numeric" placeholder="${it.lo === it.hi ? it.lo : it.lo + '–' + it.hi}" value="${v.reps ?? ''}">
+        ${e.inc ? `<input data-set="${esc(it.ex)}|${s}|kg" inputmode="decimal" placeholder="${esc(sg.kg ?? 'kg')}" value="${esc(v.kg ?? '')}">` : `<span class="muted small">${e.band ? 'elástico' : e.t === 'power' ? 'explosivo' : 'peso corporal'}</span>`}
+        <input data-set="${esc(it.ex)}|${s}|reps" inputmode="numeric" placeholder="${it.lo === it.hi ? it.lo : it.lo + '–' + it.hi}" value="${esc(v.reps ?? '')}">
         <span class="small muted">${unit}</span></div>`;
     }).join('');
     const lv = e.vars ? `<div class="lvl-row"><button class="lvlbtn" data-act="lvl" data-ex="${it.ex}" data-d="-1" ${it.lvl <= 0 ? 'disabled' : ''} aria-label="Mais fácil">‹</button>
@@ -489,9 +489,9 @@ views.esporte = () => {
     ${P ? `<p class="small"><b>Treino carregado (${esc(SPORTS[P[0].sport]?.n || '')}):</b> ${P.length} ${P[0].sport === 'corrida' ? 'blocos' : 'rounds'} · ~${Math.round(P.reduce((a, x) => a + x.work + x.rest, 0) / 60)} min <button class="linkbtn" data-act="unloadProg">trocar pra modo livre</button></p>` : `
     <div class="chips">${SP.presets.map(p => `<button class="chipbtn ${c.preset === p.id ? 'on' : ''}" data-act="preset" data-id="${p.id}">${esc(p.n)}</button>`).join('')}</div>
     <div class="grid3 small">
-      <label>Rounds<input data-tm="rounds" inputmode="numeric" value="${c.rounds}"></label>
-      <label>Round (s)<input data-tm="work" inputmode="numeric" value="${c.work}"></label>
-      <label>Descanso (s)<input data-tm="rest" inputmode="numeric" value="${c.rest}"></label>
+      <label>Rounds<input data-tm="rounds" inputmode="numeric" value="${esc(c.rounds)}"></label>
+      <label>Round (s)<input data-tm="work" inputmode="numeric" value="${esc(c.work)}"></label>
+      <label>Descanso (s)<input data-tm="rest" inputmode="numeric" value="${esc(c.rest)}"></label>
     </div>
     ${SP.combos ? `<label class="switch"><input type="checkbox" data-act="callsToggle" ${c.calls ? 'checked' : ''}> Chamar combinações no modo livre</label>` : ''}`}
     <label class="switch"><input type="checkbox" data-act="voiceToggle" ${c.voice ? 'checked' : ''}> Voz (fala ${SP.combos ? 'as combinações e ' : ''}os rounds em português)</label>
