@@ -693,7 +693,7 @@ views.login = () => `<div class="gate">
   <p class="gate-tag">Sem mestre. Só disciplina.</p>
   ${GATE.recovery && cloud.user() ? accountCard() : authBlock()}
   <button class="linkbtn gate-skip" data-act="skipLogin">Continuar sem conta</button>
-  <p class="gate-ver">v3.5</p></div>`;
+  <p class="gate-ver">v3.6</p></div>`;
 async function afterLogin() {
   const u = cloud.user();
   // outra conta? os dados deste aparelho são da conta anterior: descarta antes de juntar
@@ -719,12 +719,13 @@ views.perfil = () => `<section class="head"><h1>Perfil e ajustes</h1></section>
   <div class="card"><h3>Seus dados</h3>
     <div class="row gap wrap"><button class="btn small" data-act="export">Exportar backup</button><label class="btn small ghost">Restaurar<input type="file" accept="application/json" id="importFile" hidden></label><button class="btn small danger" data-act="reset">Apagar tudo</button></div>
   </div>
-  <p class="small muted center pad">RONIN v3.5 · não substitui acompanhamento profissional.</p>`;
+  <p class="small muted center pad">RONIN v3.6 · não substitui acompanhamento profissional.</p>`;
 
 // ---------------- Roteador ----------------
 const ICONS = { hoje: 'M3 12l9-8 9 8M5 10v10h14V10', nutri: 'M12 3c4 3 6 6 6 10a6 6 0 0 1-12 0c0-4 2-7 6-10z', treino: 'M3 10v4M6 7v10M18 7v10M21 10v4M6 12h12', esporte: 'M7 4h7a4 4 0 0 1 4 4v4a6 6 0 0 1-6 6H9a4 4 0 0 1-4-4V6a2 2 0 0 1 2-2zM9 18v3h6v-3', coach: 'M4 5h16v11H8l-4 4z' };
 const ALIAS = { boxe: 'esporte' };
 function render() {
+  const keepY = window.scrollY;
   if (anim) { anim.stop(); anim = null; }
   let [route, arg] = (location.hash.replace(/^#\/?/, '') || 'hoje').split(/[\/-]/);
   route = ALIAS[route] || route;
@@ -742,20 +743,29 @@ function render() {
   const tabs = [['hoje', 'Hoje'], ['nutri', 'Nutrição'], ['treino', 'Força'], ['esporte', spLabel], ['coach', 'Coach']];
   $('#nav').innerHTML = tabs.map(([id, label]) => `<a href="#${id}" class="${(v === id || (v === 'sessao' && id === 'treino') || ((v === 'tecnica' || v === 'tecnicas') && id === 'esporte')) ? 'on' : ''}"><svg viewBox="0 0 24 24"><path d="${ICONS[id]}"/></svg><span>${esc(label)}</span></a>`).join('');
   bindAfter(v, arg);
+  if (window.scrollY !== keepY) window.scrollTo(0, keepY);
   if (v === 'esporte') paintTimer();
   if (v === 'perfil' && arg === 'conta') requestAnimationFrame(() => $('#conta')?.scrollIntoView({ behavior: 'smooth' }));
 }
 let rendered = '';
-function go() { if (rendered === location.hash) return; rendered = location.hash; render(); if (!/conta/.test(location.hash)) window.scrollTo(0, 0); }
+// só volta pro topo quando muda de tela; tocar em algo da mesma tela mantém a rolagem
+let lastHash = null;
+function go(force) {
+  const h = location.hash;
+  if (!force && rendered === h) return;
+  const changed = h !== lastHash; rendered = lastHash = h;
+  const y = window.scrollY; render();
+  if (changed && !/conta/.test(h)) window.scrollTo(0, 0); else window.scrollTo(0, y);
+}
 window.addEventListener('hashchange', go);
 document.addEventListener('click', e => {
   const a = e.target.closest('a[href^="#"]'); if (!a) return;
   e.preventDefault();
   const h = a.getAttribute('href');
   if (location.hash !== h) { try { history.pushState(null, '', h); } catch (err) { location.hash = h; } }
-  rendered = ''; go();
+  go(true);
 });
-window.addEventListener('popstate', () => { rendered = ''; go(); });
+window.addEventListener('popstate', () => go(true));
 
 function bindAfter(v, arg) {
   const pf = $('#profileForm');
@@ -908,14 +918,14 @@ document.addEventListener('click', async e => {
   if (a === 'delWater') { const id = el.dataset.id; S.logs.water[curDay()] = (S.logs.water[curDay()] || []).filter(x => x.id !== id); S.del[id] = Date.now(); save(); render(); }
   if (a === 'day') { shiftDay(+el.dataset.d); render(); }
   if (a === 'dayToday') { viewDay = null; render(); }
-  if (a === 'addMeal') { addMeal = el.dataset.m || null; foodCat = ''; render(); if (addMeal) requestAnimationFrame(() => { $('#meal-' + addMeal)?.scrollIntoView({ block: 'start', behavior: 'smooth' }); }); }
+  if (a === 'addMeal') { addMeal = el.dataset.m || null; foodCat = ''; render(); }
   if (a === 'foodCat') { foodCat = el.dataset.c; const q = $('#foodSearch')?.value || ''; render(); const i = $('#foodSearch'); if (i) { i.value = q; i.dispatchEvent(new Event('input')); } }
   if (a === 'qty') { const it = (S.logs.food[curDay()] || []).find(x => x.id === el.dataset.id); if (it) { const st = stepOf(it), cur = amtOf(it); setAmount(it.id, Math.max(st, cur + st * +el.dataset.d)); } }
   if (a === 'pickFood') {
     const i = +el.dataset.i; $('#foodPick').innerHTML = foodPickHTML(i);
     const f = $('#pickForm'), info = $('#pickInfo');
     const upd = () => { const g = num(f.g.value) || 0, fd = FOODS[i], m = g / 100; info.textContent = `${fmt(fd.k * m, 0)} kcal · P ${fmt(fd.p * m)} · C ${fmt(fd.c * m)} · G ${fmt(fd.f * m)}`; };
-    f.g.addEventListener('input', upd); upd(); f.g.focus(); f.g.select();
+    f.g.addEventListener('input', upd); upd(); f.g.focus({ preventScroll: true }); f.g.select();
     f.addEventListener('submit', ev2 => {
       ev2.preventDefault(); const g = num(f.g.value) || 0, fd = FOODS[i], m = g / 100;
       const st = fd.g <= 60 ? fd.g : Math.max(10, Math.round(fd.g / 3 / 10) * 10);

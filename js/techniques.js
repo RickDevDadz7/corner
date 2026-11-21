@@ -18,10 +18,6 @@ const CROSS = P({ p: [0.08, 0.86, 0], py: -2, cy: 12, lean: 16, hR: [0.88, 0.18,
 const HOOK_LOAD = P({ cy: -62, py: -50, lean: 14, p: [0.02, 0.84, -0.02], hL: [0.22, 0.16, 0.12], fL: [0.38, 0, -0.12], tL: [0.5, 0, -0.86] });
 const HOOK_MID = P({ cy: -30, py: -30, lean: 13, p: [0.04, 0.84, 0], hL: [0.3, 0.22, 0.5], eL: [-0.3, 0.3, 1], tL: [0.7, 0, -0.3] });
 const HOOK = P({ cy: 10, py: -4, lean: 13, p: [0.07, 0.84, 0], hL: [0.48, 0.21, -0.02], eL: [-0.1, 0.4, 1], hR: [0.16, 0.22, -0.06], tL: [0.8, 0, 0.6] });
-const HOOK4_MID = P({ cy: -20, py: -20, lean: 14, p: [0.04, 0.85, 0], hR: [0.3, 0.24, -0.5], eR: [-0.3, 0.3, -1], fR: [-0.27, 0.04, 0.1], tR: [0.8, -0.3, 0.5] });
-const HOOK4 = P({ cy: 30, py: 8, lean: 14, p: [0.08, 0.86, 0], hR: [0.48, 0.22, 0.02], eR: [-0.1, 0.4, -1], hL: [0.16, 0.22, 0.12], fR: [-0.27, 0.06, 0.1], tR: [0.8, -0.35, 0.5] });
-const UP_DIP = P({ p: [0.0, 0.72, 0], lean: 22, cy: -52, py: -44, hR: [0.16, -0.28, -0.1], eR: [-0.6, -1, -0.3] });
-const UP6 = P({ p: [0.08, 0.92, 0], cy: 14, py: -4, lean: 6, hR: [0.44, 0.2, 0.0], eR: [0.1, -1, -0.15], hL: [0.18, 0.24, 0.1], fR: [-0.27, 0.06, 0.1], tR: [0.8, -0.35, 0.5] });
 const UP5_DIP = P({ p: [0.03, 0.72, 0], lean: 22, cy: -60, py: -50, hL: [0.18, -0.28, 0.1], eL: [-0.6, -1, 0.3] });
 const UP5 = P({ p: [0.07, 0.9, 0], cy: -20, py: -22, lean: 6, hL: [0.44, 0.2, 0.0], eL: [0.1, -1, 0.15], hR: [0.16, 0.24, -0.1] });
 const BODYJAB = P({ p: [0.1, 0.72, 0], lean: 22, cy: -62, hL: [0.85, 0.05, -0.02], hR: [0.18, 0.24, -0.08] });
@@ -56,11 +52,12 @@ const TEEP_CH = P({ p: [-0.02, 0.9, 0], lean: 2, fL: [0.26, 0.55, -0.1], kL: [1,
 const TEEP = P({ p: [-0.06, 0.92, 0], py: -25, lean: -20, cy: -40, fL: [0.86, 0.78, -0.08], kL: [0, 1, 0], tL: [0.25, 1, 0], hL: [0.2, 0.24, 0.08] });
 const CLINCH = P({ p: [0.06, 0.88, 0], lean: 4, hL: [0.46, 0.14, 0.06], hR: [0.46, 0.14, -0.06], eL: [0, -0.4, 1], eR: [0, -0.4, -1] });
 const KNEE = P({ p: [0.14, 0.92, 0.02], py: 8, cy: -10, lean: -14, hL: [0.44, -0.02, 0.06], hR: [0.44, -0.02, -0.06], eL: [0, -0.4, 1], eR: [0, -0.4, -1], fR: [0.12, 0.42, 0.04], kR: [1, 0.7, 0], tR: [0.2, -1, 0] });
+const KNEE_D_MID = P({ p: [0.1, 0.9, 0.02], py: 10, cy: -5, lean: -8, hL: [0.44, -0.02, 0.08], hR: [0.44, -0.02, -0.04], eL: [0, -0.4, 1], eR: [0, -0.4, -1], fR: [-0.05, 0.42, 0.42], kR: [0.2, 0.5, 1], tR: [0.2, -1, 0] });
 const KNEE_D = P({ p: [0.12, 0.92, 0.04], py: 35, cy: 10, lean: -12, hL: [0.44, -0.02, 0.1], hR: [0.44, -0.02, -0.02], eL: [0, -0.4, 1], eR: [0, -0.4, -1], fR: [0.15, 0.4, 0.2], kR: [0.8, 0.6, -0.6], tR: [0.2, -1, 0] });
 const ELBOW_MID = P({ p: [0.04, 0.85, 0], cy: -15, py: -18, lean: 14, hR: [0.12, 0.3, -0.12], eR: [0.1, 0.25, -1], fR: [-0.27, 0.04, 0.1], tR: [0.8, -0.3, 0.5] });
 const ELBOW = P({ p: [0.07, 0.85, 0], py: 0, cy: 28, lean: 14, hR: [0.14, 0.27, 0.16], eR: [1, 0.25, -0.15], fR: [-0.27, 0.05, 0.1], tR: [0.8, -0.35, 0.5] });
-const ELBOW_UP_DIP = P({ p: [0.02, 0.76, 0], lean: 18, cy: -40, hR: [0.12, 0.1, -0.12] });
-const ELBOW_UP = P({ p: [0.07, 0.92, 0], cy: 15, lean: 6, hR: [0.06, 0.4, -0.04], eR: [1, 0.25, 0], fR: [-0.27, 0.05, 0.1], tR: [0.8, -0.35, 0.5] });
+const ELBOW_UP_DIP = P({ p: [0.02, 0.74, 0], lean: 20, cy: -42, hR: [0.1, 0.05, -0.14], eR: [0, -1, -0.2] });
+const ELBOW_UP = P({ p: [0.12, 0.92, 0], cy: 10, lean: 14, hR: [0.02, 0.42, -0.04], eR: [1, 0.15, 0], hL: [0.18, 0.24, 0.1], fR: [-0.27, 0.05, 0.1], tR: [0.8, -0.35, 0.5] });
 const CHECK = P({ p: [-0.02, 0.88, 0.02], lean: 10, fL: [0.3, 0.36, -0.22], kL: [0.6, 0.6, -0.8], tL: [0.8, 0.2, -0.3], hL: [0.2, 0.3, 0.08], hR: [0.16, 0.32, -0.08] });
 
 // ---------- MMA / quedas ----------
@@ -125,19 +122,11 @@ export const TECHNIQUES = [
     [F(G, 480, 0), F(CROSS_LOAD, 140, 0, { e: 'load' }), F(CROSS, 170, 1, { e: 'snap', fx: 'haR', hit: true, hi: ['anR', 'pel'] }), F(CROSS, 110, 2), F(G, 300, 3)],
     ['Da guarda, gire o pé de trás (o calcanhar sobe).', 'O quadril gira pra frente e leva o ombro junto.', 'O braço só termina o movimento: mão reta até o alvo.', 'A mão da frente fica no rosto. Volta pra guarda.'],
     ['Soco só de braço, sem girar o pé e o quadril.', 'Inclinar o corpo além do joelho da frente.', 'Abrir o cotovelo (vira um soco "de lado").']),
-  T('gancho', SC, 'Socos', 'Cruzado / gancho de esquerda (3)', 'Curto e em arco: a força vem da rotação.',
+  T('gancho', SC, 'Socos', 'Cruzado (3)', 'Curto e em arco: a força vem da rotação.',
     [F(G, 480, 0), F(HOOK_LOAD, 170, 0, { e: 'load' }), F(HOOK_MID, 90, 1, { e: 'lin', fx: 'haL', hi: ['pel', 'anL'] }), F(HOOK, 110, 2, { e: 'snap', fx: 'haL', hit: true }), F(HOOK, 110, 3), F(G, 320, 3)],
     ['Peso levemente na perna da frente.', 'Gire o pé e o quadril da frente pra dentro.', 'Braço travado em ~90°, cotovelo na altura do punho.', 'O punho segue o giro do tronco e volta pro rosto.'],
     ['Abrir o braço pra "carregar" o golpe (o adversário vê).', 'Girar só o braço, sem o pé da frente.', 'Deixar a mão de trás cair durante o giro.'], { cam: 76, tilt: 22, zoom: 1.15 }),
-  T('gancho4', ['boxe', 'mma'], 'Socos', 'Cruzado / gancho de direita (4)', 'O gancho da mão de trás: rotação total do quadril.',
-    [F(G, 480, 0), F(P({ cy: -55 }), 140, 0, { e: 'load' }), F(HOOK4_MID, 100, 1, { e: 'lin', fx: 'haR', hi: ['anR', 'pel'] }), F(HOOK4, 110, 2, { e: 'snap', fx: 'haR', hit: true }), F(HOOK4, 110, 3), F(G, 340, 3)],
-    ['Da guarda, gire o pé de trás como no direto.', 'O quadril gira e o cotovelo sobe até a altura do ombro.', 'O braço fica travado em gancho; o tronco é que leva o punho.', 'Volte pra guarda pelo mesmo arco.'],
-    ['Abrir muito o arco (fica lento e visível).', 'Deixar o queixo exposto ao girar.', 'Girar sem o pé de trás.'], { cam: 76, tilt: 22, zoom: 1.15 }),
-  T('uppercut6', SC, 'Socos', 'Uppercut de direita (6)', 'De baixo pra cima: perfeito de perto.',
-    [F(G, 450, 0), F(UP_DIP, 260, 0, { e: 'load', hi: ['knL', 'knR'] }), F(UP_DIP, 120, 1, { hi: ['haR'] }), F(UP6, 190, 2, { e: 'snap', fx: 'haR', hit: true, hi: ['pel'] }), F(UP6, 200, 3), F(G, 340, 3)],
-    ['Dobre os joelhos (carrega as pernas).', 'O punho desce só até a altura do peito, palma virada pra você.', 'Empurre o chão com o pé de trás, gire o quadril: o punho sobe por dentro.', 'Acerta embaixo do queixo dele e volta pra guarda.'],
-    ['Baixar a mão até a cintura antes de subir (golpe telegrafado).', 'Jogar a cabeça pra frente junto.', 'Usar de longe: é golpe de curta distância.'], { cam: 8 }),
-  T('uppercut5', ['boxe', 'mma'], 'Socos', 'Uppercut de esquerda (5)', 'O uppercut da frente: rápido e escondido.',
+  T('uppercut5', SC, 'Socos', 'Uppercut (5)', 'De baixo pra cima: rápido, escondido e perfeito de perto.',
     [F(G, 450, 0), F(UP5_DIP, 250, 0, { e: 'load', hi: ['knL'] }), F(UP5_DIP, 110, 1, { hi: ['haL'] }), F(UP5, 180, 2, { e: 'snap', fx: 'haL', hit: true }), F(UP5, 190, 3), F(G, 320, 3)],
     ['Desça um pouco o peso sobre a perna da frente.', 'O punho desce curto, palma pra cima, cotovelo colado.', 'Gire o quadril da frente e empurre com a perna: o punho sobe.', 'Acerta o queixo e volta pra guarda.'],
     ['Abrir o cotovelo pra fora.', 'Perder a mão de trás do rosto.', 'Subir na ponta dos pés.'], { cam: 8 }),
@@ -193,9 +182,9 @@ export const TECHNIQUES = [
     ['Mãos atrás da cabeça do adversário (clinch).', 'Puxe com os braços enquanto o quadril vai pra frente.', 'O joelho sobe reto, ponta do pé pra baixo.', 'Volte pra base, pronto pra outra.'],
     ['Inclinar pra frente e "dar" o joelho só com a perna.', 'Soltar o clinch na hora do golpe.', 'Ficar na ponta do pé de apoio sem equilíbrio.']),
   T('joelhadadiag', ['muaythai'], 'Joelhos e cotovelos', 'Joelhada diagonal (no clinch)', 'Entra pelo lado, nas costelas.',
-    [F(G, 400, 0), F(CLINCH, 230, 0, { hi: ['haL', 'haR'] }), F(KNEE_D, 170, 1, { e: 'snap', fx: 'knR', hit: true, hi: ['pel'] }), F(KNEE_D, 120, 2), F(CLINCH, 220, 3), F(G, 300, 3)],
+    [F(G, 400, 0), F(CLINCH, 230, 0, { hi: ['haL', 'haR'] }), F(KNEE_D_MID, 160, 1, { e: 'lin', fx: 'knR', hi: ['pel'] }), F(KNEE_D, 150, 2, { e: 'snap', fx: 'knR', hit: true }), F(KNEE_D, 200, 2), F(CLINCH, 220, 3), F(G, 300, 3)],
     ['Clinch firme, puxando a cabeça dele pro lado oposto.', 'Gire o quadril e traga o joelho em diagonal.', 'Acerte as costelas com a ponta do joelho.', 'Alterne os lados.'],
-    ['Abrir o joelho demais (vira empurrão).', 'Soltar o pescoço dele.', 'Ficar parado depois da joelhada.'], { cam: 40 }),
+    ['Abrir o joelho demais (vira empurrão).', 'Soltar o pescoço dele.', 'Ficar parado depois da joelhada.'], { cam: 76, tilt: 22, zoom: 1.1 }),
   T('cotovelada', ['muaythai', 'mma'], 'Joelhos e cotovelos', 'Cotovelada horizontal', 'Curta, de perto, como um gancho.',
     [F(G, 450, 0), F(P({ cy: -55 }), 140, 0, { e: 'load' }), F(ELBOW_MID, 110, 1, { e: 'lin', fx: 'elR', hi: ['anR'] }), F(ELBOW, 140, 2, { e: 'snap', fx: 'elR', hit: true, hi: ['pel'] }), F(ELBOW, 200, 2, { hi: ['elR'] }), F(G, 320, 3)],
     ['Bem perto do adversário.', 'Gire o pé de trás e o quadril, como num gancho.', 'A ponta do cotovelo passa na altura da sobrancelha dele.', 'A outra mão protege o rosto.'],
@@ -203,7 +192,7 @@ export const TECHNIQUES = [
   T('cotoveladasobe', ['muaythai'], 'Joelhos e cotovelos', 'Cotovelada ascendente', 'De baixo pra cima, por dentro da guarda.',
     [F(G, 450, 0), F(ELBOW_UP_DIP, 220, 0, { e: 'load', hi: ['knL', 'knR'] }), F(ELBOW_UP, 160, 1, { e: 'snap', fx: 'elR', hit: true }), F(ELBOW_UP, 120, 2), F(G, 340, 3)],
     ['Dobre os joelhos.', 'Empurre o chão e suba o cotovelo por dentro, na linha do queixo.', 'A mão vai pra trás da sua cabeça.', 'Volte pra guarda.'],
-    ['Subir de longe.', 'Abrir o cotovelo pro lado.', 'Ficar com o rosto aberto embaixo.']),
+    ['Subir de longe.', 'Abrir o cotovelo pro lado.', 'Ficar com o rosto aberto embaixo.'], { cam: 4 }),
   T('checar', ['muaythai', 'mma'], 'Defesa', 'Checar o chute', 'Bloqueia o chute baixo com a canela.',
     [F(G, 480, 0), F(CHECK, 170, 0, { e: 'snap', hi: ['knL'] }), F(CHECK, 360, 1, { hi: ['anL'] }), F(G, 220, 2), F(JAB, 150, 3, { e: 'snap', fx: 'haL', hit: true }), F(G, 260, 3)],
     ['Leia o chute vindo na sua perna da frente.', 'Levante o joelho e vire a canela pra fora, encontrando o chute.', 'Guarda alta: pode vir soco junto.', 'Pise e devolva na hora.'],
