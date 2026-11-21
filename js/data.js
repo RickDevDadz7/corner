@@ -38,7 +38,7 @@ export const EVIDENCE = [
     refs: ['Jäger R et al. (2017) J Int Soc Sports Nutr 14:20', 'Kerksick CM et al. (2017) ISSN Position Stand: Nutrient Timing. J Int Soc Sports Nutr 14:33']
   },
   {
-    id: 'carb-combate', cat: 'Nutrição', tags: ['carboidrato', 'carbo', 'energia', 'boxe', 'cansaco', 'cansaço'],
+    id: 'carb-combate', cat: 'Nutrição', tags: ['carboidrato', 'carbo', 'energia', 'cansaco', 'cansaço', 'cansei', 'cansando', 'round', 'rounds', 'folego', 'fôlego', 'antes', 'sparring', 'comer'],
     title: 'Carboidrato pra quem luta',
     do: 'Treino moderado (~1 h/dia): 5–7 g/kg. Dias leves: 3–5 g/kg. Dias pesados de boxe + musculação: pode passar de 6 g/kg.',
     why: 'Rounds intensos dependem muito de glicogênio. A posição conjunta ACSM/AND/Dietitians of Canada escala o carboidrato pela carga de treino.',
@@ -110,7 +110,7 @@ export const EVIDENCE = [
     refs: ['Schoenfeld BJ et al. (2016) J Strength Cond Res 30(7):1805–1812']
   },
   {
-    id: 'progressao', cat: 'Musculação', tags: ['progressao', 'progressão', 'evoluir', 'estagnado', 'platô'],
+    id: 'progressao', cat: 'Musculação', tags: ['progressao', 'progressão', 'evoluir', 'estagnado', 'platô', 'plato', 'supino', 'travado'],
     title: 'Como progredir (dupla progressão)',
     do: 'Escolha uma faixa (ex.: 6–10). Quando bater o topo em todas as séries, suba a carga e volte pro início da faixa. O app sugere isso automaticamente.',
     why: 'Sobrecarga progressiva é o princípio central dos modelos de progressão do ACSM.',
@@ -118,7 +118,7 @@ export const EVIDENCE = [
     refs: ['ACSM (2009) Progression Models in Resistance Training for Healthy Adults. Med Sci Sports Exerc 41(3):687–708']
   },
   {
-    id: 'concorrente', cat: 'Boxe', tags: ['boxe', 'concorrente', 'interferencia', 'cardio', 'mesmo dia', 'ordem'],
+    id: 'concorrente', cat: 'Boxe', tags: ['boxe', 'concorrente', 'interferencia', 'cardio', 'mesmo dia', 'ordem', 'perna', 'cansei', 'round', 'rounds'],
     title: 'Boxe + musculação no mesmo plano',
     do: 'Se der, separe as sessões por 6 h ou mais. No mesmo horário, faça a técnica de boxe primeiro (precisa de você descansado). Evite perna pesada na véspera de sparring.',
     why: 'Meta-análise de treino concorrente: a interferência aparece mais em potência e hipertrofia de membros inferiores e cresce com o volume e a frequência do aeróbio.',

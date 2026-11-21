@@ -119,21 +119,21 @@ views.hoje = () => {
       ${ring(f.k, t.kcal, fmt(Math.max(0, t.kcal - f.k), 0), 'kcal restantes')}
       <div class="grow">${bar('Proteína', f.p, t.protein, 'g', 'var(--acc)')}${bar('Carboidrato', f.c, t.carbs, 'g', 'var(--cyan)')}${bar('Gordura', f.f, t.fat, 'g', 'var(--amber)')}</div>
     </div>
-    <div class="row gap mt"><a class="btn small" href="#/nutri">+ Comida</a><button class="btn small ghost" data-act="water" data-v="250">+ 250 ml água</button></div>
+    <div class="row gap mt"><a class="btn small" href="#nutri">+ Comida</a><button class="btn small ghost" data-act="water" data-v="250">+ 250 ml água</button></div>
     ${bar('Água', w, t.water, ' ml', 'var(--cyan)')}
   </div>
-  <a class="card link" href="#/sessao/${nextIdx}">
+  <a class="card link" href="#sessao-${nextIdx}">
     <small class="cat">Próximo treino · ${esc(plan.split)}</small>
     <h3>${esc(next.name)}</h3>
     <p class="muted small">${next.items.filter(i => EXERCISES[i.ex].t !== 'prehab').slice(0, 4).map(i => esc(EXERCISES[i.ex].n)).join(' · ')}…</p>
     <span class="go">Começar →</span>
   </a>
   <div class="card">
-    <div class="row between"><h3>Boxe hoje</h3><a href="#/boxe" class="small">Timer →</a></div>
+    <div class="row between"><h3>Boxe hoje</h3><a href="#boxe" class="small">Timer →</a></div>
     ${boxToday.length ? boxToday.map(b => `<p class="small">${esc(BOX_TYPES[b.type].n)} · ${b.min} min · ~${fmt(b.kcal, 0)} kcal</p>`).join('') : '<p class="muted small">Nenhuma sessão registrada hoje.</p>'}
   </div>
   <div class="card">
-    <div class="row between"><h3>Peso</h3><button class="btn small ghost" data-act="weighPrompt">Registrar</button></div>
+    <form id="weighForm" class="row between"><h3>Peso</h3><div class="row gap"><input name="kg" inputmode="decimal" placeholder="${fmt(latestWeight())} kg" style="width:96px" aria-label="Peso de hoje"><button class="btn small" type="submit">Salvar</button></div></form>
     ${weightChart()}
   </div>
   <small class="cat pad">Ciência do dia</small>
@@ -198,7 +198,7 @@ views.treino = () => {
   const hist = S.logs.workouts.slice(-5).reverse();
   return `<section class="head"><h1>Treino</h1><div class="chip">${esc(plan.split)}</div></section>
   ${plan.reduced ? `<p class="note small">Volume ajustado pra baixo (${S.profile.experience === 'iniciante' ? 'iniciante' : 'muito boxe na semana'}). Recupere bem antes de subir.</p>` : ''}
-  ${plan.days.map((d, i) => `<a class="card link" href="#/sessao/${i}">
+  ${plan.days.map((d, i) => `<a class="card link" href="#sessao-${i}">
     <small class="cat">Dia ${i + 1}</small><h3>${esc(d.name)}</h3>
     <p class="muted small">${d.items.length} exercícios · ~${d.items.reduce((a, b) => a + b.sets, 0)} séries</p><span class="go">Abrir →</span></a>`).join('')}
   <details class="card"><summary><h3>Volume semanal por músculo</h3></summary>
@@ -218,7 +218,7 @@ views.sessao = (idx) => {
   const day = plan.days[+idx] || plan.days[0];
   if (!draft || draft.idx !== day.idx) draft = { idx: day.idx, key: day.key, name: day.name, date: today(), sets: {} };
   const lastFor = ex => { for (let i = S.logs.workouts.length - 1; i >= 0; i--) { const w = S.logs.workouts[i]; if (w.sets[ex]?.some(s => s.reps)) return w.sets[ex]; } return null; };
-  return `<section class="head"><a href="#/treino" class="back">←</a><h1>${esc(day.name)}</h1></section>
+  return `<section class="head"><a href="#treino" class="back">←</a><h1>${esc(day.name)}</h1></section>
   <p class="note small">Aqueça 5–10 min + 1–2 séries leves no 1º composto. Exercícios de potência primeiro, sempre descansado.</p>
   ${day.items.map(it => {
     const e = EXERCISES[it.ex], last = lastFor(it.ex), sg = suggest(it, last);
@@ -365,8 +365,9 @@ PONTOS FRACOS NO BOXE: ${S.weak.map(id => WEAKNESSES.find(w => w.id === id)?.n).
 CARTAS DE EVIDÊNCIA:
 ${EVIDENCE.map(e => `- [${e.level}] ${e.title}: ${e.do} (${e.refs.join('; ')})`).join('\n')}`;
 }
+const STOP = new Set(['como', 'que', 'uma', 'para', 'pra', 'com', 'sem', 'mais', 'tem', 'dos', 'das', 'nos', 'nas', 'por', 'qual', 'quanto', 'aumentar', 'posso', 'devo', 'melhor']);
 function offlineAnswer(q) {
-  const words = q.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').split(/\W+/).filter(w => w.length > 2);
+  const words = q.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').split(/\W+/).filter(w => w.length > 2 && !STOP.has(w));
   const scored = EVIDENCE.map(e => {
     const hay = (e.tags.join(' ') + ' ' + e.title + ' ' + e.do).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
     return [e, words.reduce((s, w) => s + (hay.includes(w) ? 1 : 0), 0)];
@@ -377,7 +378,7 @@ function offlineAnswer(q) {
 views.coach = () => {
   const hasKey = !!getKey();
   return `<section class="head"><h1>Coach</h1><div class="chip ${hasKey ? 'on' : ''}">${hasKey ? 'IA ativa' : 'Offline'}</div></section>
-  ${hasKey ? '' : `<p class="note small">Sem chave de API, o coach responde com as cartas de evidência. Para conversar de verdade, adicione sua chave da API Anthropic em <a href="#/perfil">Perfil</a>.</p>`}
+  ${hasKey ? '' : `<p class="note small">Sem chave de API, o coach responde com as cartas de evidência. Para conversar de verdade, adicione sua chave da API Anthropic em <a href="#perfil">Perfil</a>.</p>`}
   <div id="chat" class="chat">${S.chat.length ? S.chat.map(m => msgHTML(m)).join('') : `<div class="muted small center pad">Pergunte qualquer coisa. Ex.: "Tô cansando no 3º round, o que ajusto?" ou "Posso treinar perna no dia do sparring?"</div>`}</div>
   <div class="chips">${['Cansei no 3º round', 'Como aumentar a força do soco?', 'O que comer antes do sparring?', 'Tô estagnado no supino'].map(s => `<button class="chipbtn" data-act="ask" data-q="${esc(s)}">${esc(s)}</button>`).join('')}</div>
   <form id="chatForm" class="chatbar"><textarea name="q" rows="1" placeholder="Fale com seu córner…"></textarea><button class="btn primary" type="submit" aria-label="Enviar">➤</button></form>
@@ -430,13 +431,13 @@ views.perfil = () => `${views.onboarding()}
 // ---------------- Roteador ----------------
 const TABS = [['hoje', 'Hoje', 'M3 12l9-8 9 8M5 10v10h14V10'], ['nutri', 'Nutrição', 'M12 3c4 3 6 6 6 10a6 6 0 0 1-12 0c0-4 2-7 6-10z'], ['treino', 'Treino', 'M3 10v4M6 7v10M18 7v10M21 10v4M6 12h12'], ['boxe', 'Boxe', 'M7 4h7a4 4 0 0 1 4 4v4a6 6 0 0 1-6 6H9a4 4 0 0 1-4-4V6a2 2 0 0 1 2-2zM9 18v3h6v-3'], ['coach', 'Coach', 'M4 5h16v11H8l-4 4z']];
 function render() {
-  const [route, arg] = (location.hash.replace(/^#\/?/, '') || 'hoje').split('/');
+  const [route, arg] = (location.hash.replace(/^#\/?/, '') || 'hoje').split(/[\/-]/);
   const app = $('#app');
   if (!S.profile) { app.innerHTML = views.onboarding(); $('#nav').hidden = true; $('#topbar').hidden = true; bindAfter('onboarding'); return; }
   $('#nav').hidden = false; $('#topbar').hidden = false;
   const v = views[route] ? route : 'hoje';
   app.innerHTML = views[v](arg);
-  $('#nav').innerHTML = TABS.map(([id, label, d]) => `<a href="#/${id}" class="${(v === id || (v === 'sessao' && id === 'treino')) ? 'on' : ''}"><svg viewBox="0 0 24 24"><path d="${d}"/></svg><span>${label}</span></a>`).join('');
+  $('#nav').innerHTML = TABS.map(([id, label, d]) => `<a href="#${id}" class="${(v === id || (v === 'sessao' && id === 'treino')) ? 'on' : ''}"><svg viewBox="0 0 24 24"><path d="${d}"/></svg><span>${label}</span></a>`).join('');
   bindAfter(v);
   if (v === 'boxe') paintTimer();
 }
@@ -459,7 +460,14 @@ function bindAfter(v) {
       const first = !S.profile;
       S.profile = p;
       if (first || !S.logs.weights[today()]) S.logs.weights[today()] = p.weight;
-      save(); toast(first ? 'Plano pronto! 🥊' : 'Perfil atualizado'); location.hash = '#/hoje'; render();
+      save(); toast(first ? 'Plano pronto! 🥊' : 'Perfil atualizado'); location.hash = '#hoje'; render();
+    });
+  }
+  if (v === 'hoje') {
+    $('#weighForm').addEventListener('submit', e => {
+      e.preventDefault(); const kg = num(e.target.kg.value);
+      if (!kg || kg < 30 || kg > 300) { toast('Peso inválido'); return; }
+      S.logs.weights[today()] = kg; save(); render(); toast('Peso registrado');
     });
   }
   if (v === 'nutri') {
@@ -515,10 +523,6 @@ document.addEventListener('click', e => {
   const el = e.target.closest('[data-act]'); if (!el) return;
   const a = el.dataset.act;
   if (a === 'water') { S.logs.water[today()] = (S.logs.water[today()] || 0) + +el.dataset.v; save(); render(); }
-  if (a === 'weighPrompt') {
-    const v = num(prompt('Peso de hoje (kg):', latestWeight() ?? ''));
-    if (v && v > 30 && v < 300) { S.logs.weights[today()] = v; save(); render(); toast('Peso registrado'); }
-  }
   if (a === 'pickFood') {
     const i = +el.dataset.i; $('#foodPick').innerHTML = foodPickHTML(i);
     const f = $('#pickForm'), info = $('#pickInfo');
@@ -532,7 +536,7 @@ document.addEventListener('click', e => {
     const n = Object.values(draft?.sets || {}).flat().filter(s => s && s.reps).length;
     if (!n) { toast('Registre pelo menos uma série.'); return; }
     S.logs.workouts.push({ ...draft, sets: Object.fromEntries(Object.entries(draft.sets).map(([k, v]) => [k, v.filter(Boolean)])) });
-    draft = null; save(); toast(`Treino salvo: ${n} séries 💪`); location.hash = '#/treino';
+    draft = null; save(); toast(`Treino salvo: ${n} séries 💪`); location.hash = '#treino';
   }
   if (a === 'preset') { const p = TIMER_PRESETS.find(x => x.id === el.dataset.id); S.timer = { preset: p.id, rounds: p.rounds, work: p.work, rest: p.rest }; save(); timerReset(); render(); }
   if (a === 'tToggle') timerToggle();
@@ -550,7 +554,11 @@ document.addEventListener('click', e => {
     const blob = new Blob([JSON.stringify(S, null, 1)], { type: 'application/json' });
     const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `corner-backup-${today()}.json`; link.click();
   }
-  if (a === 'reset') { if (confirm('Apagar todos os dados deste aparelho?')) { S = blank(); save(); location.hash = '#/hoje'; render(); } }
+  if (a === 'reset') {
+    if (el.dataset.armed) { S = blank(); save(); location.hash = '#hoje'; render(); return; }
+    el.dataset.armed = '1'; el.textContent = 'Toque de novo pra apagar TUDO';
+    setTimeout(() => { if (el.isConnected) { delete el.dataset.armed; el.textContent = 'Apagar tudo'; } }, 4000);
+  }
 });
 document.addEventListener('input', e => {
   const k = e.target.dataset?.set; if (!k || !draft) return;

@@ -3,7 +3,7 @@
   "short_name": "Corner",
   "description": "Seu córner de bolso: nutrição, musculação e boxe com base científica.",
   "lang": "pt-BR",
-  "start_url": "./#/hoje",
+  "start_url": "./#hoje",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
