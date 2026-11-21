@@ -1,13 +1,22 @@
-import { EVIDENCE, EXERCISES, FOODS, BOX_TYPES, TIMER_PRESETS, WEAKNESSES, MUSCLES, MAJOR } from './data.js';
-import { NEAT, GOALS, targets, adaptiveTDEE, buildPlan, suggest, dayKey, fmt, sessionKcal, movingAvg } from './calc.js';
+import { EVIDENCE, EXERCISES, FOODS, BOX_TYPES, TIMER_PRESETS, WEAKNESSES, MUSCLES, EQUIP, PUNCHES } from './data.js';
+import { NEAT, GOALS, targets, adaptiveTDEE, buildPlan as plan_, suggest, dayKey, fmt, sessionKcal, movingAvg, equipment, boxSession, comboPool, comboSpeech } from './calc.js';
+const buildPlan = p => plan_(p, S.prog);
 
 // ---------------- Armazenamento ----------------
 const KEY = 'corner:v1';
 const KEY_API = 'corner:apikey';
-const blank = () => ({ profile: null, logs: { weights: {}, food: {}, water: {}, workouts: [], boxing: [] }, settings: { adaptive: true, model: 'claude-sonnet-5-5' }, chat: [], weak: [], timer: { preset: 'amador', rounds: 3, work: 180, rest: 60 } });
+const blank = () => ({ profile: null, logs: { weights: {}, food: {}, water: {}, workouts: [], boxing: [] }, settings: { adaptive: true, model: 'claude-sonnet-5-5' }, chat: [], weak: [], prog: {}, boxGen: { minutes: 30, saco: false }, timer: { preset: 'amador', rounds: 3, work: 180, rest: 60, voice: true, calls: false, program: null } });
 let S = load();
 function load() {
-  try { const raw = localStorage.getItem(KEY); if (raw) return Object.assign(blank(), JSON.parse(raw)); } catch (e) { }
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (raw) {
+      const d = Object.assign(blank(), JSON.parse(raw));
+      d.timer = { ...blank().timer, ...d.timer };
+      if (d.profile && !d.profile.env) Object.assign(d.profile, { env: 'academia', equip: [], boxWhere: 'academia' });
+      return d;
+    }
+  } catch (e) { }
   return blank();
 }
 function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { toast('Não consegui salvar no aparelho.'); } }
@@ -77,7 +86,7 @@ const views = {};
 views.onboarding = () => {
   const p = S.profile || {};
   const sel = (name, opts, cur) => `<select name="${name}">${Object.entries(opts).map(([v, t]) => `<option value="${v}" ${String(cur) === String(v) ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select>`;
-  return `${S.profile ? '<section class="head"><h1>Perfil</h1></section>' : '<section class="hero"><div class="logo-big">CORNER</div><p>Seu córner de bolso: nutrição, musculação e boxe com base em ciência.</p></section>'}
+  return `${S.profile ? '<section class="head"><h1>Perfil</h1></section>' : '<section class="hero"><div class="logo-big">CORNER</div><p class="tag">Levanta. Ainda tem round.</p><p>Boxe, força e nutrição com base em ciência. Em casa ou na academia.</p></section>'}
   <form id="profileForm" class="card form">
     <h2>${S.profile ? 'Editar perfil' : 'Vamos te conhecer'}</h2>
     <div class="grid2">
@@ -90,14 +99,24 @@ views.onboarding = () => {
     <label>Dia a dia fora do treino ${sel('neat', NEAT, p.neat || 1.3)}</label>
     <label>Objetivo ${sel('goal', GOALS, p.goal || 'recomp')}</label>
     <label class="cut-only">Ritmo de perda ${sel('rate', { 0.5: '0,5% do peso/semana (recomendado)', 0.75: '0,75%/semana', 1: '1%/semana (agressivo)' }, p.rate || 0.5)}</label>
-    <label>Experiência na musculação ${sel('experience', { iniciante: 'Iniciante (< 1 ano)', intermediario: 'Intermediário (1–3 anos)', avancado: 'Avançado (3+ anos)' }, p.experience || 'intermediario')}</label>
+    <label>Experiência de treino ${sel('experience', { iniciante: 'Iniciante (< 1 ano)', intermediario: 'Intermediário (1–3 anos)', avancado: 'Avançado (3+ anos)' }, p.experience || 'intermediario')}</label>
+    <h3 class="sec">Boxe</h3>
     <div class="grid2">
-      <label>Dias de musculação ${sel('liftDays', { 2: '2', 3: '3', 4: '4', 5: '5', 6: '6' }, p.liftDays || 3)}</label>
-      <label>Min. por sessão <input name="liftMin" inputmode="numeric" value="${p.liftMin ?? 60}"></label>
-      <label>Dias de boxe ${sel('boxDays', { 0: '0', 1: '1', 2: '2', 3: '3', 4: '4', 5: '5', 6: '6' }, p.boxDays ?? 3)}</label>
-      <label>Min. por treino <input name="boxMin" inputmode="numeric" value="${p.boxMin ?? 75}"></label>
+      <label>Onde treina ${sel('boxWhere', { casa: 'Em casa', academia: 'Academia / equipe' }, p.boxWhere || 'casa')}</label>
+      <label>Dias por semana ${sel('boxDays', { 0: '0', 1: '1', 2: '2', 3: '3', 4: '4', 5: '5', 6: '6' }, p.boxDays ?? 3)}</label>
+      <label>Min. por treino <input name="boxMin" inputmode="numeric" value="${p.boxMin ?? 45}"></label>
+      <label>Tipo mais comum ${sel('boxType', Object.fromEntries(Object.entries(BOX_TYPES).map(([k, v]) => [k, v.n])), p.boxType || 'tecnica')}</label>
     </div>
-    <label>Tipo de treino de boxe mais comum ${sel('boxType', Object.fromEntries(Object.entries(BOX_TYPES).map(([k, v]) => [k, v.n])), p.boxType || 'saco')}</label>
+    <h3 class="sec">Força (musculação ou calistenia)</h3>
+    <div class="grid2">
+      <label>Onde ${sel('env', { casa: 'Em casa / calistenia', academia: 'Academia' }, p.env || 'casa')}</label>
+      <label>Dias por semana ${sel('liftDays', { 0: '0 (por enquanto)', 1: '1', 2: '2', 3: '3', 4: '4', 5: '5', 6: '6' }, p.liftDays ?? 2)}</label>
+      <label>Min. por sessão <input name="liftMin" inputmode="numeric" value="${p.liftMin ?? 40}"></label>
+    </div>
+    <fieldset class="equip"><legend>O que você tem em casa?</legend>
+      ${Object.entries(EQUIP).map(([k, v]) => `<label class="check"><input type="checkbox" name="equip" value="${k}" ${(p.equip || []).includes(k) ? 'checked' : ''}><span>${esc(v)}</span></label>`).join('')}
+      <small class="muted">Sem nada marcado = só peso corporal (calistenia). O app escolhe os exercícios pelo que você tem.</small>
+    </fieldset>
     <button class="btn primary" type="submit">${S.profile ? 'Salvar' : 'Calcular meu plano'}</button>
     <p class="muted small">Tudo fica salvo só neste aparelho. Não substitui nutricionista ou médico se você tem alguma condição de saúde.</p>
   </form>`;
@@ -107,7 +126,7 @@ views.hoje = () => {
   const t = T(), f = dayFood(), w = S.logs.water[today()] || 0;
   const plan = buildPlan(S.profile);
   const lastW = S.logs.workouts[S.logs.workouts.length - 1];
-  const nextIdx = lastW ? (lastW.idx + 1) % plan.days.length : 0;
+  const nextIdx = lastW && plan.days.length ? (lastW.idx + 1) % plan.days.length : 0;
   const next = plan.days[nextIdx];
   const hour = new Date().getHours();
   const greet = hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite';
@@ -122,12 +141,13 @@ views.hoje = () => {
     <div class="row gap mt"><a class="btn small" href="#nutri">+ Comida</a><button class="btn small ghost" data-act="water" data-v="250">+ 250 ml água</button></div>
     ${bar('Água', w, t.water, ' ml', 'var(--cyan)')}
   </div>
-  <a class="card link" href="#sessao-${nextIdx}">
-    <small class="cat">Próximo treino · ${esc(plan.split)}</small>
+  ${next ? `<a class="card link" href="#sessao-${nextIdx}">
+    <small class="cat">Próximo treino de força · ${esc(plan.split)}</small>
     <h3>${esc(next.name)}</h3>
-    <p class="muted small">${next.items.filter(i => EXERCISES[i.ex].t !== 'prehab').slice(0, 4).map(i => esc(EXERCISES[i.ex].n)).join(' · ')}…</p>
+    <p class="muted small">${next.items.filter(i => EXERCISES[i.ex].t !== 'prehab').slice(0, 4).map(i => esc(i.name)).join(' · ')}…</p>
     <span class="go">Começar →</span>
-  </a>
+  </a>` : `<a class="card link panel" href="#boxe"><small class="cat">Treino de hoje</small><h3>Gerar treino de boxe ${S.profile.boxWhere === 'academia' ? '' : 'em casa'}</h3>
+    <p class="muted small">Rounds com tema, combinações faladas e foco nos seus pontos fracos.</p><span class="go">Montar →</span></a>`}
   <div class="card">
     <div class="row between"><h3>Boxe hoje</h3><a href="#boxe" class="small">Timer →</a></div>
     ${boxToday.length ? boxToday.map(b => `<p class="small">${esc(BOX_TYPES[b.type].n)} · ${b.min} min · ~${fmt(b.kcal, 0)} kcal</p>`).join('') : '<p class="muted small">Nenhuma sessão registrada hoje.</p>'}
@@ -196,11 +216,17 @@ views.treino = () => {
   const plan = buildPlan(S.profile);
   const vols = Object.entries(plan.vol).filter(([m]) => m !== 'pescoco');
   const hist = S.logs.workouts.slice(-5).reverse();
-  return `<section class="head"><h1>Treino</h1><div class="chip">${esc(plan.split)}</div></section>
+  if (plan.none) return `<section class="head"><h1>Treino</h1><div class="chip">Só boxe</div></section>
+  <div class="card panel"><h3>Você marcou 0 dias de força</h3>
+    <p class="small">Tudo certo focar no boxe. Mas 2 sessões curtas de força por semana (25–40 min, dá pra fazer em casa só com peso corporal) melhoram potência de soco e protegem ombro e pescoço.</p>
+    <button class="btn primary" data-act="addStrength">Quero 2 sessões de calistenia</button></div>
+  <small class="cat pad">Base científica</small>
+  ${['soco', 'calistenia', 'concorrente', 'pescoco'].map(id => evCard(EVIDENCE.find(e => e.id === id))).join('')}`;
+  return `<section class="head"><h1>Treino</h1><div class="chip">${esc(plan.split)}${plan.home ? ' · casa' : ''}</div></section>
   ${plan.reduced ? `<p class="note small">Volume ajustado pra baixo (${S.profile.experience === 'iniciante' ? 'iniciante' : 'muito boxe na semana'}). Recupere bem antes de subir.</p>` : ''}
   ${plan.days.map((d, i) => `<a class="card link" href="#sessao-${i}">
     <small class="cat">Dia ${i + 1}</small><h3>${esc(d.name)}</h3>
-    <p class="muted small">${d.items.length} exercícios · ~${d.items.reduce((a, b) => a + b.sets, 0)} séries</p><span class="go">Abrir →</span></a>`).join('')}
+    <p class="muted small">${d.items.filter(i => EXERCISES[i.ex].t !== 'prehab').slice(0, 3).map(i => esc(i.name)).join(' · ')}… · ${d.items.reduce((a, b) => a + b.sets, 0)} séries</p><span class="go">Abrir →</span></a>`).join('')}
   <details class="card"><summary><h3>Volume semanal por músculo</h3></summary>
     <p class="small muted">Séries/semana (indiretas = 0,5). Faixa de referência: 10–20 por músculo.</p>
     ${vols.map(([m, v]) => { const c = v < 6 ? 'var(--muted)' : v < 10 ? 'var(--amber)' : v <= 20 ? 'var(--acc)' : 'var(--red)'; return bar(MUSCLES[m], v, 20, '', c); }).join('')}
@@ -216,6 +242,7 @@ let draft = null; // treino em andamento
 views.sessao = (idx) => {
   const plan = buildPlan(S.profile);
   const day = plan.days[+idx] || plan.days[0];
+  if (!day) { location.hash = '#treino'; return ''; }
   if (!draft || draft.idx !== day.idx) draft = { idx: day.idx, key: day.key, name: day.name, date: today(), sets: {} };
   const lastFor = ex => { for (let i = S.logs.workouts.length - 1; i >= 0; i--) { const w = S.logs.workouts[i]; if (w.sets[ex]?.some(s => s.reps)) return w.sets[ex]; } return null; };
   return `<section class="head"><a href="#treino" class="back">←</a><h1>${esc(day.name)}</h1></section>
@@ -226,19 +253,21 @@ views.sessao = (idx) => {
     const rows = Array.from({ length: it.sets }, (_, s) => {
       const v = draft.sets[it.ex]?.[s] || {};
       return `<div class="set ${v.reps ? 'done' : ''}"><span class="mono">${s + 1}</span>
-        ${e.inc ? `<input data-set="${it.ex}|${s}|kg" inputmode="decimal" placeholder="${sg.kg ?? 'kg'}" value="${v.kg ?? ''}">` : '<span class="muted small">peso corporal</span>'}
+        ${e.inc ? `<input data-set="${it.ex}|${s}|kg" inputmode="decimal" placeholder="${sg.kg ?? 'kg'}" value="${v.kg ?? ''}">` : `<span class="muted small">${e.band ? 'elástico' : e.t === 'power' ? 'explosivo' : 'peso corporal'}</span>`}
         <input data-set="${it.ex}|${s}|reps" inputmode="numeric" placeholder="${it.lo === it.hi ? it.lo : it.lo + '–' + it.hi}" value="${v.reps ?? ''}">
         <span class="small muted">${unit}</span></div>`;
     }).join('');
-    return `<div class="card ex"><div class="row between"><h3>${esc(e.n)}</h3><span class="chip">${it.sets}×${it.lo === it.hi ? it.lo : it.lo + '–' + it.hi}${e.u === '/lado' ? '/lado' : ''}</span></div>
-      <p class="small muted">${esc(e.cue)}${it.rir ? ` · RIR ${it.rir} · descanso ${it.rest}` : ''}</p>
+    const lv = e.vars ? `<div class="lvl-row"><button class="lvlbtn" data-act="lvl" data-ex="${it.ex}" data-d="-1" ${it.lvl <= 0 ? 'disabled' : ''} aria-label="Mais fácil">‹</button>
+        <span class="small">Nível ${it.lvl + 1}/${e.vars.length}</span><button class="lvlbtn ${sg.up ? 'hot' : ''}" data-act="lvl" data-ex="${it.ex}" data-d="1" ${it.lvl >= e.vars.length - 1 ? 'disabled' : ''} aria-label="Mais difícil">›</button></div>` : '';
+    return `<div class="card ex"><div class="row between"><h3>${esc(it.name)}</h3><span class="chip">${it.sets}×${it.lo === it.hi ? it.lo : it.lo + '–' + it.hi}${e.u && e.u !== 's' && e.u !== 'm' ? e.u : ''}</span></div>
+      ${lv}<p class="small muted">${esc(e.cue)}${it.rir ? ` · RIR ${it.rir} · descanso ${it.rest}` : ''}</p>
       <p class="small sug">${esc(sg.text)}</p>${rows}</div>`;
   }).join('')}
   <button class="btn primary block" data-act="finishWorkout">Finalizar treino</button>`;
 };
 
 // ---------------- Boxe + Timer ----------------
-const TM = { phase: 'idle', round: 0, end: 0, left: 0, paused: false, iv: null, warned: false };
+const TM = { phase: 'idle', round: 0, end: 0, left: 0, paused: false, iv: null, warned: false, combo: '', nextCall: 0, said30: false };
 let AC = null, wakeLock = null;
 function audio() { if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { } } if (AC?.state === 'suspended') AC.resume(); return AC; }
 function bell(times = 1) {
@@ -262,82 +291,151 @@ function clap() {
     const s = ac.createBufferSource(), g = ac.createGain(); g.gain.value = 0.9; s.buffer = buf; s.connect(g).connect(ac.destination); s.start(t0);
   }
 }
+let VOICE = null;
+function say(text) {
+  if (!S.timer.voice || !('speechSynthesis' in window)) return;
+  try {
+    if (!VOICE) VOICE = speechSynthesis.getVoices().find(v => /pt[-_]BR/i.test(v.lang)) || speechSynthesis.getVoices().find(v => /^pt/i.test(v.lang)) || null;
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text); u.lang = 'pt-BR'; u.rate = 1.25; if (VOICE) u.voice = VOICE;
+    speechSynthesis.speak(u);
+  } catch (e) { }
+}
 async function lockScreen(on) {
   try {
     if (on && 'wakeLock' in navigator && !wakeLock) wakeLock = await navigator.wakeLock.request('screen');
     if (!on && wakeLock) { await wakeLock.release(); wakeLock = null; }
   } catch (e) { }
 }
-function startPhase(phase, secs) { TM.phase = phase; TM.end = Date.now() + secs * 1000; TM.left = secs; TM.warned = false; }
+const prog = () => S.timer.program;
+function cfgRound(r) { const P = prog(); return P ? P[Math.max(0, r - 1)] : { work: S.timer.work, rest: S.timer.rest, calls: S.timer.calls, t: '' }; }
+function totalRounds() { return prog() ? prog().length : S.timer.rounds; }
+function startPhase(phase, secs) { TM.phase = phase; TM.end = Date.now() + secs * 1000; TM.left = secs; TM.warned = false; TM.said30 = false; TM.combo = ''; TM.nextCall = Date.now() + 2500; }
+function callCombo() {
+  const c = cfgRound(TM.round);
+  if (!c.calls) return;
+  const pool = comboPool(S.profile.experience === 'avancado' ? 'avancado' : S.profile.experience === 'iniciante' ? 'iniciante' : 'intermediario', c);
+  let pick; do { pick = pool[Math.floor(Math.random() * pool.length)]; } while (pool.length > 1 && pick === TM.combo);
+  TM.combo = pick; say(comboSpeech(pick));
+  const gap = S.profile.experience === 'iniciante' ? [5000, 8000] : [3500, 6500];
+  TM.nextCall = Date.now() + gap[0] + Math.random() * (gap[1] - gap[0]);
+}
 function tick() {
   if (TM.paused || TM.phase === 'idle' || TM.phase === 'done') return;
   TM.left = Math.max(0, Math.ceil((TM.end - Date.now()) / 1000));
-  const cfg = S.timer;
-  if (TM.phase === 'round' && TM.left === 10 && !TM.warned && cfg.work > 20) { TM.warned = true; clap(); }
+  const c = cfgRound(TM.round);
+  if (TM.phase === 'round') {
+    if (TM.left === 10 && !TM.warned && c.work > 20) { TM.warned = true; clap(); if (c.calls) { say('Dez segundos! Solta tudo!'); TM.combo = 'SOLTA TUDO!'; TM.nextCall = Infinity; } }
+    else if (TM.left > 10 && Date.now() >= TM.nextCall) callCombo();
+  }
   if (TM.left <= 0) {
-    if (TM.phase === 'prep') { startPhase('round', cfg.work); TM.round = 1; bell(1); }
+    if (TM.phase === 'prep') { TM.round = 1; startPhase('round', cfgRound(1).work); bell(1); announce(); }
     else if (TM.phase === 'round') {
-      if (TM.round >= cfg.rounds) { TM.phase = 'done'; bell(3); clearInterval(TM.iv); lockScreen(false); }
-      else { startPhase('rest', cfg.rest); bell(2); }
-    } else if (TM.phase === 'rest') { TM.round++; startPhase('round', cfg.work); bell(1); }
+      if (TM.round >= totalRounds()) { TM.phase = 'done'; bell(3); clearInterval(TM.iv); lockScreen(false); say('Fim do treino. Bom trabalho.'); finishProgram(); }
+      else { startPhase('rest', c.rest); bell(2); const nx = cfgRound(TM.round + 1); if (nx.t) setTimeout(() => say('Próximo: ' + nx.t), 1800); }
+    } else if (TM.phase === 'rest') { TM.round++; startPhase('round', cfgRound(TM.round).work); bell(1); announce(); }
   }
   paintTimer();
 }
+function announce() { const c = cfgRound(TM.round); if (c.t) setTimeout(() => say(c.t), 1600); }
+function finishProgram() {
+  if (!prog()) return;
+  const mins = Math.round(prog().reduce((a, r) => a + r.work + r.rest, 0) / 60);
+  const type = prog().some(r => r.saco) ? 'saco' : 'tecnica';
+  S.logs.boxing.push({ date: today(), type, min: mins, kcal: sessionKcal(BOX_TYPES[type].met, latestWeight(), mins) });
+  save(); toast(`Sessão registrada: ${mins} min 🥊`);
+}
 function paintTimer() {
   const el = $('#timer'); if (!el) return;
-  const cfg = S.timer;
-  const total = TM.phase === 'round' ? cfg.work : TM.phase === 'rest' ? cfg.rest : TM.phase === 'prep' ? 10 : 1;
-  const left = TM.phase === 'idle' ? cfg.work : TM.left;
+  const c = cfgRound(TM.round || 1), N = totalRounds();
+  const total = TM.phase === 'round' ? c.work : TM.phase === 'rest' ? c.rest : TM.phase === 'prep' ? 10 : 1;
+  const left = TM.phase === 'idle' ? cfgRound(1).work : TM.left;
   const mm = Math.floor(left / 60), ss = String(left % 60).padStart(2, '0');
-  const r = 120, c = 2 * Math.PI * r, pct = TM.phase === 'idle' || TM.phase === 'done' ? 1 : left / total;
-  const lab = { idle: 'Pronto', prep: 'Prepare-se', round: `Round ${TM.round}/${cfg.rounds}`, rest: `Descanso · próximo ${TM.round + 1}/${cfg.rounds}`, done: 'Fim! Bom trabalho' }[TM.phase];
+  const r = 120, circ = 2 * Math.PI * r, pct = TM.phase === 'idle' || TM.phase === 'done' ? 1 : left / total;
+  const lab = { idle: 'Pronto', prep: 'Prepare-se', round: `Round ${TM.round}/${N}`, rest: `Descanso · próximo ${TM.round + 1}/${N}`, done: 'Fim. Queimou tudo.' }[TM.phase];
   el.className = 'timer ph-' + TM.phase + (TM.phase === 'round' && left <= 10 ? ' last10' : '');
-  el.querySelector('.t-arc').style.strokeDasharray = c;
-  el.querySelector('.t-arc').style.strokeDashoffset = c * (1 - pct);
+  el.querySelector('.t-arc').style.strokeDasharray = circ;
+  el.querySelector('.t-arc').style.strokeDashoffset = circ * (1 - pct);
   el.querySelector('.t-time').textContent = `${mm}:${ss}`;
   el.querySelector('.t-lab').textContent = TM.paused ? 'Pausado' : lab;
+  const info = $('#tInfo');
+  if (info) {
+    const showR = TM.phase === 'rest' ? cfgRound(TM.round + 1) : c;
+    info.innerHTML = prog() && TM.phase !== 'done' ? `<b>${esc(showR.t)}</b><span>${esc(showR.f || '')}</span>` : '';
+  }
+  const cb = $('#tCombo'); if (cb) cb.textContent = TM.phase === 'round' ? TM.combo : '';
   $('#tStart').textContent = TM.phase === 'idle' || TM.phase === 'done' ? 'Iniciar' : TM.paused ? 'Continuar' : 'Pausar';
 }
 function timerToggle() {
   audio();
+  if (S.timer.voice && 'speechSynthesis' in window) { try { speechSynthesis.getVoices(); if (TM.phase === 'idle') say('Prepare-se'); } catch (e) { } }
   if (TM.phase === 'idle' || TM.phase === 'done') {
     TM.round = 0; TM.paused = false; startPhase('prep', 10);
     clearInterval(TM.iv); TM.iv = setInterval(tick, 200); lockScreen(true);
-  } else if (TM.paused) { TM.paused = false; TM.end = Date.now() + TM.left * 1000; lockScreen(true); }
-  else { TM.paused = true; }
+  } else if (TM.paused) { TM.paused = false; TM.end = Date.now() + TM.left * 1000; TM.nextCall = Date.now() + 2000; lockScreen(true); }
+  else { TM.paused = true; try { speechSynthesis.cancel(); } catch (e) { } }
   paintTimer();
 }
-function timerReset() { clearInterval(TM.iv); Object.assign(TM, { phase: 'idle', round: 0, paused: false }); lockScreen(false); paintTimer(); }
+function timerReset() { clearInterval(TM.iv); Object.assign(TM, { phase: 'idle', round: 0, paused: false, combo: '' }); lockScreen(false); try { speechSynthesis.cancel(); } catch (e) { } paintTimer(); }
 
+let genSession = null;
 views.boxe = () => {
   const c = S.timer, r = 120, circ = 2 * Math.PI * r;
   const week = S.logs.boxing.filter(b => (Date.now() - new Date(b.date + 'T12:00').getTime()) < 7 * 864e5);
-  const sel = S.weak;
+  const sel = S.weak, eq = equipment(S.profile);
+  const g = S.boxGen;
+  const P = c.program;
   return `<section class="head"><h1>Boxe</h1><div class="chip">${week.length} sessões / 7 dias</div></section>
-  <div class="card glow center">
+  <div class="card panel center" id="timerCard">
     <div id="timer" class="timer"><svg viewBox="0 0 260 260"><circle cx="130" cy="130" r="${r}" class="t-bg"/><circle cx="130" cy="130" r="${r}" class="t-arc" style="stroke-dasharray:${circ}"/></svg>
       <div class="t-center"><div class="t-time mono">0:00</div><div class="t-lab">Pronto</div></div></div>
+    <div id="tCombo" class="combo" aria-live="polite"></div>
+    <div id="tInfo" class="tinfo"></div>
+    ${P ? `<p class="small"><b>Treino carregado:</b> ${P.length} rounds · ~${Math.round(P.reduce((a, x) => a + x.work + x.rest, 0) / 60)} min <button class="linkbtn" data-act="unloadProg">trocar pra modo livre</button></p>` : `
     <div class="chips">${TIMER_PRESETS.map(p => `<button class="chipbtn ${c.preset === p.id ? 'on' : ''}" data-act="preset" data-id="${p.id}">${esc(p.n)}</button>`).join('')}</div>
     <div class="grid3 small">
       <label>Rounds<input data-tm="rounds" inputmode="numeric" value="${c.rounds}"></label>
       <label>Round (s)<input data-tm="work" inputmode="numeric" value="${c.work}"></label>
       <label>Descanso (s)<input data-tm="rest" inputmode="numeric" value="${c.rest}"></label>
     </div>
+    <label class="switch"><input type="checkbox" data-act="callsToggle" ${c.calls ? 'checked' : ''}> Chamar combinações no modo livre</label>`}
+    <label class="switch"><input type="checkbox" data-act="voiceToggle" ${c.voice ? 'checked' : ''}> Voz (fala as combinações em português)</label>
     <div class="row gap mt"><button id="tStart" class="btn primary grow" data-act="tToggle">Iniciar</button><button class="btn ghost" data-act="tReset">Zerar</button></div>
-    <p class="small muted">Gongo no início e no fim, batida de aviso aos 10 s finais. Tela fica acesa enquanto roda.</p>
+    <p class="small muted">Gongo no início e no fim, batida aos 10 s finais. Tela fica acesa enquanto roda.</p>
   </div>
-  <form id="boxForm" class="card form"><h3>Registrar sessão</h3>
+
+  <div class="card">
+    <small class="cat">Gerador</small>
+    <h3>Treino de boxe ${S.profile.boxWhere === 'academia' ? '' : 'em casa'}</h3>
+    <form id="genForm" class="form">
+      <div class="grid2">
+        <label>Duração<select name="minutes">${[20, 30, 45, 60].map(m => `<option ${+g.minutes === m ? 'selected' : ''}>${m}</option>`).join('')}</select></label>
+        <label>Saco de pancada<select name="saco"><option value="1" ${g.saco ? 'selected' : ''}>Tenho</option><option value="" ${g.saco ? '' : 'selected'}>Só sombra</option></select></label>
+      </div>
+      <button class="btn" type="submit">Gerar treino</button>
+    </form>
+    ${genSession ? `<ol class="rounds">${genSession.map((x, i) => `<li><span class="mono">R${i + 1}</span><div><b>${esc(x.t)}</b><small>${esc(x.f)}</small></div><span class="mono small">${x.work / 60 | 0}:${String(x.work % 60).padStart(2, '0')}</span></li>`).join('')}</ol>
+      <button class="btn primary block" data-act="loadProg">Carregar no timer ↑</button>` : '<p class="small muted">Monta os rounds com tema, foco e combinações faladas, usando seus pontos fracos marcados abaixo.</p>'}
+  </div>
+
+  <details class="card"><summary><h3>Legenda dos números</h3></summary>
+    <table class="tbl small">${Object.entries(PUNCHES).map(([k, v]) => `<tr><td class="mono">${k}</td><td>${v}</td></tr>`).join('')}</table>
+    <p class="small muted">Guarda ortodoxa (canhoto: espelhe). Ímpares = mão da frente, pares = mão de trás.</p>
+  </details>
+
+  <form id="boxForm" class="card form"><h3>Registrar sessão manual</h3>
     <div class="grid2"><label>Tipo<select name="type">${Object.entries(BOX_TYPES).map(([k, v]) => `<option value="${k}" ${k === S.profile.boxType ? 'selected' : ''}>${esc(v.n)}</option>`).join('')}</select></label>
     <label>Minutos<input name="min" inputmode="numeric" value="${S.profile.boxMin || 60}"></label></div>
     <button class="btn small" type="submit">Salvar sessão</button></form>
-  <div class="card"><h3>Onde você quer evoluir?</h3><p class="small muted">Marque seus pontos fracos e o app monta o foco.</p>
+
+  <div class="card"><h3>Onde você quer evoluir?</h3><p class="small muted">Marque seus pontos fracos: o gerador e o coach usam isso.</p>
     <div class="chips">${WEAKNESSES.map(w => `<button class="chipbtn ${sel.includes(w.id) ? 'on' : ''}" data-act="weak" data-id="${w.id}">${esc(w.n)}</button>`).join('')}</div>
     ${WEAKNESSES.filter(w => sel.includes(w.id)).map(w => `<div class="focus"><h4>${esc(w.n)}</h4><ul>${w.fix.map(f => `<li>${esc(f)}</li>`).join('')}</ul>
       <p class="small muted">Base: ${w.ev.map(id => esc(EVIDENCE.find(e => e.id === id)?.title)).join(' · ')}</p></div>`).join('')}
   </div>
   <div class="card"><h3>Semana ideal (exemplo)</h3>
     <p class="small">Técnica e sparring nos dias mais descansados. Força depois do boxe ou em outro horário (≥ 6 h). Perna pesada longe do sparring. 1 dia de descanso total.</p>
-    <table class="tbl small"><tr><td>Seg</td><td>Boxe técnica + Força (superior)</td></tr><tr><td>Ter</td><td>Força (inferior + potência)</td></tr><tr><td>Qua</td><td>Sparring</td></tr><tr><td>Qui</td><td>Força full body leve + corda</td></tr><tr><td>Sex</td><td>Saco / condicionamento</td></tr><tr><td>Sáb</td><td>Aeróbio leve 30–40 min</td></tr><tr><td>Dom</td><td>Descanso</td></tr></table>
+    <table class="tbl small"><tr><td>Seg</td><td>Boxe técnica + força (superior)</td></tr><tr><td>Ter</td><td>Força (inferior + potência)</td></tr><tr><td>Qua</td><td>Boxe intenso / sparring</td></tr><tr><td>Qui</td><td>Força leve + corda</td></tr><tr><td>Sex</td><td>Saco / condicionamento</td></tr><tr><td>Sáb</td><td>Aeróbio leve 30–40 min</td></tr><tr><td>Dom</td><td>Descanso</td></tr></table>
   </div>
   <small class="cat pad">Base científica</small>
   ${EVIDENCE.filter(e => e.cat === 'Boxe').map(e => evCard(e)).join('')}`;
@@ -357,10 +455,10 @@ function coachContext() {
   const p = S.profile, t = T(), plan = buildPlan(p);
   return `Você é o CORNER, um coach de boxe, força e nutrição esportiva que fala português do Brasil, de forma direta, informal e inteligente.
 REGRAS: Baseie-se em evidência científica. Use as cartas de evidência abaixo como base principal e cite-as pelo título e autor/ano. Se algo não estiver bem estabelecido na literatura, diga que a evidência é limitada. Nunca invente estudos. Não faça diagnósticos médicos; para dor persistente, sintomas após pancada na cabeça, condições de saúde ou cortes de peso agressivos, recomende um profissional. Respostas curtas e práticas (leitura no celular).
-PERFIL: ${p.sex === 'f' ? 'mulher' : 'homem'}, ${p.age} anos, ${p.height} cm, ${latestWeight()} kg${p.bf ? `, ${p.bf}% gordura` : ''}. Objetivo: ${GOALS[p.goal]}. Experiência: ${p.experience}. Musculação ${p.liftDays}x/semana, boxe ${p.boxDays}x/semana (${BOX_TYPES[p.boxType].n}).
+PERFIL: ${p.sex === 'f' ? 'mulher' : 'homem'}, ${p.age} anos, ${p.height} cm, ${latestWeight()} kg${p.bf ? `, ${p.bf}% gordura` : ''}. Objetivo: ${GOALS[p.goal]}. Experiência: ${p.experience}. Força ${p.liftDays}x/semana (${p.env === 'casa' ? 'em casa; equipamento: ' + ((p.equip || []).map(k => EQUIP[k]).join(', ') || 'só peso corporal/calistenia') : 'academia'}), boxe ${p.boxDays}x/semana ${p.boxWhere === 'casa' ? 'em casa' : 'na academia'} (${BOX_TYPES[p.boxType].n}).
 METAS: ${t.kcal} kcal, P ${t.protein} g, C ${t.carbs} g, G ${t.fat} g, água ${t.water} ml. Gasto estimado ${Math.round(t.tdee)} kcal (${t.source}).
 HOJE: consumido ${Math.round(dayFood().k)} kcal, P ${Math.round(dayFood().p)} g.
-PLANO: ${plan.split}: ${plan.days.map(d => d.name + ' [' + d.items.map(i => EXERCISES[i.ex].n + ' ' + i.sets + 'x' + i.lo + '-' + i.hi).join(', ') + ']').join(' | ')}.
+PLANO: ${plan.split}: ${plan.days.map(d => d.name + ' [' + d.items.map(i => i.name + ' ' + i.sets + 'x' + i.lo + '-' + i.hi).join(', ') + ']').join(' | ')}.
 PONTOS FRACOS NO BOXE: ${S.weak.map(id => WEAKNESSES.find(w => w.id === id)?.n).join(', ') || 'não informados'}.
 CARTAS DE EVIDÊNCIA:
 ${EVIDENCE.map(e => `- [${e.level}] ${e.title}: ${e.do} (${e.refs.join('; ')})`).join('\n')}`;
@@ -426,7 +524,7 @@ views.perfil = () => `${views.onboarding()}
   <div class="card"><h3>Seus dados</h3>
     <div class="row gap wrap"><button class="btn small" data-act="export">Exportar backup</button><label class="btn small ghost">Restaurar<input type="file" accept="application/json" id="importFile" hidden></label><button class="btn small danger" data-act="reset">Apagar tudo</button></div>
   </div>
-  <p class="small muted center pad">CORNER v1.0 · não substitui acompanhamento profissional.</p>`;
+  <p class="small muted center pad">CORNER v2.0 · não substitui acompanhamento profissional.</p>`;
 
 // ---------------- Roteador ----------------
 const TABS = [['hoje', 'Hoje', 'M3 12l9-8 9 8M5 10v10h14V10'], ['nutri', 'Nutrição', 'M12 3c4 3 6 6 6 10a6 6 0 0 1-12 0c0-4 2-7 6-10z'], ['treino', 'Treino', 'M3 10v4M6 7v10M18 7v10M21 10v4M6 12h12'], ['boxe', 'Boxe', 'M7 4h7a4 4 0 0 1 4 4v4a6 6 0 0 1-6 6H9a4 4 0 0 1-4-4V6a2 2 0 0 1 2-2zM9 18v3h6v-3'], ['coach', 'Coach', 'M4 5h16v11H8l-4 4z']];
@@ -441,20 +539,33 @@ function render() {
   bindAfter(v);
   if (v === 'boxe') paintTimer();
 }
-let lastRoute = '';
-window.addEventListener('hashchange', () => { render(); if (location.hash !== lastRoute) window.scrollTo(0, 0); lastRoute = location.hash; });
+let rendered = '';
+function go() { if (rendered === location.hash) return; rendered = location.hash; render(); window.scrollTo(0, 0); }
+window.addEventListener('hashchange', go);
+// Navegação robusta (alguns apps instalados/webviews não disparam hashchange de forma confiável)
+document.addEventListener('click', e => {
+  const a = e.target.closest('a[href^="#"]'); if (!a) return;
+  e.preventDefault();
+  const h = a.getAttribute('href');
+  if (location.hash !== h) { try { history.pushState(null, '', h); } catch (err) { location.hash = h; } }
+  rendered = ''; go();
+});
+window.addEventListener('popstate', () => { rendered = ''; go(); });
 
 function bindAfter(v) {
   const pf = $('#profileForm');
   if (pf) {
     const cutVis = () => pf.querySelector('.cut-only').style.display = pf.goal.value === 'cut' ? '' : 'none';
     pf.goal.addEventListener('change', cutVis); cutVis();
+    const eqVis = () => pf.querySelector('.equip').style.display = pf.env.value === 'casa' ? '' : 'none';
+    pf.env.addEventListener('change', eqVis); eqVis();
     pf.addEventListener('submit', e => {
       e.preventDefault();
       const fd = Object.fromEntries(new FormData(pf));
       const p = {
         sex: fd.sex, age: num(fd.age), height: num(fd.height), weight: num(fd.weight), bf: num(fd.bf), neat: num(fd.neat), goal: fd.goal, rate: num(fd.rate),
-        experience: fd.experience, liftDays: num(fd.liftDays), liftMin: num(fd.liftMin) || 60, boxDays: num(fd.boxDays), boxMin: num(fd.boxMin) || 75, boxType: fd.boxType
+        experience: fd.experience, liftDays: num(fd.liftDays) ?? 0, liftMin: num(fd.liftMin) || 40, boxDays: num(fd.boxDays) ?? 0, boxMin: num(fd.boxMin) || 45, boxType: fd.boxType,
+        env: fd.env, equip: new FormData(pf).getAll('equip'), boxWhere: fd.boxWhere
       };
       if (!p.age || !p.height || !p.weight || p.age < 14 || p.age > 90 || p.height < 120 || p.height > 230 || p.weight < 35 || p.weight > 250) { toast('Confira idade, altura e peso.'); return; }
       const first = !S.profile;
@@ -490,6 +601,14 @@ function bindAfter(v) {
     });
   }
   if (v === 'boxe') {
+    $('#genForm').addEventListener('submit', e => {
+      e.preventDefault(); const fd = Object.fromEntries(new FormData(e.target));
+      S.boxGen = { minutes: +fd.minutes, saco: !!fd.saco }; save();
+      const eq = equipment(S.profile);
+      genSession = boxSession({ minutes: +fd.minutes, saco: !!fd.saco, corda: eq.has('corda'), halteres: eq.has('halteres'), weak: S.weak,
+        level: S.profile.experience === 'avancado' ? 'avancado' : S.profile.experience === 'iniciante' ? 'iniciante' : 'intermediario' });
+      render();
+    });
     $('#boxForm').addEventListener('submit', e => {
       e.preventDefault(); const fd = Object.fromEntries(new FormData(e.target)); const min = num(fd.min) || 0;
       S.logs.boxing.push({ date: today(), type: fd.type, min, kcal: sessionKcal(BOX_TYPES[fd.type].met, latestWeight(), min) });
@@ -538,8 +657,15 @@ document.addEventListener('click', e => {
     S.logs.workouts.push({ ...draft, sets: Object.fromEntries(Object.entries(draft.sets).map(([k, v]) => [k, v.filter(Boolean)])) });
     draft = null; save(); toast(`Treino salvo: ${n} séries 💪`); location.hash = '#treino';
   }
-  if (a === 'preset') { const p = TIMER_PRESETS.find(x => x.id === el.dataset.id); S.timer = { preset: p.id, rounds: p.rounds, work: p.work, rest: p.rest }; save(); timerReset(); render(); }
+  if (a === 'preset') { const p = TIMER_PRESETS.find(x => x.id === el.dataset.id); Object.assign(S.timer, { preset: p.id, rounds: p.rounds, work: p.work, rest: p.rest, program: null }); save(); timerReset(); render(); }
   if (a === 'tToggle') timerToggle();
+  if (a === 'loadProg' && genSession) { S.timer.program = genSession; save(); timerReset(); render(); window.scrollTo({ top: 0, behavior: 'smooth' }); toast('Treino no timer. Aperta Iniciar 🥊'); }
+  if (a === 'unloadProg') { S.timer.program = null; save(); timerReset(); render(); }
+  if (a === 'voiceToggle') { S.timer.voice = el.checked; save(); if (el.checked) say('Voz ligada'); }
+  if (a === 'callsToggle') { S.timer.calls = el.checked; save(); }
+  if (a === 'lvl') { const ex = el.dataset.ex, e = EXERCISES[ex]; const cur = buildPlan(S.profile).days.flatMap(d => d.items).find(i => i.ex === ex)?.lvl ?? 0;
+    S.prog[ex] = Math.max(0, Math.min(e.vars.length - 1, cur + +el.dataset.d)); save(); render(); toast(e.vars[S.prog[ex]]); }
+  if (a === 'addStrength') { Object.assign(S.profile, { liftDays: 2, env: S.profile.env || 'casa' }); save(); render(); toast('2 treinos de força adicionados'); }
   if (a === 'tReset') timerReset();
   if (a === 'weak') { const id = el.dataset.id; S.weak = S.weak.includes(id) ? S.weak.filter(x => x !== id) : [...S.weak, id]; save(); render(); }
   if (a === 'ask') askCoach(el.dataset.q);

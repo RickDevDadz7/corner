@@ -1,5 +1,5 @@
 // Service worker: app funciona offline. Mude VERSION a cada publicação.
-const VERSION = 'corner-v1.0.0';
+const VERSION = 'corner-v2.0.0';
 const FILES = ['./', 'index.html', 'styles.css', 'manifest.webmanifest', 'js/app.js', 'js/calc.js', 'js/data.js',
   'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png'];
 

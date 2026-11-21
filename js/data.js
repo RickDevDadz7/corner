@@ -118,6 +118,14 @@ export const EVIDENCE = [
     refs: ['ACSM (2009) Progression Models in Resistance Training for Healthy Adults. Med Sci Sports Exerc 41(3):687–708']
   },
   {
+    id: 'calistenia', cat: 'Musculação', tags: ['calistenia', 'casa', 'flexao', 'flexão', 'peso corporal', 'sem academia', 'barra'],
+    title: 'Calistenia funciona?',
+    do: 'Sim. Use progressões (inclinada → chão → pés elevados → arqueiro) pra manter as séries entre ~8 e 20 reps perto da falha. Quando ficar fácil, passe pra variação mais difícil.',
+    why: 'Ensaios comparando flexão com supino encontraram ganhos parecidos de força e de espessura muscular quando a carga relativa era equivalente. É coerente com a meta-análise que mostra hipertrofia parecida entre cargas leves e pesadas perto da falha.',
+    level: 'B',
+    refs: ['Calatayud J et al. (2015) J Strength Cond Res 29(1):246–253', 'Kikuchi N, Nakazato K (2017) J Exerc Sci Fit 15(1):37–42', 'Kotarsky CJ et al. (2018) J Strength Cond Res 32(3):651–659']
+  },
+  {
     id: 'concorrente', cat: 'Boxe', tags: ['boxe', 'concorrente', 'interferencia', 'cardio', 'mesmo dia', 'ordem', 'perna', 'cansei', 'round', 'rounds'],
     title: 'Boxe + musculação no mesmo plano',
     do: 'Se der, separe as sessões por 6 h ou mais. No mesmo horário, faça a técnica de boxe primeiro (precisa de você descansado). Evite perna pesada na véspera de sparring.',
@@ -183,57 +191,136 @@ export const EVIDENCE = [
   }
 ];
 
-// Exercícios: m = músculos (1 = direto, 0,5 = indireto), inc = incremento de carga sugerido (kg)
-export const EXERCISES = {
-  jump:  { n: 'Salto vertical / na caixa', m: {}, t: 'power', inc: 0, cue: 'Máxima intenção. Aterrisse macio. Descanse 1–2 min. Potência que vai pro soco.' },
-  mbr:   { n: 'Arremesso rotacional de medicine ball', m: { core: 1 }, t: 'power', inc: 0, cue: 'Gire o quadril antes dos ombros, como num cruzado. Cada lado.' },
-  mbc:   { n: 'Arremesso de peito com medicine ball', m: {}, t: 'power', inc: 0, cue: 'Explosivo, como um direto com os dois braços.' },
-  sq:    { n: 'Agachamento livre', m: { quad: 1, glut: 0.5 }, t: 'comp', inc: 5, cue: 'Base firme, tronco travado. Profundidade que você controla.' },
-  rdl:   { n: 'Levantamento terra romeno', m: { post: 1, glut: 1 }, t: 'comp', inc: 5, cue: 'Quadril pra trás, coluna neutra, barra colada na perna.' },
-  bul:   { n: 'Agachamento búlgaro', m: { quad: 1, glut: 1 }, t: 'comp', inc: 2, cue: 'Unilateral: equilíbrio e base de luta. Cada perna.' },
-  lp:    { n: 'Leg press', m: { quad: 1, glut: 0.5 }, t: 'comp', inc: 10, cue: 'Amplitude completa sem tirar a lombar do banco.' },
-  ht:    { n: 'Hip thrust', m: { glut: 1, post: 0.5 }, t: 'comp', inc: 5, cue: 'Extensão de quadril: o mesmo motor do soco de trás.' },
-  lc:    { n: 'Mesa flexora', m: { post: 1 }, t: 'iso', inc: 2.5, cue: 'Controle a descida em 2–3 s.' },
-  calf:  { n: 'Panturrilha em pé', m: { pant: 1 }, t: 'iso', inc: 5, cue: 'Pausa embaixo. Panturrilha forte = footwork que aguenta.' },
-  bp:    { n: 'Supino reto', m: { peito: 1, triceps: 0.5, ombros: 0.5 }, t: 'comp', inc: 2.5, cue: 'Escápulas travadas, pés firmes.' },
-  dbi:   { n: 'Supino inclinado com halteres', m: { peito: 1, ombros: 0.5, triceps: 0.5 }, t: 'comp', inc: 2, cue: 'Inclinação de 30°. Desça até alongar bem.' },
-  dip:   { n: 'Paralelas', m: { peito: 1, triceps: 0.5 }, t: 'comp', inc: 2.5, cue: 'Tronco levemente à frente. Sem dor no ombro.' },
-  ohp:   { n: 'Desenvolvimento em pé', m: { ombros: 1, triceps: 0.5 }, t: 'comp', inc: 2.5, cue: 'Glúteo e abdômen contraídos. Ombro forte segura a guarda.' },
-  pu:    { n: 'Barra fixa / puxada', m: { costas: 1, biceps: 0.5 }, t: 'comp', inc: 2.5, cue: 'Peito em direção à barra, sem balanço.' },
-  row:   { n: 'Remada curvada', m: { costas: 1, biceps: 0.5 }, t: 'comp', inc: 2.5, cue: 'Tronco firme. Puxe com o cotovelo.' },
-  dbrow: { n: 'Remada unilateral', m: { costas: 1, biceps: 0.5 }, t: 'comp', inc: 2, cue: 'Leve rotação no fim: costas e anti-rotação.' },
-  fp:    { n: 'Face pull', m: { ombros: 1, costas: 0.5 }, t: 'iso', inc: 2.5, cue: 'Ombro posterior: equilibra o volume de socos.' },
-  lat:   { n: 'Elevação lateral', m: { ombros: 1 }, t: 'iso', inc: 1, cue: 'Até a linha do ombro, sem roubar.' },
-  curl:  { n: 'Rosca direta', m: { biceps: 1 }, t: 'iso', inc: 1, cue: 'Cotovelo parado.' },
-  ham:   { n: 'Rosca martelo', m: { biceps: 1 }, t: 'iso', inc: 1, cue: 'Pegada neutra: fortalece antebraço e punho.' },
-  tri:   { n: 'Tríceps na polia', m: { triceps: 1 }, t: 'iso', inc: 2.5, cue: 'Extensão completa: é ela que termina o direto.' },
-  pal:   { n: 'Pallof press', m: { core: 1 }, t: 'core', inc: 0, u: '/lado', cue: 'Anti-rotação: tronco que não gira quando você toma o golpe.' },
-  lmr:   { n: 'Rotação com landmine', m: { core: 1 }, t: 'core', inc: 0, u: '/lado', cue: 'Pé gira, quadril leva, braço só acompanha.' },
-  farm:  { n: 'Caminhada do fazendeiro', m: { core: 1 }, t: 'core', inc: 0, u: 'm', cue: 'Pegada e tronco. 20–30 m por série.' },
-  neck:  { n: 'Isometria de pescoço (4 direções)', m: { pescoco: 1 }, t: 'prehab', inc: 0, u: 's', cue: 'Mão empurra, pescoço não se mexe. 15–30 s por direção.' },
-  er:    { n: 'Rotação externa com elástico', m: {}, t: 'prehab', inc: 0, cue: 'Manguito rotador: seguro de vida do ombro do lutador.' }
+// Equipamentos. "gym" = academia (tem tudo). Peso corporal está sempre disponível.
+export const EQUIP = {
+  halteres: 'Halteres', elastico: 'Elásticos', barra: 'Barra fixa', paralelas: 'Paralelas / argolas',
+  medball: 'Medicine ball', saco: 'Saco de pancada', corda: 'Corda de pular'
 };
 
-// Modelos de treino: [exercício, séries, repsMin, repsMax]
+// Exercícios: m = músculos (1 = direto, 0,5 = indireto); req = equipamento necessário;
+// inc = incremento de carga (kg); vars = progressões de calistenia (fácil → difícil); r = faixa de reps própria
+export const EXERCISES = {
+  // Potência
+  jump:     { n: 'Salto vertical / na caixa', m: {}, t: 'power', req: [], cue: 'Máxima intenção. Aterrisse macio. O soco nasce no chão.' },
+  mbr:      { n: 'Arremesso rotacional de medicine ball', m: { core: 1 }, t: 'power', req: ['medball'], u: '/lado', cue: 'Gire o quadril antes dos ombros, como num cruzado.' },
+  shadowx:  { n: 'Sombra explosiva: cruzados máximos', m: { core: 0.5 }, t: 'power', req: [], u: '/lado', cue: 'Pé gira, quadril leva. 100% de velocidade, descanse entre séries.' },
+  mbc:      { n: 'Arremesso de peito com medicine ball', m: {}, t: 'power', req: ['medball'], cue: 'Explosivo, como um direto com os dois braços.' },
+  plyopush: { n: 'Flexão explosiva', m: { peito: 0.5, triceps: 0.5 }, t: 'power', req: [], r: [3, 6], vars: ['Flexão explosiva inclinada (mãos no sofá)', 'Flexão explosiva (mãos saem do chão)', 'Flexão com palma'], cue: 'Empurre o chão o mais rápido possível.' },
+  // Academia
+  sq:    { n: 'Agachamento livre com barra', m: { quad: 1, glut: 0.5 }, t: 'comp', req: ['gym'], inc: 5, cue: 'Base firme, tronco travado.' },
+  rdl:   { n: 'Levantamento terra romeno', m: { post: 1, glut: 1 }, t: 'comp', req: ['gym'], inc: 5, cue: 'Quadril pra trás, coluna neutra.' },
+  lp:    { n: 'Leg press', m: { quad: 1, glut: 0.5 }, t: 'comp', req: ['gym'], inc: 10, cue: 'Amplitude completa sem tirar a lombar do banco.' },
+  ht:    { n: 'Hip thrust', m: { glut: 1, post: 0.5 }, t: 'comp', req: ['gym'], inc: 5, cue: 'Extensão de quadril: o motor do soco de trás.' },
+  lc:    { n: 'Mesa flexora', m: { post: 1 }, t: 'iso', req: ['gym'], inc: 2.5, cue: 'Controle a descida.' },
+  calf:  { n: 'Panturrilha em pé (máquina)', m: { pant: 1 }, t: 'iso', req: ['gym'], inc: 5, cue: 'Pausa embaixo.' },
+  bp:    { n: 'Supino reto', m: { peito: 1, triceps: 0.5, ombros: 0.5 }, t: 'comp', req: ['gym'], inc: 2.5, cue: 'Escápulas travadas, pés firmes.' },
+  ohp:   { n: 'Desenvolvimento com barra', m: { ombros: 1, triceps: 0.5 }, t: 'comp', req: ['gym'], inc: 2.5, cue: 'Glúteo e abdômen contraídos.' },
+  pu:    { n: 'Puxada / barra fixa', m: { costas: 1, biceps: 0.5 }, t: 'comp', req: ['gym'], inc: 2.5, cue: 'Peito em direção à barra.' },
+  row:   { n: 'Remada curvada', m: { costas: 1, biceps: 0.5 }, t: 'comp', req: ['gym'], inc: 2.5, cue: 'Puxe com o cotovelo.' },
+  tri:   { n: 'Tríceps na polia', m: { triceps: 1 }, t: 'iso', req: ['gym'], inc: 2.5, cue: 'Extensão completa: ela termina o direto.' },
+  lmr:   { n: 'Rotação com landmine', m: { core: 1 }, t: 'core', req: ['gym'], u: '/lado', cue: 'Pé gira, quadril leva.' },
+  // Halteres
+  gsq:   { n: 'Agachamento goblet', m: { quad: 1, glut: 0.5 }, t: 'comp', req: ['halteres'], inc: 2, cue: 'Halter no peito, desça entre as pernas.' },
+  dbrdl: { n: 'Terra romeno com halteres', m: { post: 1, glut: 1 }, t: 'comp', req: ['halteres'], inc: 2, cue: 'Halteres colados na coxa.' },
+  bul:   { n: 'Agachamento búlgaro com halteres', m: { quad: 1, glut: 1 }, t: 'comp', req: ['halteres'], inc: 2, u: '/perna', cue: 'Unilateral: equilíbrio e base de luta.' },
+  dbfp:  { n: 'Supino com halteres (banco ou chão)', m: { peito: 1, triceps: 0.5, ombros: 0.5 }, t: 'comp', req: ['halteres'], inc: 2, cue: 'Cotovelos a ~45° do tronco.' },
+  dbi:   { n: 'Supino inclinado com halteres', m: { peito: 1, ombros: 0.5, triceps: 0.5 }, t: 'comp', req: ['halteres'], inc: 2, cue: 'Inclinação de 30°.' },
+  dbohp: { n: 'Desenvolvimento com halteres', m: { ombros: 1, triceps: 0.5 }, t: 'comp', req: ['halteres'], inc: 2, cue: 'Em pé ou sentado, sem arquear a lombar.' },
+  dbrow: { n: 'Remada unilateral com halter', m: { costas: 1, biceps: 0.5 }, t: 'comp', req: ['halteres'], inc: 2, u: '/lado', cue: 'Leve rotação no fim.' },
+  lat:   { n: 'Elevação lateral', m: { ombros: 1 }, t: 'iso', req: ['halteres'], inc: 1, cue: 'Até a linha do ombro, sem roubar.' },
+  curl:  { n: 'Rosca com halteres', m: { biceps: 1 }, t: 'iso', req: ['halteres'], inc: 1, cue: 'Cotovelo parado.' },
+  ham:   { n: 'Rosca martelo', m: { biceps: 1 }, t: 'iso', req: ['halteres'], inc: 1, cue: 'Fortalece antebraço e punho.' },
+  farm:  { n: 'Caminhada do fazendeiro', m: { core: 1 }, t: 'core', req: ['halteres'], u: 'm', r: [20, 30], cue: 'Pegada e tronco.' },
+  // Elástico
+  pal:      { n: 'Pallof press', m: { core: 1 }, t: 'core', req: ['elastico'], u: '/lado', cue: 'Anti-rotação: tronco que não gira quando toma o golpe.' },
+  fp:       { n: 'Face pull com elástico', m: { ombros: 1, costas: 0.5 }, t: 'iso', req: ['elastico'], r: [12, 20], cue: 'Ombro posterior: equilibra o volume de socos.' },
+  er:       { n: 'Rotação externa com elástico', m: {}, t: 'prehab', req: ['elastico'], r: [15, 20], cue: 'Manguito rotador: seguro do ombro do lutador.' },
+  bandrow:  { n: 'Remada com elástico', m: { costas: 1, biceps: 0.5 }, t: 'comp', req: ['elastico'], r: [10, 20], band: true, cue: 'Prenda na porta. Pausa de 1 s atrás.' },
+  bandpd:   { n: 'Puxada alta com elástico', m: { costas: 1, biceps: 0.5 }, t: 'comp', req: ['elastico'], r: [10, 20], band: true, cue: 'Elástico no alto da porta, puxe até o peito.' },
+  bandlat:  { n: 'Elevação lateral com elástico', m: { ombros: 1 }, t: 'iso', req: ['elastico'], r: [12, 25], band: true, cue: 'Pise no elástico.' },
+  bandcurl: { n: 'Rosca com elástico', m: { biceps: 1 }, t: 'iso', req: ['elastico'], r: [12, 25], band: true, cue: 'Cotovelo parado.' },
+  bandtri:  { n: 'Tríceps com elástico', m: { triceps: 1 }, t: 'iso', req: ['elastico'], r: [12, 25], band: true, cue: 'Prenda no alto, extensão completa.' },
+  // Barra / paralelas
+  pullup: { n: 'Barra fixa', m: { costas: 1, biceps: 0.5 }, t: 'comp', req: ['barra'], r: [3, 10], vars: ['Barra negativa (descida em 3–5 s)', 'Barra com elástico de assistência', 'Barra fixa pronada', 'Barra com pausa de 2 s no topo', 'Barra arqueiro'], cue: 'Sem balanço. Ombros longe das orelhas.' },
+  chin:   { n: 'Barra supinada', m: { biceps: 1, costas: 1 }, t: 'comp', req: ['barra'], r: [4, 12], vars: ['Barra supinada negativa', 'Barra supinada', 'Barra supinada com pausa'], cue: 'Palmas pra você: mais bíceps.' },
+  hlr:    { n: 'Elevação na barra', m: { core: 1 }, t: 'core', req: ['barra'], r: [6, 15], vars: ['Elevação de joelhos', 'Elevação de pernas estendidas', 'Pés na barra (toes to bar)'], cue: 'Sem balanço, controle a descida.' },
+  dip:    { n: 'Paralelas', m: { peito: 1, triceps: 0.5 }, t: 'comp', req: ['paralelas'], r: [5, 15], vars: ['Paralelas negativa', 'Paralelas', 'Paralelas com pausa embaixo'], cue: 'Tronco levemente à frente. Sem dor no ombro.' },
+  // Peso corporal (calistenia)
+  pushup:  { n: 'Flexão', m: { peito: 1, triceps: 0.5, ombros: 0.5 }, t: 'comp', req: [], r: [8, 20], vars: ['Flexão inclinada (mãos no sofá/mesa)', 'Flexão no chão', 'Flexão com pés elevados', 'Flexão com pausa de 2 s embaixo', 'Flexão arqueiro'], cue: 'Corpo em prancha, peito encosta perto do chão.' },
+  pike:    { n: 'Flexão pike', m: { ombros: 1, triceps: 0.5 }, t: 'comp', req: [], r: [5, 12], vars: ['Flexão pike', 'Flexão pike com pés elevados', 'Parada de mão na parede (segurar 20–40 s)', 'Flexão em parada de mão na parede (só descida)'], cue: 'Quadril alto, cabeça desce à frente das mãos.' },
+  chairdip:{ n: 'Mergulho entre cadeiras', m: { triceps: 1, peito: 0.5 }, t: 'comp', req: [], r: [8, 15], vars: ['Mergulho com pés no chão, joelho dobrado', 'Mergulho com pernas estendidas', 'Mergulho com pés elevados'], cue: 'Cadeiras firmes. Pare se sentir o ombro.' },
+  diamond: { n: 'Flexão fechada', m: { triceps: 1, peito: 0.5 }, t: 'comp', req: [], r: [6, 15], vars: ['Flexão fechada inclinada', 'Flexão diamante', 'Flexão diamante com pés elevados'], cue: 'Mãos juntas, cotovelos colados ao corpo.' },
+  invrow:  { n: 'Remada invertida', m: { costas: 1, biceps: 0.5 }, t: 'comp', req: [], r: [8, 15], vars: ['Remada na mesa, joelhos dobrados', 'Remada na mesa, pernas estendidas', 'Remada com pés elevados', 'Remada com pausa de 2 s no topo'], cue: 'Debaixo de uma mesa firme (ou barra baixa). Peito na borda.' },
+  ytw:     { n: 'Y-T-W deitado', m: { ombros: 1, costas: 0.5 }, t: 'iso', req: [], r: [8, 12], vars: ['Y-T-W deitado', 'Y-T-W com pausa de 3 s', 'Y-T-W com garrafas de água'], cue: 'Deitado de bruços, polegar pra cima. Ombro posterior e escápula.' },
+  bwsq:    { n: 'Agachamento (calistenia)', m: { quad: 1, glut: 0.5 }, t: 'comp', req: [], r: [8, 20], vars: ['Agachamento livre', 'Agachamento búlgaro (pé de trás no sofá)', 'Búlgaro com descida em 3 s', 'Pistol assistido (segurando na porta)', 'Agachamento shrimp'], cue: 'Unilateral fica pesado rápido: ótimo pra quem treina em casa.' },
+  afundo:  { n: 'Afundo', m: { quad: 1, glut: 1 }, t: 'comp', req: [], r: [8, 15], u: '/perna', vars: ['Afundo reverso', 'Afundo com pausa embaixo', 'Afundo com salto alternado'], cue: 'Joelho de trás quase encosta no chão.' },
+  slide:   { n: 'Flexora deslizando', m: { post: 1, glut: 0.5 }, t: 'comp', req: [], r: [6, 15], vars: ['Flexora deslizando (toalha no piso liso)', 'Flexora deslizando unilateral', 'Nórdico negativo (pés presos no sofá)'], cue: 'Quadril alto o tempo todo.' },
+  sgb:     { n: 'Ponte de glúteo', m: { glut: 1, post: 0.5 }, t: 'comp', req: [], r: [10, 20], vars: ['Ponte de glúteo', 'Ponte unilateral', 'Hip thrust unilateral (costas no sofá)'], cue: 'Aperte o glúteo 1 s no topo.' },
+  calfbw:  { n: 'Panturrilha no degrau', m: { pant: 1 }, t: 'iso', req: [], r: [12, 25], vars: ['Panturrilha no degrau', 'Panturrilha unilateral', 'Unilateral com pausa de 2 s'], cue: 'Amplitude total. Footwork que aguenta.' },
+  hollow:  { n: 'Hollow (core de ginasta)', m: { core: 1 }, t: 'core', req: [], u: 's', r: [20, 45], vars: ['Dead bug', 'Hollow grupado', 'Hollow hold', 'Hollow rock'], cue: 'Lombar colada no chão.' },
+  plankrot:{ n: 'Prancha anti-rotação', m: { core: 1 }, t: 'core', req: [], r: [10, 20], vars: ['Prancha com toque no ombro', 'Prancha com alcance à frente', 'Prancha com toque no ombro, pés juntos'], cue: 'Quadril não gira. Tronco blindado pra receber golpe.' },
+  neck:    { n: 'Isometria de pescoço (4 direções)', m: { pescoco: 1 }, t: 'prehab', req: [], u: 's', r: [15, 30], cue: 'Mão empurra, pescoço não se mexe.' }
+};
+
+// Cada "slot" é um padrão de movimento; o app escolhe o 1º exercício que você consegue fazer com seu equipamento
+export const SLOTS = {
+  power_l: ['jump'], power_r: ['mbr', 'shadowx'], power_p: ['mbc', 'plyopush'],
+  squat: ['sq', 'gsq', 'bwsq'], lunge: ['bul', 'afundo', 'bwsq'], quad_acc: ['lp', 'afundo', 'bwsq'],
+  hinge: ['rdl', 'dbrdl', 'slide', 'sgb'], glute: ['ht', 'sgb'], hamcurl: ['lc', 'slide'], calf: ['calf', 'calfbw'],
+  hpush: ['bp', 'dbfp', 'pushup'], ipush: ['dbi', 'dip', 'pushup', 'chairdip'], dip: ['dip', 'chairdip', 'diamond'],
+  vpush: ['ohp', 'dbohp', 'pike'], vpull: ['pu', 'pullup', 'bandpd', 'invrow'], hpull: ['row', 'dbrow', 'invrow', 'bandrow'],
+  hpull2: ['dbrow', 'invrow', 'bandrow'], rear: ['fp', 'ytw'], lateral: ['lat', 'bandlat'],
+  biceps: ['curl', 'chin', 'bandcurl'], biceps2: ['ham', 'bandcurl'], triceps: ['tri', 'bandtri', 'diamond'],
+  core_anti: ['pal', 'plankrot'], core_rot: ['lmr', 'hlr', 'hollow'], carry: ['farm'], neck: ['neck'], er: ['er', 'ytw']
+};
+
+// Modelos de treino: [slot, séries, repsMin, repsMax]
 export const TEMPLATES = {
-  A:  { name: 'Full body A', list: [['jump', 3, 3, 5], ['sq', 3, 6, 10], ['bp', 3, 6, 10], ['row', 3, 8, 12], ['dip', 2, 8, 12], ['lc', 3, 10, 15], ['lat', 3, 12, 20], ['pal', 2, 10, 12]] },
-  B:  { name: 'Full body B', list: [['mbr', 3, 5, 5], ['rdl', 3, 6, 10], ['ohp', 3, 6, 10], ['pu', 3, 6, 12], ['bul', 2, 8, 12], ['dbi', 2, 8, 12], ['curl', 2, 10, 15], ['tri', 2, 10, 15], ['neck', 2, 15, 30]] },
-  C:  { name: 'Full body C', list: [['mbc', 3, 5, 5], ['lp', 3, 10, 15], ['dbi', 3, 8, 12], ['dbrow', 3, 8, 12], ['ht', 2, 8, 12], ['fp', 3, 12, 20], ['lmr', 2, 6, 8], ['er', 2, 15, 20], ['calf', 2, 10, 15]] },
-  U1: { name: 'Superior 1', list: [['mbc', 3, 5, 5], ['bp', 4, 6, 10], ['row', 4, 6, 10], ['ohp', 3, 8, 12], ['pu', 3, 8, 12], ['lat', 3, 12, 20], ['tri', 2, 10, 15], ['curl', 2, 10, 15], ['neck', 2, 15, 30]] },
-  L1: { name: 'Inferior 1', list: [['jump', 3, 3, 5], ['sq', 4, 6, 10], ['rdl', 3, 6, 10], ['lc', 3, 10, 15], ['calf', 3, 10, 15], ['pal', 3, 10, 12]] },
-  U2: { name: 'Superior 2', list: [['mbr', 3, 5, 5], ['dbi', 3, 8, 12], ['pu', 3, 6, 10], ['dip', 3, 8, 12], ['dbrow', 3, 8, 12], ['fp', 3, 15, 20], ['ham', 2, 10, 15], ['er', 2, 15, 20]] },
-  L2: { name: 'Inferior 2', list: [['jump', 3, 3, 5], ['ht', 3, 8, 12], ['bul', 3, 8, 12], ['lp', 3, 10, 15], ['lc', 2, 10, 15], ['calf', 3, 10, 15], ['lmr', 3, 6, 8], ['farm', 2, 20, 30]] },
-  PU: { name: 'Empurrar', list: [['mbc', 3, 5, 5], ['bp', 4, 6, 10], ['ohp', 3, 6, 10], ['dbi', 3, 8, 12], ['lat', 3, 12, 20], ['tri', 3, 10, 15]] },
-  PL: { name: 'Puxar', list: [['mbr', 3, 5, 5], ['pu', 4, 6, 10], ['row', 3, 8, 12], ['dbrow', 3, 8, 12], ['fp', 3, 12, 20], ['curl', 3, 10, 15], ['ham', 2, 10, 15], ['neck', 2, 15, 30]] },
-  LG: { name: 'Pernas', list: [['jump', 3, 3, 5], ['sq', 4, 6, 10], ['rdl', 3, 6, 10], ['lp', 3, 10, 15], ['lc', 3, 10, 15], ['calf', 3, 10, 15], ['pal', 3, 10, 12]] }
+  A:  { name: 'Full body A', list: [['power_l', 3, 3, 5], ['squat', 3, 6, 10], ['hpush', 3, 6, 10], ['hpull', 3, 8, 12], ['dip', 2, 8, 12], ['hamcurl', 3, 10, 15], ['lateral', 3, 12, 20], ['core_anti', 2, 10, 12]] },
+  B:  { name: 'Full body B', list: [['power_r', 3, 5, 5], ['hinge', 3, 6, 10], ['vpush', 3, 6, 10], ['vpull', 3, 6, 12], ['lunge', 2, 8, 12], ['ipush', 2, 8, 12], ['biceps', 2, 10, 15], ['triceps', 2, 10, 15], ['neck', 2, 15, 30]] },
+  C:  { name: 'Full body C', list: [['power_p', 3, 5, 5], ['quad_acc', 3, 10, 15], ['ipush', 3, 8, 12], ['hpull2', 3, 8, 12], ['glute', 2, 8, 12], ['rear', 3, 12, 20], ['core_rot', 2, 6, 8], ['er', 2, 15, 20], ['calf', 2, 10, 15]] },
+  U1: { name: 'Superior 1', list: [['power_p', 3, 5, 5], ['hpush', 4, 6, 10], ['hpull', 4, 6, 10], ['vpush', 3, 8, 12], ['vpull', 3, 8, 12], ['lateral', 3, 12, 20], ['triceps', 2, 10, 15], ['biceps', 2, 10, 15], ['neck', 2, 15, 30]] },
+  L1: { name: 'Inferior 1', list: [['power_l', 3, 3, 5], ['squat', 4, 6, 10], ['hinge', 3, 6, 10], ['hamcurl', 3, 10, 15], ['calf', 3, 10, 15], ['core_anti', 3, 10, 12]] },
+  U2: { name: 'Superior 2', list: [['power_r', 3, 5, 5], ['ipush', 3, 8, 12], ['vpull', 3, 6, 10], ['dip', 3, 8, 12], ['hpull2', 3, 8, 12], ['rear', 3, 15, 20], ['biceps2', 2, 10, 15], ['er', 2, 15, 20]] },
+  L2: { name: 'Inferior 2', list: [['power_l', 3, 3, 5], ['glute', 3, 8, 12], ['lunge', 3, 8, 12], ['quad_acc', 3, 10, 15], ['hamcurl', 2, 10, 15], ['calf', 3, 10, 15], ['core_rot', 3, 6, 8], ['carry', 2, 20, 30]] },
+  PU: { name: 'Empurrar', list: [['power_p', 3, 5, 5], ['hpush', 4, 6, 10], ['vpush', 3, 6, 10], ['ipush', 3, 8, 12], ['lateral', 3, 12, 20], ['triceps', 3, 10, 15]] },
+  PL: { name: 'Puxar', list: [['power_r', 3, 5, 5], ['vpull', 4, 6, 10], ['hpull', 3, 8, 12], ['hpull2', 3, 8, 12], ['rear', 3, 12, 20], ['biceps', 3, 10, 15], ['biceps2', 2, 10, 15], ['neck', 2, 15, 30]] },
+  LG: { name: 'Pernas', list: [['power_l', 3, 3, 5], ['squat', 4, 6, 10], ['hinge', 3, 6, 10], ['quad_acc', 3, 10, 15], ['hamcurl', 3, 10, 15], ['calf', 3, 10, 15], ['core_anti', 3, 10, 12]] }
 };
 
 export const SPLITS = {
+  1: { name: 'Full body 1x', days: ['A'] },
   2: { name: 'Full body 2x', days: ['A', 'B'] },
   3: { name: 'Full body 3x', days: ['A', 'B', 'C'] },
   4: { name: 'Superior / Inferior', days: ['U1', 'L1', 'U2', 'L2'] },
   5: { name: 'Sup/Inf + Empurrar/Puxar/Pernas', days: ['U1', 'L1', 'PU', 'PL', 'LG'] },
   6: { name: 'Empurrar / Puxar / Pernas 2x', days: ['PU', 'PL', 'LG', 'PU', 'PL', 'LG'] }
+};
+
+// ---------- Boxe: combinações (guarda ortodoxa) ----------
+// 1 jab · 2 direto · 3 gancho de esquerda · 4 gancho de direita · 5 uppercut de esquerda · 6 uppercut de direita
+export const PUNCHES = { 1: 'Jab', 2: 'Direto', 3: 'Gancho de esquerda', 4: 'Gancho de direita', 5: 'Uppercut de esquerda', 6: 'Uppercut de direita' };
+export const COMBOS = {
+  iniciante: ['1', '1-1', '1-2', '1-2-1', '1-1-2', '2-1-2', '1, esquiva', '1-2, passo atrás', 'bloqueia, 2', 'jab no corpo, 1', '1, pêndulo'],
+  intermediario: ['1-2-3', '1-2-3-2', '3-2', '1-6-3-2', '1-2, esquiva, 2', '2-3-2', '1-1-2-3', '5-2', 'pêndulo, 3-2', '3 no corpo, 3 na cabeça', '1-2, gira', 'esquiva, 2-3', '1-2-5-2'],
+  avancado: ['1-2-3-4', '1-2-5-2-3', 'esquiva, 6-3-2', '2-3-2, pêndulo, 3-2', '1-2-3, gira, 2', 'finta de jab, 2-3', '3 no corpo, 3, 2', '6-3-2', '1-1-2, pêndulo, 2-3-2', 'bloqueia, 3-6-3', '1-2, esquiva, 2-3-4']
+};
+
+export const BOX_THEMES = {
+  aquec: { t: 'Aquecimento', f: 'Corda ou polichinelo + sombra leve. Solte ombros e quadril.', calls: false },
+  jab: { t: 'Jab e distância', f: 'Jab dobrado, jab no corpo, entra e sai. Volte sempre pra guarda.', calls: true, pool: ['1', '1-1', 'jab no corpo, 1', '1, passo atrás', '1-1-2'] },
+  retas: { t: 'Retas (1-2)', f: 'Gire o pé de trás no direto. Mão volta pro queixo.', calls: true },
+  defesa: { t: 'Defesa + contra-ataque', f: 'Esquiva, pêndulo, bloqueio. Toda defesa termina em soco.', calls: true, pool: ['1, esquiva', 'esquiva, 2', 'pêndulo, 3-2', 'bloqueia, 2', 'esquiva, 2-3', 'bloqueia, 3-6-3'] },
+  foot: { t: 'Footwork', f: 'Entrar e sair, giro pela esquerda, pivô. Pés nunca cruzam.', calls: true, pool: ['1, passo atrás', '1-2, gira', '1, pêndulo', '1-2-3, gira, 2', 'passo à esquerda, 1-2'] },
+  niveis: { t: 'Corpo e cabeça', f: 'Troca de nível: abaixe com as pernas, não com as costas.', calls: true, pool: ['jab no corpo, 1', '3 no corpo, 3 na cabeça', '1-2, 3 no corpo', '2 no corpo, 3'] },
+  saco_vol: { t: 'Saco: volume', f: 'Ritmo constante, combos de 2–4 golpes, respira.', calls: true, saco: true },
+  saco_pot: { t: 'Saco: potência', f: 'Golpes curtos com tudo. Reseta a base entre combos.', calls: true, saco: true },
+  pressao: { t: 'Pressão', f: 'Ritmo alto o round inteiro. Nos últimos 30 s, solta tudo.', calls: true },
+  explosiva: { t: 'Sombra explosiva', f: '10 s em velocidade máxima, 10 s de movimento. Repita.', calls: true },
+  guarda: { t: 'Guarda de ferro', f: 'Sombra com garrafas de 500 ml ou halteres leves. Guarda nunca cai.', calls: true },
+  corda: { t: 'Corda / footwork', f: 'Corda variando ritmo (sem corda: skipping no lugar).', calls: false },
+  final: { t: 'Finalizador', f: '20 s socos rápidos + 10 s sprawl/burpee. Repita até o gongo.', calls: false },
+  core: { t: 'Core e pescoço', f: 'Hollow, prancha anti-rotação e isometria de pescoço. Sem pressa.', calls: false }
 };
 
 // Valores aproximados por 100 g (base TACO/USDA). Confira o rótulo.

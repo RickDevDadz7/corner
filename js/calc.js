@@ -1,5 +1,5 @@
 // Motor de cálculo — funções puras, testáveis
-import { BOX_TYPES, EXERCISES, TEMPLATES, SPLITS, MUSCLES } from './data.js';
+import { BOX_TYPES, EXERCISES, TEMPLATES, SPLITS, MUSCLES, SLOTS, EQUIP, COMBOS, BOX_THEMES } from './data.js';
 
 export const NEAT = {
   1.2: 'Sedentário (escritório, < 5 mil passos)',
@@ -107,40 +107,100 @@ export function targets(p, adaptive) {
   };
 }
 
-export function buildPlan(p) {
-  const d = Math.min(6, Math.max(2, p.liftDays || 3));
+// Equipamento disponível a partir do perfil
+export function equipment(p) {
+  if (p.env === 'academia' || !p.env) return new Set(['gym', ...Object.keys(EQUIP)]);
+  return new Set(p.equip || []);
+}
+export function canDo(exId, eq) { return EXERCISES[exId].req.every(r => eq.has(r)); }
+
+export function buildPlan(p, prog = {}) {
+  const d = Math.min(6, Math.max(0, p.liftDays ?? 3));
+  if (!d) return { split: 'Sem dias de força', days: [], vol: Object.fromEntries(Object.keys(MUSCLES).map(m => [m, 0])), reduced: false, none: true };
   const split = SPLITS[d];
+  const eq = equipment(p);
   const reduce = p.experience === 'iniciante' || (p.boxDays || 0) >= 4;
+  const startLvl = p.experience === 'iniciante' ? 0 : 1;
   const days = split.days.map((key, i) => {
-    const t = TEMPLATES[key];
-    return {
-      key, idx: i, name: t.name,
-      items: t.list.map(([ex, sets, lo, hi]) => {
-        const e = EXERCISES[ex];
-        let s = sets;
-        if (reduce && e.t !== 'power' && s >= 3) s -= 1;
-        return { ex, sets: s, lo, hi, rir: e.t === 'power' ? null : (p.experience === 'iniciante' ? '2–3' : '1–2'), rest: e.t === 'comp' ? '2–3 min' : e.t === 'power' ? '1–2 min' : '1–2 min' };
-      })
-    };
+    const t = TEMPLATES[key], used = new Set();
+    const items = [];
+    for (const [slot, sets, lo, hi] of t.list) {
+      const ex = SLOTS[slot].find(id => canDo(id, eq) && !used.has(id));
+      if (!ex) continue;
+      used.add(ex);
+      const e = EXERCISES[ex];
+      let s = sets;
+      if (reduce && e.t !== 'power' && s >= 3) s -= 1;
+      const [rlo, rhi] = e.r || [lo, hi];
+      const lvl = e.vars ? Math.min(e.vars.length - 1, prog[ex] ?? startLvl) : null;
+      items.push({ ex, sets: s, lo: rlo, hi: rhi, lvl, name: e.vars ? e.vars[lvl] : e.n,
+        rir: e.t === 'power' ? null : (p.experience === 'iniciante' ? '2–3' : '1–2'),
+        rest: e.t === 'comp' ? '2–3 min' : '1–2 min' });
+    }
+    return { key, idx: i, name: t.name, items };
   });
   const vol = Object.fromEntries(Object.keys(MUSCLES).map(m => [m, 0]));
   for (const day of days) for (const it of day.items) {
     for (const [m, f] of Object.entries(EXERCISES[it.ex].m)) vol[m] += it.sets * f;
   }
-  return { split: split.name, days, vol, reduced: reduce };
+  return { split: split.name, days, vol, reduced: reduce, home: p.env === 'casa' };
 }
 
-// Sugestão de dupla progressão com base na última sessão
+// Sugestão de progressão com base na última sessão
 export function suggest(item, lastSets) {
   const e = EXERCISES[item.ex];
-  if (!lastSets || !lastSets.length) return { text: e.t === 'power' ? 'Máxima velocidade, sem fadiga.' : 'Primeira vez: escolha uma carga que deixe ' + (item.rir || '2') + ' reps na reserva.' };
-  const done = lastSets.filter(s => s.kg != null && s.reps != null);
+  if (e.t === 'power') return { text: 'Máxima velocidade, sem fadiga. Pare antes de ficar lento.' };
+  if (!lastSets || !lastSets.length) {
+    if (e.vars) return { text: `Comece aqui. Se passar de ${item.hi} reps fácil, avance a variação.` };
+    if (e.band) return { text: 'Escolha um elástico que deixe ' + (item.rir || '2') + ' reps na reserva.' };
+    return { text: 'Primeira vez: escolha uma carga que deixe ' + (item.rir || '2') + ' reps na reserva.' };
+  }
+  const done = lastSets.filter(s => s && s.reps != null);
   if (!done.length) return { text: 'Sem registro completo da última vez.' };
-  const kg = Math.max(...done.map(s => +s.kg || 0));
   const allTop = done.length >= item.sets && done.every(s => +s.reps >= item.hi);
+  if (e.vars) {
+    if (allTop && item.lvl < e.vars.length - 1) return { up: true, text: `Bateu ${item.hi}+ em todas: hora de avançar pra "${e.vars[item.lvl + 1]}".` };
+    if (allTop) return { text: 'Última variação dominada: adicione mochila com peso ou desça mais devagar (4 s).' };
+    return { text: `Mesma variação: tente +1 rep nas séries abaixo de ${item.hi}.` };
+  }
+  if (e.band) return { text: allTop ? 'Topo da faixa: use um elástico mais forte ou afaste-se da ancoragem.' : `Tente +1 rep nas séries abaixo de ${item.hi}.` };
+  const kg = Math.max(...done.map(s => +s.kg || 0));
   if (e.inc && allTop) return { kg: +(kg + e.inc).toFixed(1), text: `Bateu o topo da faixa: suba pra ${fmt(kg + e.inc)} kg e mire em ${item.lo} reps.` };
   return { kg, text: `Mantenha ${fmt(kg)} kg e tente +1 rep nas séries abaixo de ${item.hi}.` };
 }
+
+// ---------- Gerador de treino de boxe ----------
+export function boxSession({ minutes = 30, level = 'intermediario', saco = false, corda = false, halteres = false, weak = [] }) {
+  const roundLen = level === 'iniciante' ? 120 : 180;
+  const rest = 60;
+  const n = Math.max(3, Math.round(minutes * 60 / (roundLen + rest)));
+  const list = ['aquec'];
+  if (n >= 8) list.push(corda ? 'corda' : 'aquec');
+  const tech = ['jab', 'retas', 'defesa', 'foot', 'niveis'];
+  if (weak.includes('legs')) tech.unshift('foot');
+  if (weak.includes('chin')) tech.unshift('defesa');
+  const hard = [];
+  if (saco) { hard.push('saco_vol'); if (weak.includes('power')) hard.push('saco_pot'); hard.push('saco_pot', 'pressao'); }
+  else { if (weak.includes('power')) hard.push('explosiva'); hard.push('pressao', 'explosiva'); }
+  if (weak.includes('guard')) hard.unshift('guarda');
+  const tail = ['core'];
+  if (weak.includes('gas') || n >= 6) tail.unshift('final');
+  const slots = n - list.length - tail.length;
+  const nTech = Math.max(1, Math.ceil(slots / 2)), nHard = Math.max(0, slots - nTech);
+  const pickUniq = (arr, k) => { const out = []; let i = 0; while (out.length < k) { out.push(arr[i % arr.length]); i++; } return out; };
+  list.push(...pickUniq([...new Set(tech)], nTech), ...pickUniq([...new Set(hard)], nHard), ...tail);
+  return list.slice(0, Math.max(n, list.length)).map(id => ({ id, ...BOX_THEMES[id], work: id === 'final' ? Math.min(roundLen, 120) : roundLen, rest }));
+}
+
+export function comboPool(level, theme) {
+  const lv = ['iniciante', 'intermediario', 'avancado'];
+  const upto = lv.slice(0, lv.indexOf(level) + 1).flatMap(l => COMBOS[l]);
+  return theme?.pool ? [...theme.pool, ...COMBOS.iniciante.slice(0, 3)] : upto;
+}
+
+// "1-2, esquiva" → "um, dois... esquiva" (fala em pt-BR)
+const NUM = { 1: 'um', 2: 'dois', 3: 'três', 4: 'quatro', 5: 'cinco', 6: 'seis' };
+export function comboSpeech(c) { return c.replace(/\d/g, d => NUM[d]).replace(/-/g, ', '); }
 
 export function dayKey(d = new Date()) {
   const z = n => String(n).padStart(2, '0');
