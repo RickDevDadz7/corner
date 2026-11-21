@@ -407,7 +407,49 @@ export const FOODS = [
   { n: 'Queijo minas frescal', k: 264, p: 17.4, c: 3.2, f: 20.2, g: 30 },
   { n: 'Whey protein (varia por marca)', k: 400, p: 78.0, c: 8.0, f: 6.0, g: 30 },
   { n: 'Pasta de amendoim', k: 588, p: 25.0, c: 20.0, f: 50.0, g: 15 },
-  { n: 'Azeite de oliva', k: 884, p: 0, c: 0, f: 100, g: 10 }
+  { n: 'Azeite de oliva', k: 884, p: 0, c: 0, f: 100, g: 10 },
+  // café da manhã e básicos
+  { n: 'Ovo frito (1 un ≈ 50 g)', k: 240, p: 15.6, c: 1.2, f: 18.6, g: 50, cat: 'base' },
+  { n: 'Pão integral (fatia ≈ 25 g)', k: 253, p: 9.4, c: 49.9, f: 3.7, g: 50, cat: 'base' },
+  { n: 'Requeijão', k: 257, p: 9.6, c: 2.4, f: 23.4, g: 15, cat: 'base' },
+  { n: 'Manteiga', k: 726, p: 0.4, c: 0.1, f: 82.4, g: 10, cat: 'base' },
+  { n: 'Tilápia grelhada', k: 128, p: 26.2, c: 0, f: 2.7, g: 120, cat: 'base' },
+  { n: 'Salada (alface e tomate)', k: 15, p: 1.0, c: 3.0, f: 0.2, g: 80, cat: 'base' },
+  { n: 'Farofa pronta', k: 406, p: 2.1, c: 80.3, f: 9.1, g: 30, cat: 'base' },
+  // frutas
+  { n: 'Laranja', k: 37, p: 0.8, c: 8.9, f: 0.1, g: 150, cat: 'fruta' },
+  { n: 'Morango', k: 30, p: 0.9, c: 6.8, f: 0.3, g: 100, cat: 'fruta' },
+  { n: 'Uva', k: 53, p: 0.7, c: 13.6, f: 0.2, g: 100, cat: 'fruta' },
+  { n: 'Abacaxi', k: 48, p: 0.9, c: 12.3, f: 0.1, g: 100, cat: 'fruta' },
+  { n: 'Melancia', k: 33, p: 0.9, c: 8.1, f: 0.0, g: 200, cat: 'fruta' },
+  { n: 'Manga', k: 64, p: 0.4, c: 16.7, f: 0.3, g: 150, cat: 'fruta' },
+  { n: 'Abacate', k: 96, p: 1.2, c: 6.0, f: 8.4, g: 100, cat: 'fruta' },
+  // lanches
+  { n: 'Castanha-de-caju', k: 570, p: 18.5, c: 29.1, f: 46.3, g: 20, cat: 'lanche' },
+  { n: 'Amendoim torrado', k: 606, p: 22.5, c: 18.7, f: 54.0, g: 20, cat: 'lanche' },
+  { n: 'Barra de cereal (varia por marca)', k: 380, p: 5.0, c: 70.0, f: 9.0, g: 25, cat: 'lanche' },
+  { n: 'Granola (varia por marca)', k: 420, p: 10.0, c: 65.0, f: 13.0, g: 40, cat: 'lanche' },
+  { n: 'Pão de queijo', k: 363, p: 5.1, c: 34.2, f: 24.6, g: 40, cat: 'lanche' },
+  // besteiras (valores médios; varia muito por marca/receita)
+  { n: 'Chocolate ao leite', k: 540, p: 7.2, c: 59.6, f: 30.3, g: 25, cat: 'besteira' },
+  { n: 'Biscoito recheado', k: 472, p: 6.4, c: 70.5, f: 19.6, g: 30, cat: 'besteira' },
+  { n: 'Salgadinho de pacote', k: 500, p: 6.0, c: 60.0, f: 26.0, g: 25, cat: 'besteira' },
+  { n: 'Batata frita', k: 270, p: 3.0, c: 35.0, f: 14.0, g: 100, cat: 'besteira' },
+  { n: 'Pizza de mussarela (fatia ≈ 110 g)', k: 270, p: 11.0, c: 30.0, f: 12.0, g: 110, cat: 'besteira' },
+  { n: 'Hambúrguer (sanduíche)', k: 250, p: 13.0, c: 30.0, f: 9.0, g: 200, cat: 'besteira' },
+  { n: 'Coxinha frita', k: 280, p: 9.0, c: 35.0, f: 12.0, g: 80, cat: 'besteira' },
+  { n: 'Sorvete de massa', k: 200, p: 3.5, c: 24.0, f: 10.0, g: 80, cat: 'besteira' },
+  { n: 'Açaí com xarope', k: 110, p: 0.7, c: 21.5, f: 3.7, g: 300, cat: 'besteira' },
+  { n: 'Refrigerante (ml)', k: 42, p: 0, c: 10.8, f: 0, g: 350, cat: 'besteira' },
+  { n: 'Cerveja (ml)', k: 41, p: 0.3, c: 3.3, f: 0, g: 350, cat: 'besteira' }
+];
+
+export const MEALS = [
+  { id: 'cafe', n: 'Café da manhã', ico: '朝', h: [4, 10] },
+  { id: 'almoco', n: 'Almoço', ico: '昼', h: [11, 14] },
+  { id: 'lanche', n: 'Lanche', ico: '間', h: [15, 17] },
+  { id: 'jantar', n: 'Jantar', ico: '夜', h: [18, 21] },
+  { id: 'extra', n: 'Beliscos e extras', ico: '他', h: [22, 3] }
 ];
 
 export const BOX_TYPES = {

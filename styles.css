@@ -295,3 +295,43 @@ details>summary.small{font-weight:900;margin-top:8px;color:var(--acc)}
 .fb.bad{border-color:var(--acc);background:#f6dcd9;color:#5a0a0d}
 .tiny{font-size:12px}
 .btn.google{font-weight:900}
+.wbar .bar-track{position:relative;overflow:visible}
+.wbar .goal{position:absolute;top:-5px;bottom:-5px;width:3px;background:var(--acc);transform:translateX(-1px)}
+.wbar{padding-bottom:14px}
+.wbar .goal::after{content:"ideal";position:absolute;top:calc(100% + 2px);left:50%;transform:translateX(-50%);font-size:9.5px;font-weight:900;color:var(--acc);letter-spacing:.06em}
+.ok{color:var(--acc)}
+.meal h3{display:flex;align-items:center;gap:6px}
+.mico{display:inline-grid;place-items:center;width:28px;height:28px;background:var(--acc);color:var(--sheet);font:700 16px "Zen Kaku Gothic New",sans-serif;border:2px solid var(--ink)}
+.items li{flex-wrap:wrap}
+.qty{display:flex;align-items:center;border:2px solid var(--ink);background:var(--sheet)}
+.qty button{width:32px;height:32px;border:0;background:transparent;font:900 18px var(--font);color:var(--ink);cursor:pointer}
+.qty button:active{background:var(--ink);color:var(--sheet)}
+.qty input{width:52px;border:0;border-left:2px solid var(--ink);border-radius:0;padding:4px 2px;text-align:center;font:700 14px var(--mono);background:#fbf8ef}
+.qty span{font-size:11px;padding:0 6px;border-right:2px solid var(--ink);align-self:stretch;display:flex;align-items:center;color:var(--muted);font-weight:700}
+.addbtn{margin-top:10px}
+.addbox{margin-top:10px;border-top:2px dashed rgba(26,23,20,.3);padding-top:10px;display:flex;flex-direction:column;gap:8px}
+.segs.small button{padding:6px 4px;font-size:11.5px}
+.meal.open{box-shadow:5px 5px 0 var(--acc)}
+/* ---------- tela inicial de login ---------- */
+.gate{min-height:calc(100vh - 120px);display:flex;flex-direction:column;justify-content:center;gap:14px;padding-top:10px}
+#app:has(.gate){padding-top:calc(24px + var(--safe-t))}
+.gate-logo{display:flex;align-items:center;justify-content:center;gap:12px}
+.gbadge{font:400 30px var(--head);background:var(--acc);color:var(--sheet);width:56px;height:56px;display:grid;place-items:center;border:3px solid var(--ink);transform:rotate(-6deg);box-shadow:4px 4px 0 var(--ink)}
+.gname{font:400 46px var(--head);letter-spacing:.1em;color:var(--ink);text-shadow:4px 4px 0 var(--acc)}
+.gate-tag{text-align:center;font:400 16px var(--head);color:var(--acc);margin:0}
+.authcard{display:flex;flex-direction:column;gap:12px;border-left:8px solid var(--acc)}
+.authcard .form{gap:12px}
+.segs.big button{padding:13px 6px;font-size:14px;letter-spacing:.08em}
+.authcard input{padding:14px 14px;font-size:17px}
+.pwin{position:relative}
+.pwin input{padding-right:52px}
+.pwin button{position:absolute;right:4px;top:50%;transform:translateY(-50%);width:44px;height:44px;border:0;background:transparent;color:var(--muted);cursor:pointer}
+.pwin button svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2}
+.pwin button.on{color:var(--acc)}
+.btn.big{padding:16px;font-size:16px;letter-spacing:.1em}
+.btn.google{padding:14px;font-size:16px}
+.btn.google svg{width:22px;height:22px}
+.or-sep{margin:0}
+.center-link{align-self:center;text-decoration:none;color:var(--muted)}
+.gate-skip{align-self:center;color:var(--ink);text-decoration:underline;font-size:14px;padding:8px}
+.gate-ver{text-align:center;font-size:11px;color:var(--muted);margin:0}

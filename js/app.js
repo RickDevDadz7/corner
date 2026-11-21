@@ -1,4 +1,4 @@
-import { EVIDENCE, EXERCISES, FOODS, MUSCLES, EQUIP, PUNCHES } from './data.js';
+import { EVIDENCE, EXERCISES, FOODS, MUSCLES, EQUIP, PUNCHES, MEALS } from './data.js';
 import { NEAT, GOALS, targets, adaptiveTDEE, buildPlan as plan_, suggest, dayKey, fmt, sessionKcal, movingAvg, equipment, comboPool, comboSpeech, sportsOf, sportDays } from './calc.js';
 import { SPORTS, SPORT_IDS, combatSession, runSession } from './sports.js';
 import { TECHNIQUES, TIRED, CATS, animate, thumbSVG } from './techniques.js';
@@ -115,6 +115,12 @@ function bar(name, v, max, unit = 'g', color = 'var(--acc)') {
   return `<div class="bar"><div class="bar-top"><span>${name}</span><span class="mono">${fmt(v, 0)}<i>/${fmt(max, 0)}${unit}</i></span></div>
     <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${color}"></div></div></div>`;
 }
+// água: sem teto. A escala cresce com o que você bebeu e um traço marca a recomendação
+function waterBar(v, goal) {
+  const max = Math.max(goal * 1.25, v * 1.08), pct = v / max * 100, mk = goal / max * 100;
+  return `<div class="bar wbar"><div class="bar-top"><span>Água</span><span class="mono">${fmt(v / 1000, 2)} L <i>· ideal ${fmt(goal / 1000, 1)} L</i>${v >= goal ? ' <b class="ok">✓</b>' : ''}</span></div>
+    <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:var(--cyan)"></div><span class="goal" style="left:${mk}%"></span></div></div>`;
+}
 function weightChart() {
   const ks = Object.keys(S.logs.weights).sort().slice(-60);
   if (ks.length < 2) return `<p class="muted small">Registre seu peso por alguns dias pra ver a tendência. Pese de manhã, em jejum, depois do banheiro.</p>`;
@@ -207,7 +213,7 @@ views.hoje = () => {
       <div class="grow">${bar('Proteína', f.p, t.protein, 'g', 'var(--acc)')}${bar('Carboidrato', f.c, t.carbs, 'g', 'var(--cyan)')}${bar('Gordura', f.f, t.fat, 'g', 'var(--amber)')}</div>
     </div>
     <div class="row gap mt"><a class="btn small" href="#nutri">+ Comida</a></div>
-    ${bar('Água', w, t.water, ' ml', 'var(--cyan)')}
+    ${waterBar(w, t.water)}
     <div class="water">
       <button class="btn small" data-act="water" data-v="250">+250</button><button class="btn small" data-act="water" data-v="500">+500</button>
       <button class="btn small ghost" data-act="water" data-v="-250" ${w ? '' : 'disabled'} aria-label="Tirar 250 ml">−250</button>
@@ -257,25 +263,41 @@ views.nutri = () => {
   </details>
   <div class="card">
     <div class="row between"><h3>${esc(dayLabel(curDay()))}</h3><span class="mono small">${fmt(f.k, 0)} / ${fmt(t.kcal, 0)} kcal</span></div>
-    ${bar('Proteína', f.p, t.protein)}
-    <ul class="list">${items.map(it => `<li><div><b>${esc(it.n)}</b><small>${it.g ? it.g + ' g · ' : ''}${fmt(it.k, 0)} kcal · P ${fmt(it.p, 0)} · C ${fmt(it.c, 0)} · G ${fmt(it.f, 0)}</small></div><button class="x" data-act="delFood" data-id="${it.id}" aria-label="Remover">×</button></li>`).join('') || '<li class="muted small">Nada registrado ainda.</li>'}</ul>
+    ${bar('Calorias', f.k, t.kcal, ' kcal')}${bar('Proteína', f.p, t.protein)}
   </div>
-  <div class="card">
-    <h3>Adicionar</h3>
-    <input id="foodSearch" placeholder="Buscar alimento (arroz, frango, ovo…)" autocomplete="off">
-    <div id="foodResults" class="chips"></div><div id="foodPick"></div>
-    <details><summary class="small">Adicionar manualmente (rótulo, restaurante)</summary>
-      <form id="manualFood" class="form"><input name="n" placeholder="Nome" required>
-        <div class="grid4"><input name="k" placeholder="kcal" inputmode="decimal" required><input name="p" placeholder="P g" inputmode="decimal"><input name="c" placeholder="C g" inputmode="decimal"><input name="f" placeholder="G g" inputmode="decimal"></div>
-        <button class="btn small" type="submit">Adicionar</button></form>
-    </details>
-    <p class="muted small">Valores aproximados (base TACO/USDA). Confira o rótulo.</p>
-  </div>`;
+  ${MEALS.map(m => mealCard(m, items.filter(it => (it.m || 'extra') === m.id))).join('')}
+  <p class="muted small pad">Valores aproximados (base TACO/USDA; besteiras = média de mercado). Confira o rótulo quando tiver.</p>`;
 };
+const FOOD_CATS = { '': 'Todos', base: 'Refeição', fruta: 'Frutas', lanche: 'Lanches', besteira: 'Besteiras' };
+let addMeal = null, foodCat = '';
+const defaultMeal = () => { const h = new Date().getHours(); return h >= 4 && h <= 10 ? 'cafe' : h <= 14 ? 'almoco' : h <= 17 ? 'lanche' : h <= 21 ? 'jantar' : 'extra'; };
+const amtOf = it => it.g ?? it.q ?? 1;
+const unitOf = it => it.u || (it.g != null ? 'g' : 'porção');
+const stepOf = it => it.st || (unitOf(it) === 'porção' ? 1 : 10);
+function mealCard(m, list) {
+  const tot = list.reduce((a, i) => a + i.k, 0), open = addMeal === m.id;
+  return `<div class="card meal ${open ? 'open' : ''}" id="meal-${m.id}">
+    <div class="row between"><h3><span class="mico">${m.ico}</span> ${esc(m.n)}</h3><span class="mono small">${fmt(tot, 0)} kcal</span></div>
+    ${list.length ? `<ul class="list items">${list.map(it => `<li><div class="grow"><b>${esc(it.n)}</b><small>${fmt(it.k, 0)} kcal · P ${fmt(it.p, 0)} · C ${fmt(it.c, 0)} · G ${fmt(it.f, 0)}</small></div>
+      <div class="qty"><button data-act="qty" data-id="${it.id}" data-d="-1" aria-label="Menos">−</button><input data-qty="${it.id}" inputmode="decimal" value="${fmt(amtOf(it), 1)}" aria-label="Quantidade"><span>${esc(unitOf(it))}</span><button data-act="qty" data-id="${it.id}" data-d="1" aria-label="Mais">+</button></div>
+      <button class="x" data-act="delFood" data-id="${it.id}" aria-label="Remover">×</button></li>`).join('')}</ul>` : ''}
+    ${open ? `<div class="addbox">
+      <input id="foodSearch" placeholder="Buscar (ovo, banana, arroz, chocolate…)" autocomplete="off">
+      <div class="segs small">${Object.entries(FOOD_CATS).map(([k, v]) => `<button class="${foodCat === k ? 'on' : ''}" data-act="foodCat" data-c="${k}">${v}</button>`).join('')}</div>
+      <div id="foodResults" class="chips"></div><div id="foodPick"></div>
+      <details><summary class="small">Adicionar manualmente (rótulo, restaurante)</summary>
+        <form id="manualFood" class="form"><input name="n" placeholder="Nome" required>
+          <div class="grid4"><input name="k" placeholder="kcal" inputmode="decimal" required><input name="p" placeholder="P g" inputmode="decimal"><input name="c" placeholder="C g" inputmode="decimal"><input name="f" placeholder="G g" inputmode="decimal"></div>
+          <button class="btn small" type="submit">Adicionar</button></form>
+      </details>
+      <button class="linkbtn" data-act="addMeal" data-m="">Fechar</button></div>`
+    : `<button class="btn small ghost block addbtn" data-act="addMeal" data-m="${m.id}">+ Adicionar ${m.id === 'extra' ? 'belisco' : 'alimento'}</button>`}
+  </div>`;
+}
 function foodPickHTML(i) {
   const fd = FOODS[i];
   return `<form id="pickForm" class="pick" data-i="${i}"><b>${esc(fd.n)}</b>
-    <div class="row gap"><input name="g" inputmode="decimal" value="${fd.g}" aria-label="gramas"><span>g</span><button class="btn small primary" type="submit">Adicionar</button></div>
+    <div class="row gap"><input name="g" inputmode="decimal" value="${fd.g}" aria-label="quantidade"><span>${/\(ml\)/.test(fd.n) ? 'ml' : 'g'}</span><button class="btn small primary" type="submit">Adicionar</button></div>
     <small class="muted" id="pickInfo"></small></form>`;
 }
 
@@ -629,25 +651,26 @@ function wipeLocal() {
   try { timerReset(); } catch (e) { }
 }
 const GATE = { tab: 'in', email: '', msg: null, confirm: false, recovery: false, busy: false };
-const skipLogin = { get() { try { return localStorage.getItem('ronin-skip-login') === '1'; } catch (e) { return false; } }, set(v) { try { v ? localStorage.setItem('ronin-skip-login', '1') : localStorage.removeItem('ronin-skip-login'); } catch (e) { } } };
+// "Continuar sem conta" vale só até fechar o app: ao abrir de novo, a tela de login aparece outra vez
+const skipLogin = { get() { try { return sessionStorage.getItem('ronin-skip-login') === '1'; } catch (e) { return false; } }, set(v) { try { localStorage.removeItem('ronin-skip-login'); v ? sessionStorage.setItem('ronin-skip-login', '1') : sessionStorage.removeItem('ronin-skip-login'); } catch (e) { } } };
 const GOOGLE_SVG = '<svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.5l6.7-6.7C35.6 2.4 30.2 0 24 0 14.6 0 6.6 5.4 2.6 13.3l7.8 6C12.3 13.6 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.1 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.4c-.5 2.9-2.2 5.3-4.6 6.9l7.4 5.7c4.3-4 6.9-9.9 6.9-17.1z"/><path fill="#FBBC05" d="M10.4 28.7c-.5-1.4-.8-3-.8-4.7s.3-3.2.8-4.7l-7.8-6C.9 16.6 0 20.2 0 24s.9 7.4 2.6 10.7l7.8-6z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.4-5.7c-2.1 1.4-4.8 2.3-8.5 2.3-6.3 0-11.7-4.1-13.6-9.8l-7.8 6C6.6 42.6 14.6 48 24 48z"/></svg>';
 const pwField = (name, ph, ac) => `<div class="pw"><input name="${name}" type="password" autocomplete="${ac}" placeholder="${ph}" minlength="8"><button type="button" class="btn small ghost" data-act="showPass" aria-label="Mostrar senha">👁</button></div>`;
+const EYE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
 function authBlock() {
   const t = GATE.tab;
   return `<div class="card authcard" id="conta">
-    <div class="segs"><button class="${t !== 'up' ? 'on' : ''}" data-act="gateTab" data-t="in">Entrar</button><button class="${t === 'up' ? 'on' : ''}" data-act="gateTab" data-t="up">Criar conta</button></div>
-    <h2>${t === 'up' ? 'Criar conta' : t === 'rec' ? 'Recuperar senha' : 'Entrar na conta'}</h2>
-    <p class="small muted">Conta grátis: seus treinos e sua dieta ficam salvos na nuvem e aparecem em qualquer aparelho. É a mesma conta do Stempel e do Overclock.</p>
-    ${t !== 'rec' ? `<button class="btn block google" data-act="google" ${GATE.busy ? 'disabled' : ''}>${GOOGLE_SVG}${t === 'up' ? 'Criar conta com Google' : 'Entrar com Google'}</button>
-    <div class="or-sep"><span>ou com e-mail</span></div>` : ''}
+    ${t === 'rec' ? `<h2>Recuperar senha</h2><p class="small muted">Digite seu e-mail. Chega um link pra criar uma senha nova.</p>`
+      : `<div class="segs big"><button class="${t !== 'up' ? 'on' : ''}" data-act="gateTab" data-t="in">ENTRAR</button><button class="${t === 'up' ? 'on' : ''}" data-act="gateTab" data-t="up">CRIAR CONTA</button></div>
+    <button class="btn block google" data-act="google" ${GATE.busy ? 'disabled' : ''}>${GOOGLE_SVG}<span>Continuar com Google</span></button>
+    <div class="or-sep"><span>OU</span></div>`}
     <form id="authForm" class="form">
-      <label>E-mail<input name="email" type="email" inputmode="email" autocomplete="email" autocapitalize="off" spellcheck="false" placeholder="voce@email.com" value="${esc(GATE.email)}" required></label>
-      ${t === 'rec' ? '' : `<label>Senha${t === 'up' ? ' (mínimo 8 caracteres)' : ''}${pwField('pass', 'senha', t === 'up' ? 'new-password' : 'current-password')}</label>`}
+      <input name="email" type="email" inputmode="email" autocomplete="email" autocapitalize="off" spellcheck="false" placeholder="E-mail" aria-label="E-mail" value="${esc(GATE.email)}" required>
+      ${t === 'rec' ? '' : `<div class="pwin"><input name="pass" type="password" autocomplete="${t === 'up' ? 'new-password' : 'current-password'}" placeholder="${t === 'up' ? 'Senha (mínimo 8)' : 'Senha'}" aria-label="Senha" minlength="8"><button type="button" data-act="showPass" aria-label="Mostrar senha">${EYE}</button></div>`}
       ${GATE.msg ? `<p class="fb ${GATE.msg.ok ? 'ok' : 'bad'}">${GATE.msg.html}</p>` : ''}
-      <button class="btn primary block" type="submit" ${GATE.busy ? 'disabled' : ''}>${GATE.busy ? 'Aguarde…' : t === 'up' ? 'Criar conta' : t === 'rec' ? 'Enviar link de nova senha' : 'Entrar'}</button>
-      <div class="row gap wrap">${t === 'rec' ? '<button type="button" class="linkbtn" data-act="gateTab" data-t="in">← Voltar</button>' : '<button type="button" class="linkbtn" data-act="gateTab" data-t="rec">Esqueci minha senha</button>'}${GATE.confirm ? '<button type="button" class="linkbtn" data-act="resend">Reenviar e-mail de confirmação</button>' : ''}</div>
+      <button class="btn primary block big" type="submit" ${GATE.busy ? 'disabled' : ''}>${GATE.busy ? 'AGUARDE…' : t === 'up' ? 'CRIAR CONTA' : t === 'rec' ? 'ENVIAR LINK' : 'ENTRAR'}</button>
+      ${t === 'rec' ? '<button type="button" class="linkbtn center-link" data-act="gateTab" data-t="in">← Voltar</button>' : '<button type="button" class="linkbtn center-link" data-act="gateTab" data-t="rec">Esqueci minha senha</button>'}
+      ${GATE.confirm ? '<button type="button" class="linkbtn center-link" data-act="resend">Reenviar e-mail de confirmação</button>' : ''}
     </form>
-    <p class="tiny muted">Com o Google não precisa confirmar e-mail. Criando com e-mail, chega uma confirmação (veja também o spam); depois de confirmar, volte aqui e toque em Entrar.</p>
   </div>`;
 }
 function accountCard() {
@@ -665,9 +688,12 @@ function accountCard() {
     <button class="btn small primary" data-act="toLogin">Entrar ou criar conta</button></div>`;
 }
 // Primeira tela: login (como no Stempel)
-views.login = () => `<section class="hero"><div class="logo-big">RONIN</div><div class="kanji">浪人</div><p class="tag">Sem mestre. Só disciplina.</p><p>Luta, corrida, força e nutrição com base em ciência.</p></section>
+views.login = () => `<div class="gate">
+  <div class="gate-logo"><span class="gbadge">浪</span><span class="gname">RONIN</span></div>
+  <p class="gate-tag">Sem mestre. Só disciplina.</p>
   ${GATE.recovery && cloud.user() ? accountCard() : authBlock()}
-  <button class="btn ghost block" data-act="skipLogin">Usar sem conta (dados só neste aparelho)</button>`;
+  <button class="linkbtn gate-skip" data-act="skipLogin">Continuar sem conta</button>
+  <p class="gate-ver">v3.4</p></div>`;
 async function afterLogin() {
   const u = cloud.user();
   // outra conta? os dados deste aparelho são da conta anterior: descarta antes de juntar
@@ -693,7 +719,7 @@ views.perfil = () => `<section class="head"><h1>Perfil e ajustes</h1></section>
   <div class="card"><h3>Seus dados</h3>
     <div class="row gap wrap"><button class="btn small" data-act="export">Exportar backup</button><label class="btn small ghost">Restaurar<input type="file" accept="application/json" id="importFile" hidden></label><button class="btn small danger" data-act="reset">Apagar tudo</button></div>
   </div>
-  <p class="small muted center pad">RONIN v3.3 · não substitui acompanhamento profissional.</p>`;
+  <p class="small muted center pad">RONIN v3.4 · não substitui acompanhamento profissional.</p>`;
 
 // ---------------- Roteador ----------------
 const ICONS = { hoje: 'M3 12l9-8 9 8M5 10v10h14V10', nutri: 'M12 3c4 3 6 6 6 10a6 6 0 0 1-12 0c0-4 2-7 6-10z', treino: 'M3 10v4M6 7v10M18 7v10M21 10v4M6 12h12', esporte: 'M7 4h7a4 4 0 0 1 4 4v4a6 6 0 0 1-6 6H9a4 4 0 0 1-4-4V6a2 2 0 0 1 2-2zM9 18v3h6v-3', coach: 'M4 5h16v11H8l-4 4z' };
@@ -767,15 +793,19 @@ function bindAfter(v, arg) {
   if (v === 'nutri') {
     const inp = $('#foodSearch'), res = $('#foodResults');
     const show = () => {
+      if (!res) return;
       const q = norm(inp.value);
-      const list = FOODS.map((f, i) => [f, i]).filter(([f]) => !q || norm(f.n).includes(q)).slice(0, q ? 12 : 8);
+      const list = FOODS.map((f, i) => [f, i]).filter(([f]) => (!foodCat || (f.cat || 'base') === foodCat) && (!q || norm(f.n).includes(q))).slice(0, q || foodCat ? 20 : 10);
       res.innerHTML = list.map(([f, i]) => `<button class="chipbtn" data-act="pickFood" data-i="${i}">${esc(f.n)}</button>`).join('');
     };
-    inp.addEventListener('input', show); show();
-    $('#manualFood').addEventListener('submit', e => {
-      e.preventDefault(); const fd = Object.fromEntries(new FormData(e.target));
-      addFood({ n: fd.n, k: num(fd.k) || 0, p: num(fd.p) || 0, c: num(fd.c) || 0, f: num(fd.f) || 0 });
-    });
+    if (inp) {
+      inp.addEventListener('input', show); show();
+      $('#manualFood').addEventListener('submit', e => {
+        e.preventDefault(); const fd = Object.fromEntries(new FormData(e.target));
+        addFood({ n: fd.n, q: 1, u: 'porção', st: 1, k: num(fd.k) || 0, p: num(fd.p) || 0, c: num(fd.c) || 0, f: num(fd.f) || 0 });
+      });
+    }
+    document.querySelectorAll('[data-qty]').forEach(i => i.addEventListener('change', () => setAmount(i.dataset.qty, num(i.value))));
   }
   if (v === 'ciencia') {
     $('#evSearch').addEventListener('input', e => {
@@ -856,7 +886,19 @@ function addWater(ml) {
   if (!ml) return;
   (S.logs.water[curDay()] ||= []).push({ id: newId(), ml }); save(); render();
 }
-function addFood(item) { (S.logs.food[curDay()] ||= []).push({ id: newId(), ...item }); save(); toast(`+${fmt(item.k, 0)} kcal`); render(); }
+function addFood(item) {
+  (S.logs.food[curDay()] ||= []).push({ id: newId(), t: Date.now(), m: addMeal || defaultMeal(), ...item });
+  save(); toast(`+${fmt(item.k, 0)} kcal em ${MEALS.find(x => x.id === (addMeal || defaultMeal())).n}`); render();
+}
+// muda a quantidade de um alimento já registrado (como na água): recalcula kcal e macros na proporção
+function setAmount(id, amt) {
+  const list = S.logs.food[curDay()] || [], it = list.find(x => x.id === id);
+  if (!it || amt == null || amt <= 0) { render(); return; }
+  const old = amtOf(it) || 1, r = amt / old;
+  for (const k of ['k', 'p', 'c', 'f']) it[k] = (it[k] || 0) * r;
+  if (it.g != null) it.g = Math.round(amt * 10) / 10; else it.q = Math.round(amt * 10) / 10;
+  it.t = Date.now(); save(); render();
+}
 
 // ---------------- Ações ----------------
 document.addEventListener('click', async e => {
@@ -866,12 +908,19 @@ document.addEventListener('click', async e => {
   if (a === 'delWater') { const id = el.dataset.id; S.logs.water[curDay()] = (S.logs.water[curDay()] || []).filter(x => x.id !== id); S.del[id] = Date.now(); save(); render(); }
   if (a === 'day') { shiftDay(+el.dataset.d); render(); }
   if (a === 'dayToday') { viewDay = null; render(); }
+  if (a === 'addMeal') { addMeal = el.dataset.m || null; foodCat = ''; render(); if (addMeal) requestAnimationFrame(() => { $('#meal-' + addMeal)?.scrollIntoView({ block: 'start', behavior: 'smooth' }); }); }
+  if (a === 'foodCat') { foodCat = el.dataset.c; const q = $('#foodSearch')?.value || ''; render(); const i = $('#foodSearch'); if (i) { i.value = q; i.dispatchEvent(new Event('input')); } }
+  if (a === 'qty') { const it = (S.logs.food[curDay()] || []).find(x => x.id === el.dataset.id); if (it) { const st = stepOf(it), cur = amtOf(it); setAmount(it.id, Math.max(st, cur + st * +el.dataset.d)); } }
   if (a === 'pickFood') {
     const i = +el.dataset.i; $('#foodPick').innerHTML = foodPickHTML(i);
     const f = $('#pickForm'), info = $('#pickInfo');
     const upd = () => { const g = num(f.g.value) || 0, fd = FOODS[i], m = g / 100; info.textContent = `${fmt(fd.k * m, 0)} kcal · P ${fmt(fd.p * m)} · C ${fmt(fd.c * m)} · G ${fmt(fd.f * m)}`; };
     f.g.addEventListener('input', upd); upd(); f.g.focus(); f.g.select();
-    f.addEventListener('submit', ev2 => { ev2.preventDefault(); const g = num(f.g.value) || 0, fd = FOODS[i], m = g / 100; addFood({ n: fd.n, g, k: fd.k * m, p: fd.p * m, c: fd.c * m, f: fd.f * m }); });
+    f.addEventListener('submit', ev2 => {
+      ev2.preventDefault(); const g = num(f.g.value) || 0, fd = FOODS[i], m = g / 100;
+      const st = fd.g <= 60 ? fd.g : Math.max(10, Math.round(fd.g / 3 / 10) * 10);
+      addFood({ n: fd.n, g, u: /\(ml\)/.test(fd.n) ? 'ml' : 'g', st, k: fd.k * m, p: fd.p * m, c: fd.c * m, f: fd.f * m });
+    });
   }
   if (a === 'delFood') { const id = el.dataset.id; S.logs.food[curDay()] = (S.logs.food[curDay()] || []).filter(x => x.id !== id); S.del[id] = Date.now(); save(); render(); }
   if (a === 'toggleAdaptive') { S.settings.adaptive = el.checked; save(true); render(); }
@@ -908,7 +957,7 @@ document.addEventListener('click', async e => {
   if (a === 'delKey') { setKey(''); toast('Chave removida'); render(); }
   if (a === 'google') { el.disabled = true; el.lastChild.textContent = 'Abrindo o Google…'; save(); cloud.signInWithGoogle(); }
   if (a === 'gateTab') { const f = $('#authForm'); if (f) GATE.email = f.email.value; GATE.tab = el.dataset.t; GATE.msg = null; render(); }
-  if (a === 'showPass') { const i = el.previousElementSibling; i.type = i.type === 'password' ? 'text' : 'password'; }
+  if (a === 'showPass') { const i = el.previousElementSibling; i.type = i.type === 'password' ? 'text' : 'password'; el.classList.toggle('on', i.type === 'text'); }
   if (a === 'resend') { try { await cloud.resend($('#authForm').email.value); toast('E-mail de confirmação reenviado.'); } catch (err) { toast(err.message); } }
   if (a === 'skipLogin') { skipLogin.set(true); try { history.replaceState(null, '', location.pathname + '#hoje'); } catch (e) { } rendered = ''; go(); window.scrollTo(0, 0); }
   if (a === 'toLogin') { skipLogin.set(false); GATE.tab = 'in'; GATE.msg = null; try { history.replaceState(null, '', location.pathname + '#login'); } catch (e) { } rendered = ''; go(); window.scrollTo(0, 0); }
@@ -983,4 +1032,9 @@ let pendingLogin = false;
     document.addEventListener('visibilitychange', () => doSync(true));
   }
 })();
-if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => { });
+if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  const hadCtrl = !!navigator.serviceWorker.controller;
+  let reloaded = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadCtrl && !reloaded) { reloaded = true; location.reload(); } });
+  navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(r => r.update()).catch(() => { });
+}

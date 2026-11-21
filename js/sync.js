@@ -36,7 +36,11 @@ export function payloadOf(S) {
 
 function unionById(x = [], y = [], del = {}) {
   const m = new Map();
-  for (const it of [...x, ...y]) if (it && it.id && !del[it.id] && !m.has(it.id)) m.set(it.id, it);
+  for (const it of [...x, ...y]) {
+    if (!it || !it.id || del[it.id]) continue;
+    const cur = m.get(it.id);
+    if (!cur || (it.t || 0) > (cur.t || 0)) m.set(it.id, it); // edição mais recente vence
+  }
   return [...m.values()];
 }
 const byDate = (a, b) => String(a.date || '').localeCompare(String(b.date || '')) || String(a.id).localeCompare(String(b.id));
