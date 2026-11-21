@@ -854,6 +854,16 @@ document.addEventListener('input', e => {
     try { history.replaceState(null, '', location.pathname + (r.error || r.type === 'recovery' || !S.profile ? '#perfil-conta' : '#hoje')); } catch (e) { location.hash = '#hoje'; }
     setTimeout(() => toast(r.error ? r.error : r.type === 'recovery' ? 'Entrou. Defina sua senha nova em Perfil → Conta.' : 'Conectado: ' + (r.email || '')), 300);
   }
+  // erro do Google volta como ?error=…
+  try {
+    const q = new URLSearchParams(location.search);
+    if (q.get('error')) {
+      const d = (q.get('error_description') || '').replace(/\+/g, ' ');
+      const m = /provider is not enabled|Unsupported provider/i.test(d) ? 'Login com Google ainda não está ativado no servidor. Use e-mail e senha.' : q.get('error') === 'access_denied' ? 'Login com Google cancelado.' : (d || 'Não deu pra entrar com o Google.');
+      history.replaceState(null, '', location.pathname + '#perfil-conta');
+      setTimeout(() => toast(m), 300);
+    }
+  } catch (e) { }
   rendered = location.hash; render();
   if (cloud.user()) {
     doSync(true).then(() => { if (!S.profile) render(); });
