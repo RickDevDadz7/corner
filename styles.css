@@ -1,4 +1,5 @@
-/* CORNER — estética de mangá de boxe dos anos 70: papel jornal, nanquim, retícula e vermelho-sangue */
+/* RONIN — estética de mangá de boxe dos anos 70: papel jornal, nanquim, retícula e vermelho-sangue */
+[hidden]{display:none!important}
 :root{
   --paper:#ece5d3; --paper2:#e2d9c3; --sheet:#f7f2e6; --ink:#1a1714; --ink2:#3a342d; --muted:#6f675b;
   --acc:#c3131b; --cyan:#1a1714; --amber:#9a8657; --red:#5a0a0d;
@@ -134,7 +135,7 @@ input:focus,select:focus,textarea:focus{box-shadow:3px 3px 0 var(--acc)}
 .hero{position:relative;text-align:center;padding:42px 10px 22px;overflow:hidden;border:2.5px solid var(--ink);background:var(--sheet);box-shadow:5px 5px 0 var(--ink)}
 .hero::before{content:"";position:absolute;inset:-40%;background:repeating-conic-gradient(from 0deg at 50% 50%,rgba(26,23,20,.85) 0 .7deg,transparent .7deg 5deg);
   -webkit-mask:radial-gradient(circle at 50% 50%,transparent 26%,#000 70%);mask:radial-gradient(circle at 50% 50%,transparent 26%,#000 70%);opacity:.55}
-.hero::after{content:"拳";position:absolute;right:-6px;bottom:-30px;font:400 150px var(--head);color:var(--acc);opacity:.12}
+.hero::after{content:"浪";position:absolute;right:-6px;bottom:-30px;font:400 150px var(--head);color:var(--acc);opacity:.12}
 .hero>*{position:relative}
 .logo-big{font-size:46px;letter-spacing:.12em;color:var(--ink);text-shadow:4px 4px 0 var(--acc)}
 .hero .tag{font-family:var(--head);font-size:18px;color:var(--acc);margin-top:10px}
@@ -206,3 +207,50 @@ input:focus,select:focus,textarea:focus{box-shadow:3px 3px 0 var(--acc)}
   background:var(--ink);color:var(--sheet);font-weight:900;padding:10px 16px;box-shadow:4px 4px 0 var(--acc);transition:.25s;font-size:14px;max-width:90vw}
 .toast.show{opacity:1;transform:translate(-50%,0)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+/* ---------- v3: esportes, técnicas, conta ---------- */
+.hero .kanji{font:400 22px var(--head);color:var(--acc);letter-spacing:.3em;margin-top:2px}
+.mk{font-family:var(--head);font-weight:400;color:var(--acc);margin-right:4px}
+.chipbtn.on .mk{color:var(--sheet)}
+.sport{border:2px solid var(--ink);padding:8px 10px;background:var(--paper)}
+.sport .sport-cfg{display:none;margin-top:8px}
+.sport.on{background:var(--sheet);box-shadow:3px 3px 0 var(--acc)}
+.sport.on .sport-cfg{display:grid}
+.check.big span{display:flex;align-items:center;gap:6px;font-size:15px;font-weight:900;border:0;background:none;padding:2px 0}
+.check.big span::before{content:"";width:20px;height:20px;border:2.5px solid var(--ink);background:var(--sheet);flex:none}
+.check.big input:checked+span{background:none;color:var(--ink)}
+.check.big input:checked+span::before{background:var(--acc);box-shadow:inset 0 0 0 3px var(--sheet)}
+.tabs{margin:0}
+.fig .lb{stroke:#8a8275;stroke-width:8;stroke-linecap:round}
+.fig .lf{stroke:var(--ink);stroke-width:9;stroke-linecap:round}
+.fig .tr{stroke:var(--ink);stroke-width:12;stroke-linecap:round}
+.fig .hd{fill:var(--ink)}
+.fig .gf{fill:var(--acc);stroke:var(--ink);stroke-width:2}
+.fig .gb{fill:#8a1015}
+.fig .gr{stroke:var(--ink);stroke-width:2.5}
+.fig .hi{fill:rgba(195,19,27,.18);stroke:var(--acc);stroke-width:2.5}
+.fig .arw{fill:none;stroke:var(--acc);stroke-width:3;stroke-dasharray:6 4}
+.fig .arh{fill:var(--acc)}
+.techgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+.tech{display:flex;flex-direction:column;align-items:center;gap:2px;border:2px solid var(--ink);background:var(--paper);color:var(--ink);padding:4px 4px 6px;font-size:12px;text-align:center;line-height:1.2}
+.tech:active{transform:translate(2px,2px)}
+.tech-thumb{width:100%;aspect-ratio:1.1;display:block}
+.tech-thumb svg{width:100%;height:100%}
+.techfig{width:100%;max-width:380px;aspect-ratio:1.1;margin:0 auto;background:
+  repeating-conic-gradient(from 0deg at 55% 45%,rgba(26,23,20,.07) 0 1deg,transparent 1deg 7deg)}
+.techfig svg{width:100%;height:100%}
+.center-row{justify-content:center;flex-wrap:wrap;margin:8px 0}
+.hi-dot{display:inline-block;width:12px;height:12px;border-radius:50%;border:2px solid var(--acc);background:rgba(195,19,27,.18);vertical-align:-1px}
+.steps{padding-left:20px;margin:8px 0}
+.steps li{padding:6px 4px;border-left:4px solid transparent;transition:background .2s}
+.steps li.on{background:var(--paper2);border-left-color:var(--acc);font-weight:700}
+.furos-x{list-style:none;padding:0;margin:8px 0}
+.furos-x li{padding:6px 0 6px 26px;position:relative;border-bottom:1.5px dashed rgba(26,23,20,.2)}
+.furos-x li::before{content:"✕";position:absolute;left:4px;color:var(--acc);font-weight:900}
+.furos{padding-left:22px;margin:10px 0}
+.furos li{margin:8px 0}
+.furos li b{display:block}
+.furos li span{display:block;font-size:14px}
+.btn.google{background:#fff;gap:10px}
+.btn.google svg{width:18px;height:18px}
+details>summary.small{font-weight:900;margin-top:8px;color:var(--acc)}

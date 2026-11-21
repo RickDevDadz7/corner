@@ -1,19 +1,20 @@
-# CORNER 🥊
+# RONIN 浪人
 
-Seu córner de bolso: nutrição, musculação e boxe com base científica. PWA instalável, roda offline, dados ficam só no aparelho.
+Sem mestre. Só disciplina. Treino de **boxe, muay thai, jiu-jitsu, MMA e corrida**, força (academia ou calistenia em casa) e nutrição, com base científica. PWA instalável, funciona offline, com conta opcional (e-mail ou Google) pra sincronizar entre aparelhos.
 
 ## Módulos
-- **Hoje**: calorias e macros restantes, água, próximo treino, tendência de peso, ciência do dia.
-- **Nutrição**: TMB (Mifflin-St Jeor / Katch-McArdle) + gasto do dia a dia + gasto dos treinos (METs), meta por objetivo, macros, ajuste **adaptativo** pelo seu peso e ingestão reais, busca de alimentos (base TACO aprox.).
-- **Treino**: divisão automática (2–6 dias), volume semanal por músculo (contagem fracionada), registro de séries e **dupla progressão** automática.
-- **Boxe**: timer de rounds com gongo, aviso de 10 s e tela acesa; registro de sessões; diagnóstico de pontos fracos; semana modelo.
-- **Ciência**: 21 cartas com recomendação, explicação, nível de evidência (A/B/C) e referências.
-- **Coach**: IA opcional (chave da API Anthropic no Perfil); sem chave, responde pelas cartas de evidência.
+- **Hoje**: calorias e macros restantes, água, treino do dia, peso com tendência, ciência do dia.
+- **Nutrição**: TMB + gasto do dia a dia + gasto de cada esporte (METs), meta por objetivo, macros, ajuste adaptativo pelo peso e ingestão reais, alimentos (TACO aprox.).
+- **Força**: divisão automática pelo equipamento (academia, halteres, elásticos, barra, peso corporal), progressões de calistenia, ênfase por esporte (pegada no jiu, adutor no muay thai, pliometria na corrida).
+- **Esporte**: timer com gongo e voz, gerador de treino por esporte (combinações faladas nas lutas, blocos na corrida), pontos fracos, semana modelo.
+- **Técnicas**: biblioteca animada (jab, direto, gancho, uppercut, esquiva, pêndulo, teep, chute, joelhada, sprawl, ponte, fuga de quadril) e "Por que eu canso?".
+- **Ciência**: cartas com recomendação, explicação, nível de evidência (A/B/C) e referências.
+- **Coach**: IA opcional (chave da API Anthropic no Perfil); sem chave, responde pelas cartas.
 
-## Publicar no GitHub Pages
-Settings → Pages → Branch `main` / `(root)` → Save. Depois abra `https://<usuario>.github.io/<repo>/` no celular → "Adicionar à tela inicial".
+## Conta e sincronização
+Supabase (mesmo projeto dos outros apps), tabela `ronin_sync`: rode `supabase/001_ronin_sync.sql` uma vez no SQL Editor e adicione a URL do app em Authentication → URL Configuration → Redirect URLs.
 
 ## Atualizar
-Mude `VERSION` em `sw.js` a cada publicação pra forçar o celular a baixar a versão nova.
+Mude `VERSION` em `sw.js` a cada publicação.
 
 > Não substitui acompanhamento profissional (médico/nutricionista) em caso de condições de saúde.

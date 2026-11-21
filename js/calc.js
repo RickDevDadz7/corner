@@ -1,5 +1,14 @@
 // Motor de cálculo — funções puras, testáveis
-import { BOX_TYPES, EXERCISES, TEMPLATES, SPLITS, MUSCLES, SLOTS, EQUIP, COMBOS, BOX_THEMES } from './data.js';
+import { EXERCISES, TEMPLATES, SPLITS, MUSCLES, SLOTS, EQUIP, COMBOS } from './data.js';
+import { SPORTS } from './sports.js';
+
+// Esportes do perfil (migra o formato antigo, que só tinha boxe)
+export function sportsOf(p) {
+  if (p.sports && typeof p.sports === 'object') return p.sports;
+  if (p.boxDays) return { boxe: { days: p.boxDays, min: p.boxMin || 60, type: p.boxType && SPORTS.boxe.types[p.boxType] ? p.boxType : 'tecnica', where: p.boxWhere || 'casa' } };
+  return {};
+}
+export const sportDays = p => Object.values(sportsOf(p)).reduce((a, s) => a + (+s.days || 0), 0);
 
 export const NEAT = {
   1.2: 'Sedentário (escritório, < 5 mil passos)',
@@ -33,8 +42,13 @@ export function sessionKcal(met, kg, minutes) {
 
 export function exerciseKcalPerDay(p) {
   const lift = (p.liftDays || 0) * sessionKcal(LIFT_MET, p.weight, p.liftMin || 60);
-  const box = (p.boxDays || 0) * sessionKcal(BOX_TYPES[p.boxType || 'saco'].met, p.weight, p.boxMin || 75);
-  return (lift + box) / 7;
+  let sp = 0;
+  for (const [id, s] of Object.entries(sportsOf(p))) {
+    const S = SPORTS[id]; if (!S) continue;
+    const met = (S.types[s.type] || S.types[S.defaultType]).met;
+    sp += (+s.days || 0) * sessionKcal(met, p.weight, +s.min || 60);
+  }
+  return (lift + sp) / 7;
 }
 
 // TDEE observado a partir de peso e ingestão registrados
@@ -94,10 +108,10 @@ export function targets(p, adaptive) {
   const fat = Math.max(0.8 * p.weight, (kcal * 0.2) / 9);
   let carbs = (kcal - protein * 4 - fat * 9) / 4;
   if (carbs < 0) carbs = 0;
-  if (carbs / p.weight < 3 && (p.boxDays || 0) >= 3) {
-    notes.push('Carboidrato abaixo de 3 g/kg com boxe frequente: espere queda nos rounds finais. Considere um déficit menor.');
+  if (carbs / p.weight < 3 && sportDays(p) >= 3) {
+    notes.push('Carboidrato abaixo de 3 g/kg com treino frequente: espere queda de rendimento no fim das sessões. Considere um déficit menor.');
   }
-  const trainHours = ((p.liftDays || 0) * (p.liftMin || 60) + (p.boxDays || 0) * (p.boxMin || 75)) / 60 / 7;
+  const trainHours = ((p.liftDays || 0) * (p.liftMin || 60) + Object.values(sportsOf(p)).reduce((a, s) => a + (+s.days || 0) * (+s.min || 60), 0)) / 60 / 7;
   const water = 35 * p.weight + 500 * trainHours * 1.0;
   const weekChange = (kcal - tdee) * 7 / KCAL_PER_KG;
   return {
@@ -119,12 +133,14 @@ export function buildPlan(p, prog = {}) {
   if (!d) return { split: 'Sem dias de força', days: [], vol: Object.fromEntries(Object.keys(MUSCLES).map(m => [m, 0])), reduced: false, none: true };
   const split = SPLITS[d];
   const eq = equipment(p);
-  const reduce = p.experience === 'iniciante' || (p.boxDays || 0) >= 4;
+  const reduce = p.experience === 'iniciante' || sportDays(p) >= 4;
+  const extra = [];
+  for (const id of Object.keys(sportsOf(p))) for (const x of (SPORTS[id]?.sc || [])) if (!extra.some(e => e[0] === x[0])) extra.push(x);
   const startLvl = p.experience === 'iniciante' ? 0 : 1;
   const days = split.days.map((key, i) => {
     const t = TEMPLATES[key], used = new Set();
     const items = [];
-    for (const [slot, sets, lo, hi] of t.list) {
+    for (const [slot, sets, lo, hi] of [...t.list, ...extra]) {
       const ex = SLOTS[slot].find(id => canDo(id, eq) && !used.has(id));
       if (!ex) continue;
       used.add(ex);
@@ -169,33 +185,12 @@ export function suggest(item, lastSets) {
   return { kg, text: `Mantenha ${fmt(kg)} kg e tente +1 rep nas séries abaixo de ${item.hi}.` };
 }
 
-// ---------- Gerador de treino de boxe ----------
-export function boxSession({ minutes = 30, level = 'intermediario', saco = false, corda = false, halteres = false, weak = [] }) {
-  const roundLen = level === 'iniciante' ? 120 : 180;
-  const rest = 60;
-  const n = Math.max(3, Math.round(minutes * 60 / (roundLen + rest)));
-  const list = ['aquec'];
-  if (n >= 8) list.push(corda ? 'corda' : 'aquec');
-  const tech = ['jab', 'retas', 'defesa', 'foot', 'niveis'];
-  if (weak.includes('legs')) tech.unshift('foot');
-  if (weak.includes('chin')) tech.unshift('defesa');
-  const hard = [];
-  if (saco) { hard.push('saco_vol'); if (weak.includes('power')) hard.push('saco_pot'); hard.push('saco_pot', 'pressao'); }
-  else { if (weak.includes('power')) hard.push('explosiva'); hard.push('pressao', 'explosiva'); }
-  if (weak.includes('guard')) hard.unshift('guarda');
-  const tail = ['core'];
-  if (weak.includes('gas') || n >= 6) tail.unshift('final');
-  const slots = n - list.length - tail.length;
-  const nTech = Math.max(1, Math.ceil(slots / 2)), nHard = Math.max(0, slots - nTech);
-  const pickUniq = (arr, k) => { const out = []; let i = 0; while (out.length < k) { out.push(arr[i % arr.length]); i++; } return out; };
-  list.push(...pickUniq([...new Set(tech)], nTech), ...pickUniq([...new Set(hard)], nHard), ...tail);
-  return list.slice(0, Math.max(n, list.length)).map(id => ({ id, ...BOX_THEMES[id], work: id === 'final' ? Math.min(roundLen, 120) : roundLen, rest }));
-}
-
-export function comboPool(level, theme) {
+// ---------- Combinações ----------
+export function comboPool(level, theme, sportId = 'boxe') {
+  const C = SPORTS[sportId]?.combos || COMBOS;
   const lv = ['iniciante', 'intermediario', 'avancado'];
-  const upto = lv.slice(0, lv.indexOf(level) + 1).flatMap(l => COMBOS[l]);
-  return theme?.pool ? [...theme.pool, ...COMBOS.iniciante.slice(0, 3)] : upto;
+  const upto = lv.slice(0, lv.indexOf(level) + 1).flatMap(l => C[l] || []);
+  return theme?.pool ? [...theme.pool, ...C.iniciante.slice(0, 3)] : upto;
 }
 
 // "1-2, esquiva" → "um, dois... esquiva" (fala em pt-BR)

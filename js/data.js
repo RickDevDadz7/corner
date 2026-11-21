@@ -118,6 +118,62 @@ export const EVIDENCE = [
     refs: ['ACSM (2009) Progression Models in Resistance Training for Healthy Adults. Med Sci Sports Exerc 41(3):687–708']
   },
   {
+    id: 'forca-lesao', cat: 'Recuperação', tags: ['lesao', 'lesão', 'prevenir', 'dor', 'canela', 'joelho', 'forca', 'força'],
+    title: 'Força previne lesão',
+    do: 'Duas sessões curtas de força por semana funcionam como seguro contra lesão, em qualquer esporte. Alongamento sozinho não cumpre esse papel.',
+    why: 'Meta-análise de ensaios randomizados: o treino de força reduziu lesões esportivas para menos de 1/3 e quase dividiu pela metade as lesões por sobrecarga. Alongamento não mostrou efeito protetor.',
+    level: 'A',
+    refs: ['Lauersen JB, Bertelsen DM, Andersen LB (2014) Br J Sports Med 48(11):871–877']
+  },
+  {
+    id: 'mt-energia', cat: 'Muay thai', tags: ['muay', 'thai', 'cansaco', 'cansaço', 'gasto', 'aerobio', 'anaerobio'],
+    title: 'O que o muay thai exige do corpo',
+    do: 'Treine os dois motores: base aeróbia (corrida leve, corda) e rounds intensos com pouco descanso.',
+    why: 'Numa simulação de luta, o gasto médio foi de ~10,8 kcal/min (~9,4 METs), com grande participação tanto do metabolismo aeróbio quanto da glicólise anaeróbia. Em lutas reais, o sistema láctico é muito recrutado.',
+    level: 'B',
+    refs: ['Crisafulli A et al. (2009) Appl Physiol Nutr Metab 34(2):143–150', 'Cappai I et al. (2012) Int J Perform Anal Sport 12(3):507–516']
+  },
+  {
+    id: 'mt-lesao', cat: 'Muay thai', tags: ['muay', 'lesao', 'lesão', 'canela', 'iniciante', 'dor'],
+    title: 'Lesões no começo do muay thai',
+    do: 'No começo, aumente o volume de chutes e sparring aos poucos. Use caneleira e protetor bucal, e técnica antes de força.',
+    why: 'Num levantamento com praticantes, iniciantes relataram taxa anual de lesão bem maior que amadores e profissionais (13,5 contra ~2,4–2,8 por 1000 praticantes). Lesões de tecidos moles foram as mais comuns. É um estudo por questionário.',
+    level: 'C',
+    refs: ['Gartland S, Malik MH, Lovell ME (2001) Br J Sports Med 35(5):308–313']
+  },
+  {
+    id: 'jj-perfil', cat: 'Jiu-jitsu', tags: ['jiu', 'jitsu', 'bjj', 'pegada', 'grappling', 'força'],
+    title: 'O que diferencia no jiu-jitsu',
+    do: 'Priorize força máxima, força isométrica (pegada) e resistência de força. O aeróbio é a base, mas não é o diferencial.',
+    why: 'Revisão sistemática de 58 estudos: força máxima dinâmica, isométrica e de resistência se associam ao sucesso. A potência aeróbia (~42–52 mL/kg/min) não diferenciou atletas de níveis competitivos diferentes.',
+    level: 'B',
+    refs: ['Andreato LV et al. (2017) Sports Med Open 3:9']
+  },
+  {
+    id: 'mma-perfil', cat: 'MMA', tags: ['mma', 'forca', 'força', 'potencia', 'potência', 'quedas', 'wrestling'],
+    title: 'O que separa níveis no MMA',
+    do: 'Força, potência e capacidade anaeróbia separam os níveis. Não troque a força por "só cardio".',
+    why: 'Revisão sistemática de MMA e dos esportes que o compõem: várias medidas de força, potência neuromuscular e capacidade anaeróbia distinguiram atletas de nível mais alto. Os perfis diferem entre esportes de agarre e de trocação.',
+    level: 'B',
+    refs: ['James LP, Haff GG, Kelly VG, Beckman EM (2016) Sports Med 46(10):1525–1551']
+  },
+  {
+    id: 'corrida-8020', cat: 'Corrida', tags: ['corrida', 'correr', 'ritmo', 'leve', 'intervalado', 'cansaco'],
+    title: 'A regra do "quase tudo leve"',
+    do: 'Faça cerca de 80% das sessões em ritmo leve (dá pra conversar) e cerca de 20% intensas.',
+    why: 'Revisão sobre como atletas de endurance bem-sucedidos distribuem a intensidade: a maior parte do volume em baixa intensidade, com uma fração pequena de trabalho intenso.',
+    level: 'B',
+    refs: ['Seiler S (2010) Int J Sports Physiol Perform 5(3):276–291']
+  },
+  {
+    id: 'corrida-economia', cat: 'Corrida', tags: ['corrida', 'economia', 'pliometria', 'forca', 'força', 'rapido', 'rápido'],
+    title: 'Força deixa a corrida mais barata',
+    do: 'Inclua força pesada e pliometria 2x/semana: no mesmo ritmo, você gasta menos energia.',
+    why: 'Meta-análise com corredores de alto nível: programas de força com pliometria tiveram efeito grande e benéfico na economia de corrida.',
+    level: 'A',
+    refs: ['Balsalobre-Fernández C, Santos-Concejero J, Grivas GV (2016) J Strength Cond Res 30(8):2361–2368']
+  },
+  {
     id: 'calistenia', cat: 'Musculação', tags: ['calistenia', 'casa', 'flexao', 'flexão', 'peso corporal', 'sem academia', 'barra'],
     title: 'Calistenia funciona?',
     do: 'Sim. Use progressões (inclinada → chão → pés elevados → arqueiro) pra manter as séries entre ~8 e 20 reps perto da falha. Quando ficar fácil, passe pra variação mais difícil.',
@@ -259,6 +315,10 @@ export const EXERCISES = {
   calfbw:  { n: 'Panturrilha no degrau', m: { pant: 1 }, t: 'iso', req: [], r: [12, 25], vars: ['Panturrilha no degrau', 'Panturrilha unilateral', 'Unilateral com pausa de 2 s'], cue: 'Amplitude total. Footwork que aguenta.' },
   hollow:  { n: 'Hollow (core de ginasta)', m: { core: 1 }, t: 'core', req: [], u: 's', r: [20, 45], vars: ['Dead bug', 'Hollow grupado', 'Hollow hold', 'Hollow rock'], cue: 'Lombar colada no chão.' },
   plankrot:{ n: 'Prancha anti-rotação', m: { core: 1 }, t: 'core', req: [], r: [10, 20], vars: ['Prancha com toque no ombro', 'Prancha com alcance à frente', 'Prancha com toque no ombro, pés juntos'], cue: 'Quadril não gira. Tronco blindado pra receber golpe.' },
+  hang:    { n: 'Pendurar na barra (pegada)', m: {}, t: 'core', req: ['barra'], u: 's', r: [20, 45], vars: ['Pendurado com os pés apoiados', 'Pendurado', 'Pendurado na toalha'], cue: 'Ombros ativos, não "pendure nas articulações".' },
+  towelgrip:{ n: 'Isometria de pegada (torcer toalha)', m: {}, t: 'core', req: [], u: 's', r: [20, 40], cue: 'Torça uma toalha molhada com força máxima. Pegada de quem agarra quimono.' },
+  copen:   { n: 'Prancha de Copenhague', m: { core: 0.5 }, t: 'prehab', req: [], u: 's', r: [15, 30], vars: ['Copenhague com joelho apoiado', 'Copenhague com pé apoiado'], cue: 'Lado do corpo no chão, perna de cima no sofá. Fortalece o adutor (virilha).' },
+  pogo:    { n: 'Pogo jumps (saltitos rígidos)', m: { pant: 0.5 }, t: 'power', req: [], u: 's', r: [15, 20], cue: 'Tornozelo "duro", contato curto com o chão. Mola, não amortecedor.' },
   neck:    { n: 'Isometria de pescoço (4 direções)', m: { pescoco: 1 }, t: 'prehab', req: [], u: 's', r: [15, 30], cue: 'Mão empurra, pescoço não se mexe.' }
 };
 
@@ -271,7 +331,8 @@ export const SLOTS = {
   vpush: ['ohp', 'dbohp', 'pike'], vpull: ['pu', 'pullup', 'bandpd', 'invrow'], hpull: ['row', 'dbrow', 'invrow', 'bandrow'],
   hpull2: ['dbrow', 'invrow', 'bandrow'], rear: ['fp', 'ytw'], lateral: ['lat', 'bandlat'],
   biceps: ['curl', 'chin', 'bandcurl'], biceps2: ['ham', 'bandcurl'], triceps: ['tri', 'bandtri', 'diamond'],
-  core_anti: ['pal', 'plankrot'], core_rot: ['lmr', 'hlr', 'hollow'], carry: ['farm'], neck: ['neck'], er: ['er', 'ytw']
+  core_anti: ['pal', 'plankrot'], core_rot: ['lmr', 'hlr', 'hollow'], carry: ['farm'], neck: ['neck'], er: ['er', 'ytw'],
+  grip: ['hang', 'farm', 'towelgrip'], adductor: ['copen'], pogo: ['pogo']
 };
 
 // Modelos de treino: [slot, séries, repsMin, repsMax]
