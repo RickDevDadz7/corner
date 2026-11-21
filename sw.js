@@ -1,6 +1,6 @@
 // Service worker: app funciona offline. Mude VERSION a cada publicação.
-const VERSION = 'ronin-v3.0.1';
-const FILES = ['./', 'index.html', 'styles.css', 'manifest.webmanifest', 'js/app.js', 'js/calc.js', 'js/data.js', 'js/sports.js', 'js/techniques.js', 'js/cloud.js', 'js/sync.js',
+const VERSION = 'ronin-v3.1.0';
+const FILES = ['./', 'index.html', 'styles.css', 'manifest.webmanifest', 'js/app.js', 'js/calc.js', 'js/data.js', 'js/sports.js', 'js/techniques.js', 'js/cloud.js', 'js/sync.js', 'js/rig.js',
   'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png'];
 
 self.addEventListener('install', e => {

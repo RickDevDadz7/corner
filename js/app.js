@@ -1,7 +1,7 @@
 import { EVIDENCE, EXERCISES, FOODS, MUSCLES, EQUIP, PUNCHES } from './data.js';
 import { NEAT, GOALS, targets, adaptiveTDEE, buildPlan as plan_, suggest, dayKey, fmt, sessionKcal, movingAvg, equipment, comboPool, comboSpeech, sportsOf, sportDays } from './calc.js';
 import { SPORTS, SPORT_IDS, combatSession, runSession } from './sports.js';
-import { TECHNIQUES, TIRED, animate } from './techniques.js';
+import { TECHNIQUES, TIRED, CATS, animate, thumbSVG } from './techniques.js';
 import { cloud } from './cloud.js';
 import * as sync from './sync.js';
 const buildPlan = p => plan_(p, S.prog);
@@ -81,6 +81,11 @@ function syncLine() {
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const today = () => dayKey();
+let viewDay = null; // null = hoje
+const curDay = () => viewDay || today();
+function shiftDay(n) { const d = new Date(curDay() + 'T12:00'); d.setDate(d.getDate() + n); const k = dayKey(d); viewDay = k >= today() ? null : k; }
+function dayLabel(k) { const d = new Date(k + 'T12:00'); const diff = Math.round((new Date(today() + 'T12:00') - d) / 864e5); return diff === 0 ? 'Hoje' : diff === 1 ? 'Ontem' : d.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' }); }
+function dayNav() { const k = curDay(); return `<div class="daynav"><button data-act="day" data-d="-1" aria-label="Dia anterior">‹</button><span>${esc(dayLabel(k))}${viewDay ? ` <small class="muted">${k.split('-').reverse().join('/')}</small>` : ''}</span><button data-act="day" data-d="1" ${viewDay ? '' : 'disabled'} aria-label="Próximo dia">›</button>${viewDay ? '<button class="linkbtn" data-act="dayToday">voltar pra hoje</button>' : ''}</div>`; }
 const num = v => { const n = parseFloat(String(v).replace(',', '.')); return isNaN(n) ? null : n; };
 function toast(msg) {
   const t = $('#toast'); if (!t) return; t.textContent = msg; t.classList.add('show');
@@ -88,8 +93,8 @@ function toast(msg) {
 }
 function foodTotals() { const out = {}; for (const [d, items] of Object.entries(S.logs.food)) out[d] = items.reduce((a, i) => a + i.k, 0); return out; }
 function T() { return targets(S.profile, S.settings.adaptive ? adaptiveTDEE(S.logs.weights, foodTotals()) : null); }
-function dayFood(d = today()) { return (S.logs.food[d] || []).reduce((a, i) => ({ k: a.k + i.k, p: a.p + i.p, c: a.c + i.c, f: a.f + i.f }), { k: 0, p: 0, c: 0, f: 0 }); }
-const dayWater = (d = today()) => (S.logs.water[d] || []).reduce((a, w) => a + (w.ml || 0), 0);
+function dayFood(d = curDay()) { return (S.logs.food[d] || []).reduce((a, i) => ({ k: a.k + i.k, p: a.p + i.p, c: a.c + i.c, f: a.f + i.f }), { k: 0, p: 0, c: 0, f: 0 }); }
+const dayWater = (d = curDay()) => (S.logs.water[d] || []).reduce((a, w) => a + (w.ml || 0), 0);
 function latestWeight() { const ks = Object.keys(S.logs.weights).sort(); return ks.length ? S.logs.weights[ks[ks.length - 1]] : S.profile?.weight; }
 const mySports = () => Object.keys(sportsOf(S.profile || {})).filter(id => SPORTS[id]);
 function curSport() { const m = mySports(); return m.includes(S.ui.sport) ? S.ui.sport : (m[0] || 'boxe'); }
@@ -189,28 +194,36 @@ views.hoje = () => {
   const hour = new Date().getHours();
   const greet = hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite';
   const tip = EVIDENCE[(new Date().getDate() + new Date().getMonth()) % EVIDENCE.length];
-  const todayS = S.logs.sessions.filter(b => b.date === today());
+  const todayS = S.logs.sessions.filter(b => b.date === curDay());
+  const wl = S.logs.water[curDay()] || [];
   const cs = curSport();
-  return `<section class="head"><div><small class="muted">${greet}</small><h1>Hoje</h1></div><div class="chip">${new Date().toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' })}</div></section>
+  return `<section class="head"><div>${viewDay ? '<small class="muted">Editando um dia passado</small><br>' : `<small class="muted">${greet}</small><br>`}<h1>${viewDay ? 'Registro' : 'Hoje'}</h1></div></section>
+  ${dayNav()}
   <div class="card glow">
     <div class="row">
       ${ring(f.k, t.kcal, fmt(Math.max(0, t.kcal - f.k), 0), 'kcal restantes')}
       <div class="grow">${bar('Proteína', f.p, t.protein, 'g', 'var(--acc)')}${bar('Carboidrato', f.c, t.carbs, 'g', 'var(--cyan)')}${bar('Gordura', f.f, t.fat, 'g', 'var(--amber)')}</div>
     </div>
-    <div class="row gap mt"><a class="btn small" href="#nutri">+ Comida</a><button class="btn small ghost" data-act="water" data-v="250">+ 250 ml água</button></div>
+    <div class="row gap mt"><a class="btn small" href="#nutri">+ Comida</a></div>
     ${bar('Água', w, t.water, ' ml', 'var(--cyan)')}
+    <div class="water">
+      <button class="btn small" data-act="water" data-v="250">+250</button><button class="btn small" data-act="water" data-v="500">+500</button>
+      <button class="btn small ghost" data-act="water" data-v="-250" ${w ? '' : 'disabled'} aria-label="Tirar 250 ml">−250</button>
+      <form id="waterForm" class="row gap"><input name="ml" inputmode="numeric" placeholder="ml" aria-label="Outra quantidade em ml"><button class="btn small ghost" type="submit">ok</button></form>
+    </div>
+    ${wl.length ? `<details class="wlist"><summary class="small">Ver ${wl.length} registro(s) de água</summary><ul class="list">${wl.map(x => `<li><span class="small">${x.ml > 0 ? '+' : ''}${x.ml} ml</span><button class="x" data-act="delWater" data-id="${x.id}" aria-label="Apagar">×</button></li>`).join('')}</ul></details>` : ''}
   </div>
-  <a class="card link panel" href="#esporte"><small class="cat">${esc(SPORTS[cs].n)}</small><h3>${SPORTS[cs].combat ? 'Gerar treino de hoje' : 'Gerar corrida de hoje'}</h3>
-    <p class="muted small">${SPORTS[cs].combat ? 'Rounds com tema, combinações faladas e foco nos seus pontos fracos.' : 'Rodagem, intervalado ou tiros, com o timer marcando cada bloco.'}</p><span class="go">Montar →</span></a>
-  ${next ? `<a class="card link" href="#sessao-${nextIdx}">
+  ${viewDay ? '' : `<a class="card link panel" href="#esporte"><small class="cat">${esc(SPORTS[cs].n)}</small><h3>${SPORTS[cs].combat ? 'Gerar treino de hoje' : 'Gerar corrida de hoje'}</h3>
+    <p class="muted small">${SPORTS[cs].combat ? 'Rounds com tema, combinações faladas e foco nos seus pontos fracos.' : 'Rodagem, intervalado ou tiros, com o timer marcando cada bloco.'}</p><span class="go">Montar →</span></a>`}
+  ${next && !viewDay ? `<a class="card link" href="#sessao-${nextIdx}">
     <small class="cat">Próximo treino de força · ${esc(plan.split)}</small><h3>${esc(next.name)}</h3>
     <p class="muted small">${next.items.filter(i => EXERCISES[i.ex].t !== 'prehab').slice(0, 4).map(i => esc(i.name)).join(' · ')}…</p>
     <span class="go">Começar →</span></a>` : ''}
-  <div class="card"><h3>Treinos de hoje</h3>
-    ${todayS.length ? todayS.map(b => `<p class="small">${esc(SPORTS[b.sport]?.n || '')} · ${esc(SPORTS[b.sport]?.types[b.type]?.n || '')} · ${b.min} min · ~${fmt(b.kcal, 0)} kcal</p>`).join('') : '<p class="muted small">Nenhuma sessão registrada hoje.</p>'}
+  <div class="card"><h3>Treinos ${viewDay ? 'do dia' : 'de hoje'}</h3>
+    ${todayS.length ? todayS.map(b => `<p class="small">${esc(SPORTS[b.sport]?.n || '')} · ${esc(SPORTS[b.sport]?.types[b.type]?.n || '')} · ${b.min} min · ~${fmt(b.kcal, 0)} kcal</p>`).join('') : `<p class="muted small">Nenhuma sessão registrada ${viewDay ? 'nesse dia' : 'hoje'}.</p>`}
   </div>
   <div class="card">
-    <form id="weighForm" class="row between"><h3>Peso</h3><div class="row gap"><input name="kg" inputmode="decimal" placeholder="${fmt(latestWeight())} kg" style="width:96px" aria-label="Peso de hoje"><button class="btn small" type="submit">Salvar</button></div></form>
+    <form id="weighForm" class="row between"><h3>Peso${viewDay ? ' do dia' : ''}</h3><div class="row gap"><input name="kg" inputmode="decimal" placeholder="${S.logs.weights[curDay()] != null ? fmt(S.logs.weights[curDay()]) : fmt(latestWeight())} kg" style="width:96px" aria-label="Peso do dia"><button class="btn small" type="submit">Salvar</button></div></form>
     ${weightChart()}
   </div>
   <small class="cat pad">Ciência do dia</small>
@@ -218,9 +231,10 @@ views.hoje = () => {
 };
 
 views.nutri = () => {
-  const t = T(), f = dayFood(), items = S.logs.food[today()] || [];
+  const t = T(), f = dayFood(), items = S.logs.food[curDay()] || [];
   const ad = adaptiveTDEE(S.logs.weights, foodTotals());
   return `<section class="head"><h1>Nutrição</h1></section>
+  ${dayNav()}
   <div class="card glow">
     <small class="cat">Sua meta diária</small>
     <div class="big mono">${fmt(t.kcal, 0)} <i>kcal</i></div>
@@ -240,7 +254,7 @@ views.nutri = () => {
     <label class="switch"><input type="checkbox" data-act="toggleAdaptive" ${S.settings.adaptive ? 'checked' : ''}> Usar ajuste adaptativo</label>
   </details>
   <div class="card">
-    <div class="row between"><h3>Hoje</h3><span class="mono small">${fmt(f.k, 0)} / ${fmt(t.kcal, 0)} kcal</span></div>
+    <div class="row between"><h3>${esc(dayLabel(curDay()))}</h3><span class="mono small">${fmt(f.k, 0)} / ${fmt(t.kcal, 0)} kcal</span></div>
     ${bar('Proteína', f.p, t.protein)}
     <ul class="list">${items.map(it => `<li><div><b>${esc(it.n)}</b><small>${it.g ? it.g + ' g · ' : ''}${fmt(it.k, 0)} kcal · P ${fmt(it.p, 0)} · C ${fmt(it.c, 0)} · G ${fmt(it.f, 0)}</small></div><button class="x" data-act="delFood" data-id="${it.id}" aria-label="Remover">×</button></li>`).join('') || '<li class="muted small">Nada registrado ainda.</li>'}</ul>
   </div>
@@ -475,8 +489,9 @@ views.esporte = () => {
       <button class="btn primary block" data-act="loadProg">Carregar no timer ↑</button>` : `<p class="small muted">${SP.combos ? 'Monta os rounds com tema, foco e combinações faladas, usando seus pontos fracos marcados abaixo.' : id === 'corrida' ? 'Monta aquecimento, blocos e volta à calma com o timer marcando cada parte.' : 'Monta os rounds com drills, posições e o foco nos seus pontos fracos.'}</p>`}
   </div>
 
-  ${techs.length ? `<div class="card"><small class="cat">Biblioteca</small><h3>Técnicas</h3>
-    <div class="techgrid">${techs.map(t => `<a class="tech" href="#tecnica-${t.id}"><span class="tech-thumb" data-thumb="${t.id}"></span><b>${esc(t.n)}</b></a>`).join('')}</div></div>` : ''}
+  ${techs.length ? `<a class="card link panel" href="#tecnicas"><small class="cat">Biblioteca</small><h3>${techs.length} técnicas de ${esc(SP.n.toLowerCase())}</h3>
+    <div class="techgrid mini">${techs.slice(0, 3).map(t => `<span class="tech"><span class="tech-thumb">${thumbSVG(t)}</span><b>${esc(t.n)}</b></span>`).join('')}</div>
+    <p class="small muted">${[...new Set(techs.map(t => t.cat))].join(' · ')}</p><span class="go">Abrir →</span></a>` : ''}
   ${SP.combat ? `<details class="card tired"><summary><h3>${esc(TIRED.title)}</h3></summary><p class="small muted">${esc(TIRED.sub)}</p>
     <ol class="furos">${TIRED.items.map(([a, b, e]) => `<li><b>${esc(a)}</b><span>${esc(b)}</span>${e ? `<small class="muted">Base: ${esc(ev(e)?.title)}</small>` : ''}</li>`).join('')}</ol></details>` : ''}
   ${SP.legend ? `<details class="card"><summary><h3>Legenda dos números</h3></summary>
@@ -501,19 +516,33 @@ views.esporte = () => {
   ${SP.ev.map(e => evCard(ev(e))).join('')}`;
 };
 
-let anim = null;
+let anim = null, techCat = '';
+const techList = () => TECHNIQUES.filter(t => t.sport.includes(curSport()));
+views.tecnicas = () => {
+  const id = curSport(), list = techList(), cats = CATS.filter(c => list.some(t => t.cat === c));
+  if (!cats.includes(techCat)) techCat = '';
+  const shown = list.filter(t => !techCat || t.cat === techCat);
+  return `<section class="head"><a href="#esporte" class="back">←</a><h1>Técnicas</h1><div class="chip">${esc(SPORTS[id].n)}</div></section>
+  ${mySports().filter(s => TECHNIQUES.some(t => t.sport.includes(s))).length > 1 ? `<div class="chips tabs">${mySports().filter(s => TECHNIQUES.some(t => t.sport.includes(s))).map(s => `<button class="chipbtn ${s === id ? 'on' : ''}" data-act="sport" data-id="${s}"><b class="mk">${SPORTS[s].mark}</b> ${esc(SPORTS[s].n)}</button>`).join('')}</div>` : ''}
+  <div class="segs">${['', ...cats].map(c => `<button class="${c === techCat ? 'on' : ''}" data-act="techCat" data-c="${esc(c)}">${c ? esc(c) : 'Todas'} <small>${c ? list.filter(t => t.cat === c).length : list.length}</small></button>`).join('')}</div>
+  ${(techCat ? [techCat] : cats).map(c => `<small class="cat pad">${esc(c)}</small>
+    <div class="techgrid">${shown.filter(t => t.cat === c).map(t => `<a class="tech" href="#tecnica-${t.id}"><span class="tech-thumb">${thumbSVG(t)}</span><b>${esc(t.n)}</b></a>`).join('')}</div>`).join('')}
+  ${!list.length ? '<div class="card"><p class="small muted">Ainda não temos técnicas animadas pra esse esporte.</p></div>' : ''}`;
+};
 views.tecnica = (tid) => {
   const t = TECHNIQUES.find(x => x.id === tid);
-  if (!t) { location.hash = '#esporte'; return ''; }
-  return `<section class="head"><a href="#esporte" class="back">←</a><h1>${esc(t.n)}</h1></section>
+  if (!t) { location.hash = '#tecnicas'; return ''; }
+  const list = techList().length && techList().includes(t) ? techList() : TECHNIQUES.filter(x => x.sport.includes(t.sport[0]));
+  const i = list.indexOf(t), prev = list[(i - 1 + list.length) % list.length], next = list[(i + 1) % list.length];
+  return `<section class="head"><a href="#tecnicas" class="back">←</a><div><small class="cat">${esc(t.cat)}</small><br><h1>${esc(t.n)}</h1></div></section>
   <div class="card panel techcard">
     <div id="techFig" class="techfig"></div>
-    <div class="row gap center-row"><button class="btn small" data-act="techPause">Pausar</button>
-      <button class="btn small ghost" data-act="techSpeed" data-s="1">Normal</button><button class="btn small ghost" data-act="techSpeed" data-s="2.6">Câmera lenta</button></div>
+    <div class="segs speed"><button data-act="techPause">❚❚ Pausar</button><button class="on" data-act="techSpeed" data-s="1">Normal</button><button data-act="techSpeed" data-s="3">Lento</button><button data-act="techSpeed" data-s="6">Bem lento</button></div>
     <p class="small muted">${esc(t.sub)} <span class="hi-dot"></span> = onde nasce a força.</p>
   </div>
   <div class="card"><h3>Passo a passo</h3><ol class="steps" id="techSteps">${t.steps.map((s, i) => `<li data-i="${i}">${esc(s)}</li>`).join('')}</ol></div>
-  <div class="card"><h3>Furos comuns</h3><ul class="furos-x">${t.furos.map(f => `<li>${esc(f)}</li>`).join('')}</ul></div>`;
+  <div class="card"><h3>Furos comuns</h3><ul class="furos-x">${t.furos.map(f => `<li>${esc(f)}</li>`).join('')}</ul></div>
+  <div class="row gap technav"><a class="btn small ghost grow" href="#tecnica-${prev.id}">‹ ${esc(prev.n)}</a><a class="btn small ghost grow" href="#tecnica-${next.id}">${esc(next.n)} ›</a></div>`;
 };
 
 // ---------------- Ciência ----------------
@@ -620,7 +649,7 @@ views.perfil = () => `${views.onboarding()}
   <div class="card"><h3>Seus dados</h3>
     <div class="row gap wrap"><button class="btn small" data-act="export">Exportar backup</button><label class="btn small ghost">Restaurar<input type="file" accept="application/json" id="importFile" hidden></label><button class="btn small danger" data-act="reset">Apagar tudo</button></div>
   </div>
-  <p class="small muted center pad">RONIN v3.0 · não substitui acompanhamento profissional.</p>`;
+  <p class="small muted center pad">RONIN v3.1 · não substitui acompanhamento profissional.</p>`;
 
 // ---------------- Roteador ----------------
 const ICONS = { hoje: 'M3 12l9-8 9 8M5 10v10h14V10', nutri: 'M12 3c4 3 6 6 6 10a6 6 0 0 1-12 0c0-4 2-7 6-10z', treino: 'M3 10v4M6 7v10M18 7v10M21 10v4M6 12h12', esporte: 'M7 4h7a4 4 0 0 1 4 4v4a6 6 0 0 1-6 6H9a4 4 0 0 1-4-4V6a2 2 0 0 1 2-2zM9 18v3h6v-3', coach: 'M4 5h16v11H8l-4 4z' };
@@ -640,7 +669,7 @@ function render() {
   const ms = mySports();
   const spLabel = ms.length === 1 ? SPORTS[ms[0]].n : 'Esporte';
   const tabs = [['hoje', 'Hoje'], ['nutri', 'Nutrição'], ['treino', 'Força'], ['esporte', spLabel], ['coach', 'Coach']];
-  $('#nav').innerHTML = tabs.map(([id, label]) => `<a href="#${id}" class="${(v === id || (v === 'sessao' && id === 'treino') || (v === 'tecnica' && id === 'esporte')) ? 'on' : ''}"><svg viewBox="0 0 24 24"><path d="${ICONS[id]}"/></svg><span>${esc(label)}</span></a>`).join('');
+  $('#nav').innerHTML = tabs.map(([id, label]) => `<a href="#${id}" class="${(v === id || (v === 'sessao' && id === 'treino') || ((v === 'tecnica' || v === 'tecnicas') && id === 'esporte')) ? 'on' : ''}"><svg viewBox="0 0 24 24"><path d="${ICONS[id]}"/></svg><span>${esc(label)}</span></a>`).join('');
   bindAfter(v, arg);
   if (v === 'esporte') paintTimer();
   if (v === 'perfil' && arg === 'conta') requestAnimationFrame(() => $('#conta')?.scrollIntoView({ behavior: 'smooth' }));
@@ -686,8 +715,9 @@ function bindAfter(v, arg) {
     $('#weighForm').addEventListener('submit', e => {
       e.preventDefault(); const kg = num(e.target.kg.value);
       if (!kg || kg < 30 || kg > 300) { toast('Peso inválido'); return; }
-      S.logs.weights[today()] = kg; S.meta.wt[today()] = Date.now(); save(); render(); toast('Peso registrado');
+      S.logs.weights[curDay()] = kg; S.meta.wt[curDay()] = Date.now(); save(); render(); toast('Peso registrado');
     });
+    $('#waterForm').addEventListener('submit', e => { e.preventDefault(); const ml = Math.round(num(e.target.ml.value) || 0); if (!ml) return; addWater(ml); });
   }
   if (v === 'nutri') {
     const inp = $('#foodSearch'), res = $('#foodResults');
@@ -728,11 +758,6 @@ function bindAfter(v, arg) {
     document.querySelectorAll('[data-tm]').forEach(i => i.addEventListener('change', () => {
       const n = Math.max(1, Math.round(num(i.value) || 1)); S.timer[i.dataset.tm] = n; S.timer.preset = 'custom'; save(); if (TM.phase === 'idle') paintTimer();
     }));
-    // miniaturas das técnicas (pose de impacto)
-    import('./techniques.js').then(({ figureSVG }) => document.querySelectorAll('[data-thumb]').forEach(el => {
-      const t = TECHNIQUES.find(x => x.id === el.dataset.thumb); const f = t.frames.find(x => x.hi.length > 1) || t.frames[Math.min(2, t.frames.length - 1)];
-      el.innerHTML = figureSVG(f.p, { gloves: t.gloves, hi: [], arrow: null });
-    }));
   }
   if (v === 'tecnica') {
     const t = TECHNIQUES.find(x => x.id === arg);
@@ -772,13 +797,22 @@ function bindAfter(v, arg) {
   }
 }
 
-function addFood(item) { (S.logs.food[today()] ||= []).push({ id: newId(), ...item }); save(); toast(`+${fmt(item.k, 0)} kcal`); render(); }
+function addWater(ml) {
+  const tot = dayWater();
+  if (ml < 0) ml = Math.max(ml, -tot);
+  if (!ml) return;
+  (S.logs.water[curDay()] ||= []).push({ id: newId(), ml }); save(); render();
+}
+function addFood(item) { (S.logs.food[curDay()] ||= []).push({ id: newId(), ...item }); save(); toast(`+${fmt(item.k, 0)} kcal`); render(); }
 
 // ---------------- Ações ----------------
 document.addEventListener('click', async e => {
   const el = e.target.closest('[data-act]'); if (!el) return;
   const a = el.dataset.act;
-  if (a === 'water') { (S.logs.water[today()] ||= []).push({ id: newId(), ml: +el.dataset.v }); save(); render(); }
+  if (a === 'water') addWater(+el.dataset.v);
+  if (a === 'delWater') { const id = el.dataset.id; S.logs.water[curDay()] = (S.logs.water[curDay()] || []).filter(x => x.id !== id); S.del[id] = Date.now(); save(); render(); }
+  if (a === 'day') { shiftDay(+el.dataset.d); render(); }
+  if (a === 'dayToday') { viewDay = null; render(); }
   if (a === 'pickFood') {
     const i = +el.dataset.i; $('#foodPick').innerHTML = foodPickHTML(i);
     const f = $('#pickForm'), info = $('#pickInfo');
@@ -786,7 +820,7 @@ document.addEventListener('click', async e => {
     f.g.addEventListener('input', upd); upd(); f.g.focus(); f.g.select();
     f.addEventListener('submit', ev2 => { ev2.preventDefault(); const g = num(f.g.value) || 0, fd = FOODS[i], m = g / 100; addFood({ n: fd.n, g, k: fd.k * m, p: fd.p * m, c: fd.c * m, f: fd.f * m }); });
   }
-  if (a === 'delFood') { const id = el.dataset.id; S.logs.food[today()] = (S.logs.food[today()] || []).filter(x => x.id !== id); S.del[id] = Date.now(); save(); render(); }
+  if (a === 'delFood') { const id = el.dataset.id; S.logs.food[curDay()] = (S.logs.food[curDay()] || []).filter(x => x.id !== id); S.del[id] = Date.now(); save(); render(); }
   if (a === 'toggleAdaptive') { S.settings.adaptive = el.checked; save(true); render(); }
   if (a === 'finishWorkout') {
     const n = Object.values(draft?.sets || {}).flat().filter(s => s && s.reps).length;
@@ -808,8 +842,9 @@ document.addEventListener('click', async e => {
     S.prog[ex] = Math.max(0, Math.min(e2.vars.length - 1, cur + +el.dataset.d)); save(); render(); toast(e2.vars[S.prog[ex]]);
   }
   if (a === 'addStrength') { Object.assign(S.profile, { liftDays: 2, env: S.profile.env || 'casa' }); save(true); render(); toast('2 treinos de força adicionados'); }
-  if (a === 'techPause' && anim) { el.textContent = anim.toggle() ? 'Continuar' : 'Pausar'; }
-  if (a === 'techSpeed' && anim) { anim.setSpeed(+el.dataset.s); }
+  if (a === 'techPause' && anim) { el.textContent = anim.toggle() ? '▶ Continuar' : '❚❚ Pausar'; }
+  if (a === 'techSpeed' && anim) { anim.setSpeed(+el.dataset.s); el.parentNode.querySelectorAll('[data-act=techSpeed]').forEach(b => b.classList.toggle('on', b === el)); }
+  if (a === 'techCat') { techCat = el.dataset.c; render(); }
   if (a === 'ask') askCoach(el.dataset.q);
   if (a === 'clearChat') { S.chat = []; save(); render(); }
   if (a === 'saveKey') {
