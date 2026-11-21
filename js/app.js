@@ -693,7 +693,6 @@ function accountCard() {
   if (u) return `<div class="card" id="conta"><small class="cat">Conta</small><h3>${esc(u.email || 'Conectado')}</h3>
     <p class="small muted" id="syncInfo">${syncLine()}</p>
     <div class="row gap wrap"><button class="btn small primary" data-act="syncNow">Sincronizar agora</button><button class="btn small danger" data-act="signOut">Sair da conta</button></div>
-    <p class="small muted">Sincroniza sozinho ao abrir o app, depois de cada alteração, ao sair do app e a cada 10 minutos. Ao sair da conta, tudo é salvo na nuvem e este aparelho é limpo (dá pra entrar com outra conta sem misturar nada).</p>
     <details><summary class="small">Definir / trocar senha</summary><p class="tiny muted">Útil se você entrou com o Google e quer entrar também com e-mail e senha.</p><form id="passForm" class="form">${pwField('pass', 'nova senha (mínimo 8)', 'new-password')}<button class="btn small" type="submit">Salvar senha</button></form></details></div>`;
   return `<div class="card" id="conta"><small class="cat">Conta</small><h3>Usando sem conta</h3>
     <p class="small muted">Seus dados estão só neste aparelho. Com uma conta eles ficam salvos na nuvem e aparecem em qualquer aparelho.</p>
