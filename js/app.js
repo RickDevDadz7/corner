@@ -60,8 +60,10 @@ async function doSync(quiet = false) {
   try {
     const info = await sync.syncNow(() => S, ns => { S = ns; try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { } });
     syncState.err = '';
+    if (cloud.user() && S.meta.owner !== cloud.user().id) { S.meta.owner = cloud.user().id; try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { } }
     if (info.changed && !isTyping()) render();
     if (!quiet) toast(info.devices > 1 ? `Sincronizado com ${info.devices - 1} outro(s) aparelho(s)` : 'Sincronizado');
+    return true;
   } catch (e) {
     syncState.err = e.message;
     if (e.code === 'signed_out') render();
@@ -619,6 +621,13 @@ async function askCoach(q) {
 function scrollChat() { requestAnimationFrame(() => window.scrollTo(0, document.body.scrollHeight)); }
 
 // ---------------- Conta ----------------
+// Apaga tudo deste aparelho (ao sair da conta ou ao entrar com outra conta)
+function wipeLocal() {
+  S = blank();
+  try { for (const k of [KEY, OLD_KEY, KEY_API, OLD_API, 'ronin-sync-last']) localStorage.removeItem(k); } catch (e) { }
+  draft = null; viewDay = null; genSession = null; techCat = '';
+  try { timerReset(); } catch (e) { }
+}
 const GATE = { tab: 'in', email: '', msg: null, confirm: false, recovery: false, busy: false };
 const skipLogin = { get() { try { return localStorage.getItem('ronin-skip-login') === '1'; } catch (e) { return false; } }, set(v) { try { v ? localStorage.setItem('ronin-skip-login', '1') : localStorage.removeItem('ronin-skip-login'); } catch (e) { } } };
 const GOOGLE_SVG = '<svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.5l6.7-6.7C35.6 2.4 30.2 0 24 0 14.6 0 6.6 5.4 2.6 13.3l7.8 6C12.3 13.6 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.1 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.4c-.5 2.9-2.2 5.3-4.6 6.9l7.4 5.7c4.3-4 6.9-9.9 6.9-17.1z"/><path fill="#FBBC05" d="M10.4 28.7c-.5-1.4-.8-3-.8-4.7s.3-3.2.8-4.7l-7.8-6C.9 16.6 0 20.2 0 24s.9 7.4 2.6 10.7l7.8-6z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.4-5.7c-2.1 1.4-4.8 2.3-8.5 2.3-6.3 0-11.7-4.1-13.6-9.8l-7.8 6C6.6 42.6 14.6 48 24 48z"/></svg>';
@@ -649,7 +658,7 @@ function accountCard() {
   if (u) return `<div class="card" id="conta"><small class="cat">Conta</small><h3>${esc(u.email || 'Conectado')}</h3>
     <p class="small muted" id="syncInfo">${syncLine()}</p>
     <div class="row gap wrap"><button class="btn small primary" data-act="syncNow">Sincronizar agora</button><button class="btn small ghost" data-act="signOut">Sair</button></div>
-    <p class="small muted">Sincroniza sozinho ao abrir o app, depois de cada alteração, ao sair do app e a cada 10 minutos. A chave da IA e a conversa com o coach ficam só aqui.</p>
+    <p class="small muted">Sincroniza sozinho ao abrir o app, depois de cada alteração, ao sair do app e a cada 10 minutos. Ao sair da conta, tudo é salvo na nuvem e este aparelho é limpo (dá pra entrar com outra conta sem misturar nada).</p>
     <details><summary class="small">Definir / trocar senha</summary><p class="tiny muted">Útil se você entrou com o Google e quer entrar também com e-mail e senha.</p><form id="passForm" class="form">${pwField('pass', 'nova senha (mínimo 8)', 'new-password')}<button class="btn small" type="submit">Salvar senha</button></form></details></div>`;
   return authBlock();
 }
@@ -658,6 +667,10 @@ views.login = () => `<section class="hero"><div class="logo-big">RONIN</div><div
   ${GATE.recovery && cloud.user() ? accountCard() : authBlock()}
   <button class="btn ghost block" data-act="skipLogin">Usar sem conta (dados só neste aparelho)</button>`;
 async function afterLogin() {
+  const u = cloud.user();
+  // outra conta? os dados deste aparelho são da conta anterior: descarta antes de juntar
+  if (u && S.meta.owner && S.meta.owner !== u.id) { wipeLocal(); toast('Dados da conta anterior removidos deste aparelho.'); }
+  if (u) { S.meta.owner = u.id; try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { } }
   const stay = !!S.profile && /^#perfil/.test(location.hash);
   GATE.msg = null; GATE.confirm = false; GATE.busy = true; render();
   await doSync(true);
@@ -900,7 +913,25 @@ document.addEventListener('click', async e => {
   if (a === 'skipLogin') { skipLogin.set(true); rendered = ''; render(); window.scrollTo(0, 0); }
   if (a === 'toLogin') { skipLogin.set(false); render(); window.scrollTo(0, 0); }
   if (a === 'syncNow') doSync();
-  if (a === 'signOut') { await cloud.signOut(); toast('Você saiu da conta. Os dados continuam neste aparelho.'); render(); }
+  if (a === 'signOut') {
+    if (!el.dataset.armed) {
+      el.dataset.armed = '1'; el.textContent = 'Toque de novo pra sair';
+      setTimeout(() => { if (el.isConnected && el.dataset.armed === '1') { delete el.dataset.armed; el.textContent = 'Sair'; } }, 4000);
+      return;
+    }
+    if (el.dataset.armed === '1') {
+      el.disabled = true; el.textContent = 'Salvando na conta…';
+      clearTimeout(syncTimer);
+      const ok = await sync.syncNow(() => S, ns => { S = ns; }).then(() => true, () => false);
+      if (!ok) { el.disabled = false; el.dataset.armed = '2'; el.textContent = 'Sair mesmo assim'; toast('Sem conexão: o que não foi sincronizado vai se perder. Toque de novo pra sair mesmo assim.'); return; }
+    }
+    await cloud.signOut();
+    wipeLocal(); skipLogin.set(false);
+    GATE.tab = 'in'; GATE.msg = null; GATE.email = ''; GATE.confirm = false; GATE.recovery = false;
+    try { history.replaceState(null, '', location.pathname + '#login'); } catch (e) { location.hash = '#login'; }
+    rendered = ''; go(); window.scrollTo(0, 0);
+    toast('Você saiu da conta. Este aparelho foi limpo.');
+  }
   if (a === 'export') {
     const blob = new Blob([JSON.stringify({ ...S, chat: [] }, null, 1)], { type: 'application/json' });
     const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `ronin-backup-${today()}.json`; link.click();

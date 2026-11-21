@@ -89,13 +89,14 @@ export function syncNow(getS, setS) {
     const rows = await cloud.rest(TABLE + '?select=device_id,name,updated_at,data&user_id=eq.' + encodeURIComponent(u.id));
     const others = [];
     for (const r of rows || []) {
-      if (r.device_id === dev) continue;
+      // a linha deste aparelho também entra: depois de sair da conta (aparelho limpo) é dela que os dados voltam.
+      // A junção é idempotente e as lápides impedem que o que foi apagado aqui volte.
       let data = null; try { data = JSON.parse(r.data); } catch (e) { continue; }
       if (!data || data.app !== 'ronin' || !data.state) continue;
       // conta nova neste aparelho: adota o perfil de quem já usa
       if (!S.profile && data.state.profile) { S.profile = clone(data.state.profile); S.meta = S.meta || {}; S.meta.pt = 0; }
       S = merge(S, data.state);
-      others.push({ name: r.name, at: r.updated_at });
+      if (r.device_id !== dev) others.push({ name: r.name, at: r.updated_at });
     }
     const changed = sig(S) !== before;
     if (changed) setS(S);
