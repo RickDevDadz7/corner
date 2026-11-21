@@ -335,3 +335,8 @@ details>summary.small{font-weight:900;margin-top:8px;color:var(--acc)}
 .center-link{align-self:center;text-decoration:none;color:var(--muted)}
 .gate-skip{align-self:center;color:var(--ink);text-decoration:underline;font-size:14px;padding:8px}
 .gate-ver{text-align:center;font-size:11px;color:var(--muted);margin:0}
+.fig .tgt circle{fill:none;stroke:var(--acc);stroke-width:2.2;stroke-dasharray:4 3;opacity:.85;paint-order:stroke}
+.fig .tgt circle{filter:drop-shadow(0 0 1.5px #f5f0e4)}
+.fig .tgt circle+circle{fill:var(--acc);stroke:none;opacity:.6}
+.fig .pth{fill:none;stroke:var(--acc);stroke-width:2.5;stroke-dasharray:6 4;opacity:.85;stroke-linecap:round;filter:drop-shadow(0 0 1.5px #f5f0e4)}
+.fig .pta{fill:var(--acc);opacity:.85}

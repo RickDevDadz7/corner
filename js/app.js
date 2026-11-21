@@ -693,7 +693,7 @@ views.login = () => `<div class="gate">
   <p class="gate-tag">Sem mestre. Só disciplina.</p>
   ${GATE.recovery && cloud.user() ? accountCard() : authBlock()}
   <button class="linkbtn gate-skip" data-act="skipLogin">Continuar sem conta</button>
-  <p class="gate-ver">v3.4</p></div>`;
+  <p class="gate-ver">v3.5</p></div>`;
 async function afterLogin() {
   const u = cloud.user();
   // outra conta? os dados deste aparelho são da conta anterior: descarta antes de juntar
@@ -702,7 +702,7 @@ async function afterLogin() {
   GATE.msg = null; GATE.confirm = false; GATE.busy = true; render();
   await doSync(true);
   GATE.busy = false;
-  toast(S.profile ? 'Conectado. Seus dados foram sincronizados.' : 'Conectado! Agora monte seu perfil.');
+
   try { history.replaceState(null, '', location.pathname + (S.profile ? '#hoje' : '#perfil')); } catch (e) { }
   rendered = ''; go(); window.scrollTo(0, 0);
 }
@@ -719,7 +719,7 @@ views.perfil = () => `<section class="head"><h1>Perfil e ajustes</h1></section>
   <div class="card"><h3>Seus dados</h3>
     <div class="row gap wrap"><button class="btn small" data-act="export">Exportar backup</button><label class="btn small ghost">Restaurar<input type="file" accept="application/json" id="importFile" hidden></label><button class="btn small danger" data-act="reset">Apagar tudo</button></div>
   </div>
-  <p class="small muted center pad">RONIN v3.4 · não substitui acompanhamento profissional.</p>`;
+  <p class="small muted center pad">RONIN v3.5 · não substitui acompanhamento profissional.</p>`;
 
 // ---------------- Roteador ----------------
 const ICONS = { hoje: 'M3 12l9-8 9 8M5 10v10h14V10', nutri: 'M12 3c4 3 6 6 6 10a6 6 0 0 1-12 0c0-4 2-7 6-10z', treino: 'M3 10v4M6 7v10M18 7v10M21 10v4M6 12h12', esporte: 'M7 4h7a4 4 0 0 1 4 4v4a6 6 0 0 1-6 6H9a4 4 0 0 1-4-4V6a2 2 0 0 1 2-2zM9 18v3h6v-3', coach: 'M4 5h16v11H8l-4 4z' };
@@ -1012,7 +1012,7 @@ let pendingLogin = false;
     try { history.replaceState(null, '', location.pathname + (r.error ? '#login' : r.type === 'recovery' ? '#perfil-conta' : S.profile ? '#hoje' : '#perfil')); } catch (e) { location.hash = '#hoje'; }
     if (r.error) GATE.msg = { ok: false, html: esc(r.error) };
     else if (r.type !== 'recovery') pendingLogin = true;
-    setTimeout(() => toast(r.error ? r.error : r.type === 'recovery' ? 'Crie sua senha nova.' : 'Conectado: ' + (r.email || '')), 300);
+    if (r.error || r.type === 'recovery') setTimeout(() => toast(r.error ? r.error : 'Crie sua senha nova.'), 300);
   }
   // erro do Google volta como ?error=…
   try {

@@ -91,17 +91,18 @@ export const EASE = {
 };
 
 // ---------- projeção e desenho ----------
-let CAM = 30 * D;
+let CAM = 30 * D, TILT = 0, ZOOM = 1;
 const SCALE = 96, OX = 100, GY = 190;
+// câmera: giro em volta do lutador (cam) + inclinação de cima (tilt), pra arcos horizontais aparecerem
 function proj(p) {
   const x = p[0] * Math.cos(CAM) + p[2] * Math.sin(CAM);
   const z = -p[0] * Math.sin(CAM) + p[2] * Math.cos(CAM);
-  return [OX + x * SCALE, GY - p[1] * SCALE, z];
+  return [OX + x * SCALE * ZOOM, GY + (ZOOM - 1) * 40 - 66 * Math.sin(TILT) - (p[1] * Math.cos(TILT) + z * Math.sin(TILT)) * SCALE * ZOOM, z];
 }
 const W = { th: 17, sn: 13, ua: 13, fa: 11, foot: 9 };
 
-export function draw(J, { gloves = true, hi = [], trail = null, burst = null, cam = 30, ox = 0, act = [] } = {}) {
-  CAM = cam * D;
+export function draw(J, { gloves = true, hi = [], trail = null, burst = null, cam = 30, ox = 0, act = [], tilt = 0, zoom = 1, target = null, path = null } = {}) {
+  CAM = cam * D; TILT = tilt * D; ZOOM = zoom;
   const P = {}; for (const k in J) P[k] = proj(J[k]);
   const segs = [];
   const seg = (a, b, w, kind, side) => segs.push({ a: P[a], b: P[b], w, kind, side, z: (P[a][2] + P[b][2]) / 2 });
@@ -137,7 +138,13 @@ export function draw(J, { gloves = true, hi = [], trail = null, burst = null, ca
   const gL = glove('L', farH('L')), gR = glove('R', farH('R'));
   const gBack = (farH('L') ? gL : '') + (farH('R') ? gR : '');
   const gFront = (!farH('L') ? gL : '') + (!farH('R') ? gR : '');
-  const shadow = `<ellipse cx="${proj([J.pel[0], 0, J.pel[2]])[0].toFixed(1)}" cy="${GY + 1}" rx="52" ry="6" class="sh"/>`;
+  const sp = proj([J.pel[0], 0, J.pel[2]]);
+  const shadow = `<ellipse cx="${sp[0].toFixed(1)}" cy="${(sp[1] + 1).toFixed(1)}" rx="52" ry="${(6 + 30 * Math.sin(TILT)).toFixed(1)}" class="sh"/>`;
+  // alvo: onde o golpe chega (cabeça/corpo do adversário imaginário)
+  let tg = '';
+  if (target) { const c = proj(target); tg = `<g class="tgt"><circle cx="${c[0].toFixed(1)}" cy="${c[1].toFixed(1)}" r="13"/><circle cx="${c[0].toFixed(1)}" cy="${c[1].toFixed(1)}" r="4"/></g>`; }
+  // trajeto do golpe (fica marcado depois do impacto)
+  if (path && path.length > 1) { const q = path.map(proj); tg += `<polyline points="${q.map(v => v[0].toFixed(1) + ',' + v[1].toFixed(1)).join(' ')}" class="pth"/>`; const a = q[q.length - 1], b = q[q.length - 2], an = Math.atan2(a[1] - b[1], a[0] - b[0]); tg += `<path d="M${a[0].toFixed(1)},${a[1].toFixed(1)}L${(a[0] - 9 * Math.cos(an - 0.5)).toFixed(1)},${(a[1] - 9 * Math.sin(an - 0.5)).toFixed(1)}L${(a[0] - 9 * Math.cos(an + 0.5)).toFixed(1)},${(a[1] - 9 * Math.sin(an + 0.5)).toFixed(1)}Z" class="pta"/>`; }
   const hl = hi.filter(k => P[k]).map(k => `<circle cx="${P[k][0].toFixed(1)}" cy="${P[k][1].toFixed(1)}" r="15" class="hi"/>`).join('');
   let fx = '';
   if (trail && trail.length > 1) {
@@ -152,6 +159,6 @@ export function draw(J, { gloves = true, hi = [], trail = null, burst = null, ca
     for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2; fx += `<line x1="${(c[0] + Math.cos(a) * r2 * 1.1).toFixed(1)}" y1="${(c[1] + Math.sin(a) * r2 * 1.1).toFixed(1)}" x2="${(c[0] + Math.cos(a) * r2 * 1.7).toFixed(1)}" y2="${(c[1] + Math.sin(a) * r2 * 1.7).toFixed(1)}" class="bsl"/>`; }
   }
   return `<svg viewBox="${-ox} 0 230 200" class="fig" role="img" aria-hidden="true">
-    <line x1="${6 - ox}" y1="${GY}" x2="${224 - ox}" y2="${GY}" class="gr"/>${shadow}${hl}
-    ${back}${gBack}${torso}${frontLegs}${trunks}${head}${front}${gFront}${fx}</svg>`;
+    ${TILT ? '' : `<line x1="${6 - ox}" y1="${GY}" x2="${224 - ox}" y2="${GY}" class="gr"/>`}${shadow}${hl}
+    ${back}${gBack}${torso}${frontLegs}${trunks}${head}${front}${gFront}${tg}${fx}</svg>`;
 }
