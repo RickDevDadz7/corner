@@ -657,10 +657,12 @@ function accountCard() {
     <form id="passForm" class="form">${pwField('pass', 'nova senha (mínimo 8)', 'new-password')}<button class="btn primary block" type="submit">Salvar nova senha</button></form></div>`;
   if (u) return `<div class="card" id="conta"><small class="cat">Conta</small><h3>${esc(u.email || 'Conectado')}</h3>
     <p class="small muted" id="syncInfo">${syncLine()}</p>
-    <div class="row gap wrap"><button class="btn small primary" data-act="syncNow">Sincronizar agora</button><button class="btn small ghost" data-act="signOut">Sair</button></div>
+    <div class="row gap wrap"><button class="btn small primary" data-act="syncNow">Sincronizar agora</button><button class="btn small danger" data-act="signOut">Sair da conta</button></div>
     <p class="small muted">Sincroniza sozinho ao abrir o app, depois de cada alteração, ao sair do app e a cada 10 minutos. Ao sair da conta, tudo é salvo na nuvem e este aparelho é limpo (dá pra entrar com outra conta sem misturar nada).</p>
     <details><summary class="small">Definir / trocar senha</summary><p class="tiny muted">Útil se você entrou com o Google e quer entrar também com e-mail e senha.</p><form id="passForm" class="form">${pwField('pass', 'nova senha (mínimo 8)', 'new-password')}<button class="btn small" type="submit">Salvar senha</button></form></details></div>`;
-  return authBlock();
+  return `<div class="card" id="conta"><small class="cat">Conta</small><h3>Usando sem conta</h3>
+    <p class="small muted">Seus dados estão só neste aparelho. Com uma conta eles ficam salvos na nuvem e aparecem em qualquer aparelho.</p>
+    <button class="btn small primary" data-act="toLogin">Entrar ou criar conta</button></div>`;
 }
 // Primeira tela: login (como no Stempel)
 views.login = () => `<section class="hero"><div class="logo-big">RONIN</div><div class="kanji">浪人</div><p class="tag">Sem mestre. Só disciplina.</p><p>Luta, corrida, força e nutrição com base em ciência.</p></section>
@@ -671,18 +673,17 @@ async function afterLogin() {
   // outra conta? os dados deste aparelho são da conta anterior: descarta antes de juntar
   if (u && S.meta.owner && S.meta.owner !== u.id) { wipeLocal(); toast('Dados da conta anterior removidos deste aparelho.'); }
   if (u) { S.meta.owner = u.id; try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { } }
-  const stay = !!S.profile && /^#perfil/.test(location.hash);
   GATE.msg = null; GATE.confirm = false; GATE.busy = true; render();
   await doSync(true);
   GATE.busy = false;
   toast(S.profile ? 'Conectado. Seus dados foram sincronizados.' : 'Conectado! Agora monte seu perfil.');
-  if (stay) { render(); requestAnimationFrame(() => $('#conta')?.scrollIntoView({ behavior: 'smooth' })); return; }
   try { history.replaceState(null, '', location.pathname + (S.profile ? '#hoje' : '#perfil')); } catch (e) { }
   rendered = ''; go(); window.scrollTo(0, 0);
 }
 
-views.perfil = () => `${views.onboarding()}
+views.perfil = () => `<section class="head"><h1>Perfil e ajustes</h1></section>
   ${accountCard()}
+  ${views.onboarding().replace('<section class="head"><h1>Perfil</h1></section>', '')}
   <div class="card form"><h3>Coach com IA</h3>
     <p class="small muted">Chave da API Anthropic (console.anthropic.com). Cobrança por uso, separada da assinatura do Claude. Fica só neste aparelho e fora dos backups e da sincronização.</p>
     <input id="apiKey" type="password" placeholder="sk-ant-…" value="${getKey() ? '••••••••' : ''}" autocomplete="off">
@@ -692,7 +693,7 @@ views.perfil = () => `${views.onboarding()}
   <div class="card"><h3>Seus dados</h3>
     <div class="row gap wrap"><button class="btn small" data-act="export">Exportar backup</button><label class="btn small ghost">Restaurar<input type="file" accept="application/json" id="importFile" hidden></label><button class="btn small danger" data-act="reset">Apagar tudo</button></div>
   </div>
-  <p class="small muted center pad">RONIN v3.2 · não substitui acompanhamento profissional.</p>`;
+  <p class="small muted center pad">RONIN v3.3 · não substitui acompanhamento profissional.</p>`;
 
 // ---------------- Roteador ----------------
 const ICONS = { hoje: 'M3 12l9-8 9 8M5 10v10h14V10', nutri: 'M12 3c4 3 6 6 6 10a6 6 0 0 1-12 0c0-4 2-7 6-10z', treino: 'M3 10v4M6 7v10M18 7v10M21 10v4M6 12h12', esporte: 'M7 4h7a4 4 0 0 1 4 4v4a6 6 0 0 1-6 6H9a4 4 0 0 1-4-4V6a2 2 0 0 1 2-2zM9 18v3h6v-3', coach: 'M4 5h16v11H8l-4 4z' };
@@ -702,12 +703,11 @@ function render() {
   let [route, arg] = (location.hash.replace(/^#\/?/, '') || 'hoje').split(/[\/-]/);
   route = ALIAS[route] || route;
   const app = $('#app');
-  if (!S.profile || (GATE.recovery && cloud.user())) {
-    $('#nav').hidden = true; $('#topbar').hidden = true;
-    const needLogin = cloud.available() && (!cloud.user() || GATE.recovery) && (!skipLogin.get() || route === 'login' || GATE.recovery);
-    if (needLogin) { app.innerHTML = views.login(); bindAfter('login'); return; }
-    if (S.profile) { /* recuperação concluída */ } else { app.innerHTML = views.onboarding(); bindAfter('onboarding'); return; }
-  }
+  // Tela inicial: sem conta conectada, o app sempre abre no login (a menos que a pessoa escolha usar sem conta)
+  const needLogin = cloud.available() && ((!cloud.user() && (!skipLogin.get() || route === 'login')) || (GATE.recovery && cloud.user()));
+  if (needLogin) { $('#nav').hidden = true; $('#topbar').hidden = true; app.innerHTML = views.login(); bindAfter('login'); return; }
+  if (route === 'login') { try { history.replaceState(null, '', location.pathname + '#hoje'); } catch (e) { } route = 'hoje'; }
+  if (!S.profile) { $('#nav').hidden = true; $('#topbar').hidden = true; app.innerHTML = views.onboarding(); bindAfter('onboarding'); return; }
   $('#nav').hidden = false; $('#topbar').hidden = false;
   const v = views[route] ? route : 'hoje';
   app.innerHTML = views[v](arg);
@@ -910,13 +910,13 @@ document.addEventListener('click', async e => {
   if (a === 'gateTab') { const f = $('#authForm'); if (f) GATE.email = f.email.value; GATE.tab = el.dataset.t; GATE.msg = null; render(); }
   if (a === 'showPass') { const i = el.previousElementSibling; i.type = i.type === 'password' ? 'text' : 'password'; }
   if (a === 'resend') { try { await cloud.resend($('#authForm').email.value); toast('E-mail de confirmação reenviado.'); } catch (err) { toast(err.message); } }
-  if (a === 'skipLogin') { skipLogin.set(true); rendered = ''; render(); window.scrollTo(0, 0); }
-  if (a === 'toLogin') { skipLogin.set(false); render(); window.scrollTo(0, 0); }
+  if (a === 'skipLogin') { skipLogin.set(true); try { history.replaceState(null, '', location.pathname + '#hoje'); } catch (e) { } rendered = ''; go(); window.scrollTo(0, 0); }
+  if (a === 'toLogin') { skipLogin.set(false); GATE.tab = 'in'; GATE.msg = null; try { history.replaceState(null, '', location.pathname + '#login'); } catch (e) { } rendered = ''; go(); window.scrollTo(0, 0); }
   if (a === 'syncNow') doSync();
   if (a === 'signOut') {
     if (!el.dataset.armed) {
       el.dataset.armed = '1'; el.textContent = 'Toque de novo pra sair';
-      setTimeout(() => { if (el.isConnected && el.dataset.armed === '1') { delete el.dataset.armed; el.textContent = 'Sair'; } }, 4000);
+      setTimeout(() => { if (el.isConnected && el.dataset.armed === '1') { delete el.dataset.armed; el.textContent = 'Sair da conta'; } }, 4000);
       return;
     }
     if (el.dataset.armed === '1') {
