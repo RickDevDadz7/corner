@@ -518,9 +518,7 @@ views.esporte = () => {
     <p class="small muted">${[...new Set(techs.map(t => t.cat))].join(' · ')}</p><span class="go">Abrir →</span></a>` : ''}
   ${SP.combat ? `<details class="card tired"><summary><h3>${esc(TIRED.title)}</h3></summary><p class="small muted">${esc(TIRED.sub)}</p>
     <ol class="furos">${TIRED.items.map(([a, b, e]) => `<li><b>${esc(a)}</b><span>${esc(b)}</span>${e ? `<small class="muted">Base: ${esc(ev(e)?.title)}</small>` : ''}</li>`).join('')}</ol></details>` : ''}
-  ${SP.legend ? `<details class="card"><summary><h3>Legenda dos números</h3></summary>
-    <table class="tbl small">${Object.entries(PUNCHES).map(([k, v]) => `<tr><td class="mono">${k}</td><td>${v}</td></tr>`).join('')}</table>
-    <p class="small muted">Guarda ortodoxa (canhoto: espelhe). Ímpares = mão da frente, pares = mão de trás.</p></details>` : ''}
+  ${SP.legend ? numTable(id) : ''}
 
   <div class="card"><h3>Onde você quer evoluir?</h3><p class="small muted">Marque seus pontos fracos: o gerador e o coach usam isso.</p>
     <div class="chips">${SP.weak.map(w => `<button class="chipbtn ${S.weak.includes(w.id) ? 'on' : ''}" data-act="weak" data-id="${w.id}">${esc(w.n)}</button>`).join('')}</div>
@@ -542,6 +540,19 @@ views.esporte = () => {
 
 let anim = null, techCat = '';
 const techList = () => TECHNIQUES.filter(t => t.sport.includes(curSport()));
+// Tabela de numeração dos socos (o número fica só aqui; as animações usam só o nome)
+const KICK_NAMES = { muaythai: ['teep', 'chute', 'chutebaixo', 'chuteesq', 'joelhada', 'cotovelada'], mma: ['chute', 'chutebaixo', 'double', 'sprawl'] };
+function numTable(sid) {
+  const has = id => TECHNIQUES.some(t => t.id === id);
+  const kicks = (KICK_NAMES[sid] || []).map(k => TECHNIQUES.find(t => t.id === k)).filter(Boolean);
+  return `<div class="card numcard"><h3>Numeração dos golpes</h3>
+    <p class="small muted">É assim que o treinador chama as combinações: "1-2-3" = jab, direto, cruzado. Ímpar = mão da frente, par = mão de trás.</p>
+    <table class="tbl numtbl">${PUNCHES.map(p => `<tr><td class="num">${p.n}</td><td><b>${esc(p.name)}</b> <span class="hand ${p.hand === 'trás' ? 'r' : ''}">mão ${p.hand === 'trás' ? 'de trás' : 'da frente'}</span><small>${esc(p.d)}</small></td>
+      <td>${p.tech && has(p.tech) ? `<a class="seeanim" href="#tecnica-${p.tech}" aria-label="Ver animação">▶</a>` : p.mirror ? `<a class="seeanim ghost" href="#tecnica-${PUNCHES.find(x => x.n === p.mirror).tech}" aria-label="Ver o ${p.mirror}, espelhado">⇄</a>` : ''}</td></tr>`).join('')}</table>
+    ${kicks.length ? `<p class="small"><b>${sid === 'mma' ? 'Chutes e quedas' : 'Chutes, joelhadas e cotoveladas'} não têm número:</b> são chamados pelo nome (${kicks.map(t => `<a href="#tecnica-${t.id}">${esc(t.n.replace(/ \(.*\)/, '').toLowerCase())}</a>`).join(', ')}). Ex.: "1-2, chute de direita".</p>` : ''}
+    <p class="small muted">Guarda ortodoxa. Canhoto: tudo espelhado (o 1 sai com a direita). ⇄ = mesmo movimento, com a outra mão.</p>
+  </div>`;
+}
 views.tecnicas = () => {
   const id = curSport(), list = techList(), cats = CATS.filter(c => list.some(t => t.cat === c));
   if (!cats.includes(techCat)) techCat = '';
@@ -551,7 +562,8 @@ views.tecnicas = () => {
   <div class="segs">${['', ...cats].map(c => `<button class="${c === techCat ? 'on' : ''}" data-act="techCat" data-c="${esc(c)}">${c ? esc(c) : 'Todas'} <small>${c ? list.filter(t => t.cat === c).length : list.length}</small></button>`).join('')}</div>
   ${(techCat ? [techCat] : cats).map(c => `<small class="cat pad">${esc(c)}</small>
     <div class="techgrid">${shown.filter(t => t.cat === c).map(t => `<a class="tech" href="#tecnica-${t.id}"><span class="tech-thumb">${thumbSVG(t)}</span><b>${esc(t.n)}</b></a>`).join('')}</div>`).join('')}
-  ${!list.length ? '<div class="card"><p class="small muted">Ainda não temos técnicas animadas pra esse esporte.</p></div>' : ''}`;
+  ${!list.length ? '<div class="card"><p class="small muted">Ainda não temos técnicas animadas pra esse esporte.</p></div>' : ''}
+  ${SPORTS[id].legend ? numTable(id) : ''}`;
 };
 views.tecnica = (tid) => {
   const t = TECHNIQUES.find(x => x.id === tid);
@@ -693,7 +705,7 @@ views.login = () => `<div class="gate">
   <p class="gate-tag">Sem mestre. Só disciplina.</p>
   ${GATE.recovery && cloud.user() ? accountCard() : authBlock()}
   <button class="linkbtn gate-skip" data-act="skipLogin">Continuar sem conta</button>
-  <p class="gate-ver">v3.6</p></div>`;
+  <p class="gate-ver">v3.7</p></div>`;
 async function afterLogin() {
   const u = cloud.user();
   // outra conta? os dados deste aparelho são da conta anterior: descarta antes de juntar
@@ -719,7 +731,7 @@ views.perfil = () => `<section class="head"><h1>Perfil e ajustes</h1></section>
   <div class="card"><h3>Seus dados</h3>
     <div class="row gap wrap"><button class="btn small" data-act="export">Exportar backup</button><label class="btn small ghost">Restaurar<input type="file" accept="application/json" id="importFile" hidden></label><button class="btn small danger" data-act="reset">Apagar tudo</button></div>
   </div>
-  <p class="small muted center pad">RONIN v3.6 · não substitui acompanhamento profissional.</p>`;
+  <p class="small muted center pad">RONIN v3.7 · não substitui acompanhamento profissional.</p>`;
 
 // ---------------- Roteador ----------------
 const ICONS = { hoje: 'M3 12l9-8 9 8M5 10v10h14V10', nutri: 'M12 3c4 3 6 6 6 10a6 6 0 0 1-12 0c0-4 2-7 6-10z', treino: 'M3 10v4M6 7v10M18 7v10M21 10v4M6 12h12', esporte: 'M7 4h7a4 4 0 0 1 4 4v4a6 6 0 0 1-6 6H9a4 4 0 0 1-4-4V6a2 2 0 0 1 2-2zM9 18v3h6v-3', coach: 'M4 5h16v11H8l-4 4z' };

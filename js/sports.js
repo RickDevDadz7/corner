@@ -76,7 +76,7 @@ export const SPORTS = {
     types: { tecnica: { n: 'Técnica / sombra', met: 5.0 }, saco: { n: 'Saco / aparador', met: 7.0 }, sparring: { n: 'Sparring', met: 9.4 }, condic: { n: 'Condicionamento', met: 8.0 } },
     defaultType: 'tecnica', round: [180, 60], roundIni: [120, 60],
     presets: [{ id: 'mt3', n: 'Amador 3×3', rounds: 3, work: 180, rest: 60 }, { id: 'mtpro', n: 'Pro 5×3/2', rounds: 5, work: 180, rest: 120 }, { id: 'mtsaco', n: 'Saco 5×3', rounds: 5, work: 180, rest: 60 }],
-    combos: MT_COMBOS, themes: MT_THEMES,
+    legend: true, combos: MT_COMBOS, themes: MT_THEMES,
     weak: [
       { id: 'mt_gas', n: 'Canso nos rounds', fix: ['Base aeróbia 2x/semana: 30–40 min em ritmo de conversa (corrida leve, bike, corda).', 'Rounds intensos com descanso curto no saco.', 'Carboidrato suficiente nos dias de sparring.'], ev: ['mt-energia', 'carb-combate'] },
       { id: 'mt_kick', n: 'Chute fraco / sem equilíbrio', fix: ['Força unilateral (búlgaro, afundo) e panturrilha.', 'Arremesso rotacional ou sombra explosiva no início do treino.', 'Chute lento segurando 2 s no alto: equilíbrio e mobilidade de quadril.'], ev: ['soco', 'forca-lesao'] },
@@ -119,7 +119,7 @@ export const SPORTS = {
     types: { strike: { n: 'Trocação', met: 6.0 }, grapple: { n: 'Grappling / quedas', met: 8.0 }, sparring: { n: 'Sparring', met: 9.0 } },
     defaultType: 'strike', round: [300, 60], roundIni: [180, 60],
     presets: [{ id: 'mma3', n: 'Luta 3×5', rounds: 3, work: 300, rest: 60 }, { id: 'mma5', n: 'Título 5×5', rounds: 5, work: 300, rest: 60 }, { id: 'mmahiit', n: 'Sprawl 10×30', rounds: 10, work: 30, rest: 30 }],
-    combos: MMA_COMBOS, themes: { ...MMA_THEMES, jab: BOX_THEMES.jab, defesa: BOX_THEMES.defesa, mt_chute: MT_THEMES.mt_chute, mt_joelho: MT_THEMES.mt_joelho },
+    legend: true, combos: MMA_COMBOS, themes: { ...MMA_THEMES, jab: BOX_THEMES.jab, defesa: BOX_THEMES.defesa, mt_chute: MT_THEMES.mt_chute, mt_joelho: MT_THEMES.mt_joelho },
     weak: [
       { id: 'mma_gas', n: 'Canso nos rounds', fix: ['Base aeróbia 2x/semana.', 'Rounds de sprawl + levantar com descanso curto.', 'Força: ela atrasa o cansaço no clinch e no chão.'], ev: ['mma-perfil', 'carb-combate'] },
       { id: 'mma_td', n: 'Sou derrubado fácil', fix: ['Sprawl em todo treino.', 'Força de perna e quadril (agachamento, terra romeno).', 'Base: pés afastados, peso no meio.'], ev: ['mma-perfil'] },

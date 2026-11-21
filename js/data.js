@@ -360,7 +360,15 @@ export const SPLITS = {
 
 // ---------- Boxe: combinações (guarda ortodoxa) ----------
 // 1 jab · 2 direto · 3 gancho de esquerda · 4 gancho de direita · 5 uppercut de esquerda · 6 uppercut de direita
-export const PUNCHES = { 1: 'Jab', 2: 'Direto', 3: 'Gancho de esquerda', 4: 'Gancho de direita', 5: 'Uppercut de esquerda', 6: 'Uppercut de direita' };
+// Numeração dos socos (guarda ortodoxa). tech = animação na biblioteca; mirror = espelho de outra
+export const PUNCHES = [
+  { n: 1, name: 'Jab', hand: 'frente', tech: 'jab', d: 'Reto e rápido. Mede a distância e abre caminho pros outros.' },
+  { n: 2, name: 'Direto', hand: 'trás', tech: 'direto', d: 'Reto e forte: gira o pé de trás e o quadril.' },
+  { n: 3, name: 'Cruzado', hand: 'frente', tech: 'gancho', d: 'Em arco, braço dobrado em 90°, na altura do queixo.' },
+  { n: 4, name: 'Cruzado', hand: 'trás', mirror: 3, d: 'O mesmo arco do 3, com a mão de trás e giro total do quadril.' },
+  { n: 5, name: 'Uppercut', hand: 'frente', tech: 'uppercut5', d: 'De baixo pra cima, por dentro da guarda. Golpe de perto.' },
+  { n: 6, name: 'Uppercut', hand: 'trás', mirror: 5, d: 'O mesmo do 5, com a mão de trás: empurra o chão com o pé de trás.' }
+];
 export const COMBOS = {
   iniciante: ['1', '1-1', '1-2', '1-2-1', '1-1-2', '2-1-2', '1, esquiva', '1-2, passo atrás', 'bloqueia, 2', 'jab no corpo, 1', '1, pêndulo'],
   intermediario: ['1-2-3', '1-2-3-2', '3-2', '1-6-3-2', '1-2, esquiva, 2', '2-3-2', '1-1-2-3', '5-2', 'pêndulo, 3-2', '3 no corpo, 3 na cabeça', '1-2, gira', 'esquiva, 2-3', '1-2-5-2'],

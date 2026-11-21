@@ -110,7 +110,7 @@ const SC = ['boxe', 'muaythai', 'mma'];
 
 export const TECHNIQUES = [
   // ===== SOCOS =====
-  T('jab', SC, 'Socos', 'Jab (1)', 'O golpe mais usado: mede distância e abre caminho.',
+  T('jab', SC, 'Socos', 'Jab', 'O golpe mais usado: mede distância e abre caminho.',
     [F(G, 520, 0), F(JAB, 150, 1, { e: 'snap', fx: 'haL', hit: true }), F(JAB, 90, 2, { hi: ['shL'] }), F(G, 230, 3)],
     ['Guarda: queixo baixo, mãos no rosto, peso no meio.', 'A mão da frente sai reta e gira o punho no fim.', 'O ombro da frente sobe e protege o queixo.', 'Volta pelo mesmo caminho, rápido, pra guarda.'],
     ['Baixar a mão de trás quando o jab sai.', 'Puxar o braço pra trás antes de soltar (avisa o golpe).', 'Voltar devagar ou por baixo, deixando o rosto aberto.']),
@@ -118,15 +118,15 @@ export const TECHNIQUES = [
     [F(G, 500, 0), F(P({ p: [0.06, 0.74, 0], lean: 22 }), 200, 0, { hi: ['knL', 'knR'] }), F(BODYJAB, 150, 1, { e: 'snap', fx: 'haL', hit: true }), F(BODYJAB, 100, 2), F(G, 320, 3)],
     ['Dobre os joelhos: o nível muda pelas pernas, não pela coluna.', 'O jab sai reto na altura do plexo.', 'A mão de trás fica no rosto (é quando chega o contra-golpe).', 'Suba já em guarda.'],
     ['Abaixar só o tronco, olhando pro chão.', 'Ficar embaixo depois do golpe.', 'Soltar sem a cabeça fora da linha central.']),
-  T('direto', SC, 'Socos', 'Direto (2)', 'O soco de força: nasce no pé de trás.',
+  T('direto', SC, 'Socos', 'Direto', 'O soco de força: nasce no pé de trás.',
     [F(G, 480, 0), F(CROSS_LOAD, 140, 0, { e: 'load' }), F(CROSS, 170, 1, { e: 'snap', fx: 'haR', hit: true, hi: ['anR', 'pel'] }), F(CROSS, 110, 2), F(G, 300, 3)],
     ['Da guarda, gire o pé de trás (o calcanhar sobe).', 'O quadril gira pra frente e leva o ombro junto.', 'O braço só termina o movimento: mão reta até o alvo.', 'A mão da frente fica no rosto. Volta pra guarda.'],
     ['Soco só de braço, sem girar o pé e o quadril.', 'Inclinar o corpo além do joelho da frente.', 'Abrir o cotovelo (vira um soco "de lado").']),
-  T('gancho', SC, 'Socos', 'Cruzado (3)', 'Curto e em arco: a força vem da rotação.',
+  T('gancho', SC, 'Socos', 'Cruzado', 'Curto e em arco: a força vem da rotação.',
     [F(G, 480, 0), F(HOOK_LOAD, 170, 0, { e: 'load' }), F(HOOK_MID, 90, 1, { e: 'lin', fx: 'haL', hi: ['pel', 'anL'] }), F(HOOK, 110, 2, { e: 'snap', fx: 'haL', hit: true }), F(HOOK, 110, 3), F(G, 320, 3)],
     ['Peso levemente na perna da frente.', 'Gire o pé e o quadril da frente pra dentro.', 'Braço travado em ~90°, cotovelo na altura do punho.', 'O punho segue o giro do tronco e volta pro rosto.'],
     ['Abrir o braço pra "carregar" o golpe (o adversário vê).', 'Girar só o braço, sem o pé da frente.', 'Deixar a mão de trás cair durante o giro.'], { cam: 76, tilt: 22, zoom: 1.15 }),
-  T('uppercut5', SC, 'Socos', 'Uppercut (5)', 'De baixo pra cima: rápido, escondido e perfeito de perto.',
+  T('uppercut5', SC, 'Socos', 'Uppercut', 'De baixo pra cima: rápido, escondido e perfeito de perto.',
     [F(G, 450, 0), F(UP5_DIP, 250, 0, { e: 'load', hi: ['knL'] }), F(UP5_DIP, 110, 1, { hi: ['haL'] }), F(UP5, 180, 2, { e: 'snap', fx: 'haL', hit: true }), F(UP5, 190, 3), F(G, 320, 3)],
     ['Desça um pouco o peso sobre a perna da frente.', 'O punho desce curto, palma pra cima, cotovelo colado.', 'Gire o quadril da frente e empurre com a perna: o punho sobe.', 'Acerta o queixo e volta pra guarda.'],
     ['Abrir o cotovelo pra fora.', 'Perder a mão de trás do rosto.', 'Subir na ponta dos pés.'], { cam: 8 }),
