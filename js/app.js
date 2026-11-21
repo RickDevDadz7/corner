@@ -141,7 +141,7 @@ const views = {};
 views.onboarding = () => {
   const p = S.profile || {}, sp = sportsOf(p);
   return `${S.profile ? '<section class="head"><h1>Perfil</h1></section>' : `<section class="hero"><div class="logo-big">RONIN</div><div class="kanji">浪人</div><p class="tag">Sem mestre. Só disciplina.</p><p>Luta, corrida, força e nutrição com base em ciência. Em casa ou na academia.</p></section>
-  ${cloud.available() ? `<div class="card center"><p class="small">Já usa o RONIN em outro aparelho?</p><a class="btn small" href="#perfil-conta">Entrar na conta</a></div>` : ''}`}
+  ${cloud.available() ? (cloud.user() ? `<p class="note small">Conectado como <b>${esc(cloud.user().email || '')}</b>. Seus dados vão pra nuvem assim que você salvar.</p>` : `<div class="card center"><p class="small">Quer salvar na nuvem e usar em outros aparelhos?</p><button class="btn small" data-act="toLogin">Entrar ou criar conta</button></div>`) : ''}`}
   <form id="profileForm" class="card form">
     <h2>${S.profile ? 'Editar perfil' : 'Vamos te conhecer'}</h2>
     <div class="grid2">
@@ -619,25 +619,55 @@ async function askCoach(q) {
 function scrollChat() { requestAnimationFrame(() => window.scrollTo(0, document.body.scrollHeight)); }
 
 // ---------------- Conta ----------------
+const GATE = { tab: 'in', email: '', msg: null, confirm: false, recovery: false, busy: false };
+const skipLogin = { get() { try { return localStorage.getItem('ronin-skip-login') === '1'; } catch (e) { return false; } }, set(v) { try { v ? localStorage.setItem('ronin-skip-login', '1') : localStorage.removeItem('ronin-skip-login'); } catch (e) { } } };
+const GOOGLE_SVG = '<svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.5l6.7-6.7C35.6 2.4 30.2 0 24 0 14.6 0 6.6 5.4 2.6 13.3l7.8 6C12.3 13.6 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.1 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.4c-.5 2.9-2.2 5.3-4.6 6.9l7.4 5.7c4.3-4 6.9-9.9 6.9-17.1z"/><path fill="#FBBC05" d="M10.4 28.7c-.5-1.4-.8-3-.8-4.7s.3-3.2.8-4.7l-7.8-6C.9 16.6 0 20.2 0 24s.9 7.4 2.6 10.7l7.8-6z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.4-5.7c-2.1 1.4-4.8 2.3-8.5 2.3-6.3 0-11.7-4.1-13.6-9.8l-7.8 6C6.6 42.6 14.6 48 24 48z"/></svg>';
+const pwField = (name, ph, ac) => `<div class="pw"><input name="${name}" type="password" autocomplete="${ac}" placeholder="${ph}" minlength="8"><button type="button" class="btn small ghost" data-act="showPass" aria-label="Mostrar senha">👁</button></div>`;
+function authBlock() {
+  const t = GATE.tab;
+  return `<div class="card authcard" id="conta">
+    <div class="segs"><button class="${t !== 'up' ? 'on' : ''}" data-act="gateTab" data-t="in">Entrar</button><button class="${t === 'up' ? 'on' : ''}" data-act="gateTab" data-t="up">Criar conta</button></div>
+    <h2>${t === 'up' ? 'Criar conta' : t === 'rec' ? 'Recuperar senha' : 'Entrar na conta'}</h2>
+    <p class="small muted">Conta grátis: seus treinos e sua dieta ficam salvos na nuvem e aparecem em qualquer aparelho. É a mesma conta do Stempel e do Overclock.</p>
+    ${t !== 'rec' ? `<button class="btn block google" data-act="google" ${GATE.busy ? 'disabled' : ''}>${GOOGLE_SVG}${t === 'up' ? 'Criar conta com Google' : 'Entrar com Google'}</button>
+    <div class="or-sep"><span>ou com e-mail</span></div>` : ''}
+    <form id="authForm" class="form">
+      <label>E-mail<input name="email" type="email" inputmode="email" autocomplete="email" autocapitalize="off" spellcheck="false" placeholder="voce@email.com" value="${esc(GATE.email)}" required></label>
+      ${t === 'rec' ? '' : `<label>Senha${t === 'up' ? ' (mínimo 8 caracteres)' : ''}${pwField('pass', 'senha', t === 'up' ? 'new-password' : 'current-password')}</label>`}
+      ${GATE.msg ? `<p class="fb ${GATE.msg.ok ? 'ok' : 'bad'}">${GATE.msg.html}</p>` : ''}
+      <button class="btn primary block" type="submit" ${GATE.busy ? 'disabled' : ''}>${GATE.busy ? 'Aguarde…' : t === 'up' ? 'Criar conta' : t === 'rec' ? 'Enviar link de nova senha' : 'Entrar'}</button>
+      <div class="row gap wrap">${t === 'rec' ? '<button type="button" class="linkbtn" data-act="gateTab" data-t="in">← Voltar</button>' : '<button type="button" class="linkbtn" data-act="gateTab" data-t="rec">Esqueci minha senha</button>'}${GATE.confirm ? '<button type="button" class="linkbtn" data-act="resend">Reenviar e-mail de confirmação</button>' : ''}</div>
+    </form>
+    <p class="tiny muted">Com o Google não precisa confirmar e-mail. Criando com e-mail, chega uma confirmação (veja também o spam); depois de confirmar, volte aqui e toque em Entrar.</p>
+  </div>`;
+}
 function accountCard() {
-  if (!cloud.available()) return `<div class="card"><h3>Conta</h3><p class="small muted">Nesta prévia a conta não funciona. Use o app instalado (rickdevdadz7.github.io/ronin).</p></div>`;
+  if (!cloud.available()) return `<div class="card"><h3>Conta</h3><p class="small muted">Nesta prévia a conta não funciona. Use o app instalado (rickdevdadz7.github.io/corner).</p></div>`;
   const u = cloud.user();
+  if (u && GATE.recovery) return `<div class="card" id="conta"><small class="cat">Nova senha</small><h2>Crie uma nova senha</h2><p class="small">Conta: <b>${esc(u.email || '')}</b></p>
+    <form id="passForm" class="form">${pwField('pass', 'nova senha (mínimo 8)', 'new-password')}<button class="btn primary block" type="submit">Salvar nova senha</button></form></div>`;
   if (u) return `<div class="card" id="conta"><small class="cat">Conta</small><h3>${esc(u.email || 'Conectado')}</h3>
     <p class="small muted" id="syncInfo">${syncLine()}</p>
     <div class="row gap wrap"><button class="btn small primary" data-act="syncNow">Sincronizar agora</button><button class="btn small ghost" data-act="signOut">Sair</button></div>
-    <p class="small muted">Seus dados vão pra sua conta e aparecem em qualquer aparelho onde você entrar. A chave da IA e a conversa com o coach ficam só aqui.</p>
-    <details><summary class="small">Definir / trocar senha</summary><form id="passForm" class="form"><input name="pass" type="password" minlength="8" autocomplete="new-password" placeholder="nova senha (mín. 8)" required><button class="btn small" type="submit">Salvar senha</button></form></details></div>`;
-  return `<div class="card" id="conta"><small class="cat">Conta</small><h3>Entrar ou criar conta</h3>
-    <p class="small muted">Com conta, seus treinos e sua dieta ficam salvos na nuvem e sincronizam entre celular e PC. É a mesma conta dos outros apps (Deutsch mit Plan, Trilha Dev).</p>
-    <button class="btn block google" data-act="google"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.4h6.5a5.6 5.6 0 0 1-2.4 3.7v3h3.9c2.3-2.1 3.5-5.2 3.5-8.8z"/><path fill="#34A853" d="M12 24c3.2 0 6-1.1 8-2.9l-3.9-3c-1.1.7-2.5 1.2-4.1 1.2-3.1 0-5.8-2.1-6.7-5H1.3v3.1A12 12 0 0 0 12 24z"/><path fill="#FBBC05" d="M5.3 14.3a7.2 7.2 0 0 1 0-4.6V6.6h-4a12 12 0 0 0 0 10.8l4-3.1z"/><path fill="#EA4335" d="M12 4.8c1.8 0 3.4.6 4.6 1.8l3.4-3.4A12 12 0 0 0 1.3 6.6l4 3.1c.9-2.9 3.6-4.9 6.7-4.9z"/></svg>Entrar com Google</button>
-    <p class="small muted center">ou com e-mail</p>
-    <form id="authForm" class="form">
-      <input name="email" type="email" autocomplete="email" placeholder="seu@email.com" required>
-      <input name="pass" type="password" autocomplete="current-password" placeholder="senha (mín. 8)" minlength="8">
-      <div class="row gap wrap"><button class="btn small primary" type="submit" data-mode="in">Entrar</button><button class="btn small" type="submit" data-mode="up">Criar conta</button><button class="linkbtn" type="button" data-act="recover">Esqueci a senha</button></div>
-      <p class="small muted" id="authMsg"></p>
-    </form></div>`;
+    <p class="small muted">Sincroniza sozinho ao abrir o app, depois de cada alteração, ao sair do app e a cada 10 minutos. A chave da IA e a conversa com o coach ficam só aqui.</p>
+    <details><summary class="small">Definir / trocar senha</summary><p class="tiny muted">Útil se você entrou com o Google e quer entrar também com e-mail e senha.</p><form id="passForm" class="form">${pwField('pass', 'nova senha (mínimo 8)', 'new-password')}<button class="btn small" type="submit">Salvar senha</button></form></details></div>`;
+  return authBlock();
 }
+// Primeira tela: login (como no Stempel)
+views.login = () => `<section class="hero"><div class="logo-big">RONIN</div><div class="kanji">浪人</div><p class="tag">Sem mestre. Só disciplina.</p><p>Luta, corrida, força e nutrição com base em ciência.</p></section>
+  ${GATE.recovery && cloud.user() ? accountCard() : authBlock()}
+  <button class="btn ghost block" data-act="skipLogin">Usar sem conta (dados só neste aparelho)</button>`;
+async function afterLogin() {
+  const stay = !!S.profile && /^#perfil/.test(location.hash);
+  GATE.msg = null; GATE.confirm = false; GATE.busy = true; render();
+  await doSync(true);
+  GATE.busy = false;
+  toast(S.profile ? 'Conectado. Seus dados foram sincronizados.' : 'Conectado! Agora monte seu perfil.');
+  if (stay) { render(); requestAnimationFrame(() => $('#conta')?.scrollIntoView({ behavior: 'smooth' })); return; }
+  try { history.replaceState(null, '', location.pathname + (S.profile ? '#hoje' : '#perfil')); } catch (e) { }
+  rendered = ''; go(); window.scrollTo(0, 0);
+}
+
 views.perfil = () => `${views.onboarding()}
   ${accountCard()}
   <div class="card form"><h3>Coach com IA</h3>
@@ -649,7 +679,7 @@ views.perfil = () => `${views.onboarding()}
   <div class="card"><h3>Seus dados</h3>
     <div class="row gap wrap"><button class="btn small" data-act="export">Exportar backup</button><label class="btn small ghost">Restaurar<input type="file" accept="application/json" id="importFile" hidden></label><button class="btn small danger" data-act="reset">Apagar tudo</button></div>
   </div>
-  <p class="small muted center pad">RONIN v3.1 · não substitui acompanhamento profissional.</p>`;
+  <p class="small muted center pad">RONIN v3.2 · não substitui acompanhamento profissional.</p>`;
 
 // ---------------- Roteador ----------------
 const ICONS = { hoje: 'M3 12l9-8 9 8M5 10v10h14V10', nutri: 'M12 3c4 3 6 6 6 10a6 6 0 0 1-12 0c0-4 2-7 6-10z', treino: 'M3 10v4M6 7v10M18 7v10M21 10v4M6 12h12', esporte: 'M7 4h7a4 4 0 0 1 4 4v4a6 6 0 0 1-6 6H9a4 4 0 0 1-4-4V6a2 2 0 0 1 2-2zM9 18v3h6v-3', coach: 'M4 5h16v11H8l-4 4z' };
@@ -659,10 +689,12 @@ function render() {
   let [route, arg] = (location.hash.replace(/^#\/?/, '') || 'hoje').split(/[\/-]/);
   route = ALIAS[route] || route;
   const app = $('#app');
-  if (!S.profile && route !== 'perfil') {
-    app.innerHTML = views.onboarding() ; $('#nav').hidden = true; $('#topbar').hidden = true; bindAfter('onboarding'); return;
+  if (!S.profile || (GATE.recovery && cloud.user())) {
+    $('#nav').hidden = true; $('#topbar').hidden = true;
+    const needLogin = cloud.available() && (!cloud.user() || GATE.recovery) && (!skipLogin.get() || route === 'login' || GATE.recovery);
+    if (needLogin) { app.innerHTML = views.login(); bindAfter('login'); return; }
+    if (S.profile) { /* recuperação concluída */ } else { app.innerHTML = views.onboarding(); bindAfter('onboarding'); return; }
   }
-  if (!S.profile) { app.innerHTML = accountCard() + '<a class="btn ghost block" href="#hoje">← Voltar</a>'; $('#nav').hidden = true; $('#topbar').hidden = true; bindAfter('perfil'); return; }
   $('#nav').hidden = false; $('#topbar').hidden = false;
   const v = views[route] ? route : 'hoje';
   app.innerHTML = views[v](arg);
@@ -769,34 +801,42 @@ function bindAfter(v, arg) {
     f.addEventListener('submit', e => { e.preventDefault(); const q = ta.value; ta.value = ''; askCoach(q); });
     ta.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !('ontouchstart' in window)) { e.preventDefault(); f.requestSubmit(); } });
   }
+  if (v === 'login') bindAuth();
   if (v === 'perfil') {
     $('#importFile')?.addEventListener('change', async e => {
       const file = e.target.files[0]; if (!file) return;
       try { const data = JSON.parse(await file.text()); if (!data.logs) throw 0; localStorage.setItem(KEY, JSON.stringify(data)); S = load(); save(true); toast('Backup restaurado'); render(); }
       catch (err) { toast('Arquivo inválido'); }
     });
-    $('#passForm')?.addEventListener('submit', async e => {
-      e.preventDefault();
-      try { await cloud.updatePassword(e.target.pass.value); toast('Senha salva'); e.target.reset(); } catch (err) { toast(err.message); }
-    });
-    const af = $('#authForm');
-    if (af) af.addEventListener('submit', async e => {
-      e.preventDefault();
-      const mode = e.submitter?.dataset.mode || 'in', msg = $('#authMsg');
-      const email = af.email.value, pass = af.pass.value;
-      msg.textContent = mode === 'up' ? 'Criando conta…' : 'Entrando…';
-      try {
-        if (mode === 'up') {
-          const r = await cloud.signUp(email, pass);
-          if (r.confirm) { msg.innerHTML = 'Conta criada! <b>Abra o link que chegou no seu e-mail</b> (veja o spam) e depois entre aqui.'; return; }
-        } else await cloud.signIn(email, pass);
-        toast('Conectado'); await doSync();
-        if (S.profile && /perfil-conta/.test(location.hash)) { location.hash = '#hoje'; rendered = ''; go(); } else render();
-      } catch (err) { msg.innerHTML = `<span class="warn">${esc(err.message)}</span>`; }
-    });
+    bindAuth();
   }
 }
 
+function bindAuth() {
+  $('#passForm')?.addEventListener('submit', async e => {
+    e.preventDefault();
+    try { await cloud.updatePassword(e.target.pass.value); toast('Senha salva.'); const wasRec = GATE.recovery; GATE.recovery = false; e.target.reset(); if (wasRec) afterLogin(); }
+    catch (err) { toast(err.message); }
+  });
+  const af = $('#authForm'); if (!af) return;
+  af.email.addEventListener('input', () => GATE.email = af.email.value);
+  af.addEventListener('submit', async e => {
+    e.preventDefault();
+    const email = af.email.value, pass = af.pass ? af.pass.value : '', t = GATE.tab;
+    GATE.email = email; GATE.busy = true; GATE.msg = null; render();
+    try {
+      if (t === 'rec') { await cloud.recover(email); GATE.msg = { ok: true, html: 'Se existir uma conta com esse e-mail, chegou um link pra criar uma senha nova. Abra o link <b>neste aparelho</b>.' }; return; }
+      if (t === 'up') {
+        const r = await cloud.signUp(email, pass);
+        if (r.confirm) { GATE.tab = 'in'; GATE.confirm = true; GATE.msg = { ok: true, html: 'Conta criada! Enviamos uma confirmação pra <b>' + esc(email) + '</b>. Abra o link (veja o spam) e depois toque em <b>Entrar</b>.' }; return; }
+      } else await cloud.signIn(email, pass);
+      GATE.busy = false; return afterLogin();
+    } catch (err) {
+      if (err.code === 'email_not_confirmed') GATE.confirm = true;
+      GATE.msg = { ok: false, html: esc(err.message) };
+    } finally { if (GATE.busy) { GATE.busy = false; render(); } }
+  });
+}
 function addWater(ml) {
   const tot = dayWater();
   if (ml < 0) ml = Math.max(ml, -tot);
@@ -853,11 +893,12 @@ document.addEventListener('click', async e => {
     render();
   }
   if (a === 'delKey') { setKey(''); toast('Chave removida'); render(); }
-  if (a === 'google') { cloud.signInWithGoogle(); }
-  if (a === 'recover') {
-    const email = $('#authForm')?.email.value, msg = $('#authMsg');
-    try { await cloud.recover(email); msg.textContent = 'Se o e-mail tiver conta, chegou um link pra criar uma senha nova.'; } catch (err) { msg.innerHTML = `<span class="warn">${esc(err.message)}</span>`; }
-  }
+  if (a === 'google') { el.disabled = true; el.lastChild.textContent = 'Abrindo o Google…'; save(); cloud.signInWithGoogle(); }
+  if (a === 'gateTab') { const f = $('#authForm'); if (f) GATE.email = f.email.value; GATE.tab = el.dataset.t; GATE.msg = null; render(); }
+  if (a === 'showPass') { const i = el.previousElementSibling; i.type = i.type === 'password' ? 'text' : 'password'; }
+  if (a === 'resend') { try { await cloud.resend($('#authForm').email.value); toast('E-mail de confirmação reenviado.'); } catch (err) { toast(err.message); } }
+  if (a === 'skipLogin') { skipLogin.set(true); rendered = ''; render(); window.scrollTo(0, 0); }
+  if (a === 'toLogin') { skipLogin.set(false); render(); window.scrollTo(0, 0); }
   if (a === 'syncNow') doSync();
   if (a === 'signOut') { await cloud.signOut(); toast('Você saiu da conta. Os dados continuam neste aparelho.'); render(); }
   if (a === 'export') {
@@ -882,12 +923,16 @@ document.addEventListener('input', e => {
 });
 
 // ---------------- Início ----------------
+let pendingLogin = false;
 (function start() {
   // volta do login (Google / link do e-mail) com tokens no endereço
   const r = cloud.handleRedirect();
   if (r) {
-    try { history.replaceState(null, '', location.pathname + (r.error || r.type === 'recovery' || !S.profile ? '#perfil-conta' : '#hoje')); } catch (e) { location.hash = '#hoje'; }
-    setTimeout(() => toast(r.error ? r.error : r.type === 'recovery' ? 'Entrou. Defina sua senha nova em Perfil → Conta.' : 'Conectado: ' + (r.email || '')), 300);
+    if (r.type === 'recovery') GATE.recovery = true;
+    try { history.replaceState(null, '', location.pathname + (r.error ? '#login' : r.type === 'recovery' ? '#perfil-conta' : S.profile ? '#hoje' : '#perfil')); } catch (e) { location.hash = '#hoje'; }
+    if (r.error) GATE.msg = { ok: false, html: esc(r.error) };
+    else if (r.type !== 'recovery') pendingLogin = true;
+    setTimeout(() => toast(r.error ? r.error : r.type === 'recovery' ? 'Crie sua senha nova.' : 'Conectado: ' + (r.email || '')), 300);
   }
   // erro do Google volta como ?error=…
   try {
@@ -895,13 +940,14 @@ document.addEventListener('input', e => {
     if (q.get('error')) {
       const d = (q.get('error_description') || '').replace(/\+/g, ' ');
       const m = /provider is not enabled|Unsupported provider/i.test(d) ? 'Login com Google ainda não está ativado no servidor. Use e-mail e senha.' : q.get('error') === 'access_denied' ? 'Login com Google cancelado.' : (d || 'Não deu pra entrar com o Google.');
-      history.replaceState(null, '', location.pathname + '#perfil-conta');
+      history.replaceState(null, '', location.pathname + '#login');
+      GATE.msg = { ok: false, html: esc(m) };
       setTimeout(() => toast(m), 300);
     }
   } catch (e) { }
   rendered = location.hash; render();
   if (cloud.user()) {
-    doSync(true).then(() => { if (!S.profile) render(); });
+    if (pendingLogin) afterLogin(); else doSync(true).then(() => { if (!S.profile) render(); });
     setInterval(() => doSync(true), 10 * 60 * 1000);
     document.addEventListener('visibilitychange', () => doSync(true));
   }

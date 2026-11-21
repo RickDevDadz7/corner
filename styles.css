@@ -284,3 +284,14 @@ details>summary.small{font-weight:900;margin-top:8px;color:var(--acc)}
 .technav .btn{font-size:12px}
 .techfig{aspect-ratio:1.15}
 .head>div{min-width:0}
+.authcard h2{margin:12px 0 4px}
+.or-sep{display:flex;align-items:center;gap:10px;margin:12px 0 4px;color:var(--muted);font-size:12px;font-weight:700}
+.or-sep::before,.or-sep::after{content:"";flex:1;border-top:2px dashed rgba(26,23,20,.25)}
+.pw{display:flex;gap:6px}
+.pw input{flex:1}
+.pw .btn{box-shadow:none;padding:6px 10px}
+.fb{padding:8px 10px;border-left:5px solid;margin:2px 0;font-size:13.5px}
+.fb.ok{border-color:var(--ink);background:var(--paper2)}
+.fb.bad{border-color:var(--acc);background:#f6dcd9;color:#5a0a0d}
+.tiny{font-size:12px}
+.btn.google{font-weight:900}
