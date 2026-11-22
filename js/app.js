@@ -121,18 +121,76 @@ function waterBar(v, goal) {
   return `<div class="bar wbar"><div class="bar-top"><span>Água</span><span class="mono">${fmt(v / 1000, 2)} L <i>· ideal ${fmt(goal / 1000, 1)} L</i>${v >= goal ? ' <b class="ok">✓</b>' : ''}</span></div>
     <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:var(--cyan)"></div><span class="goal" style="left:${mk}%"></span></div></div>`;
 }
+// peso: só mostra tendência com dados suficientes; filtro de período e comparação com o registro anterior
+const W_RANGES = { 7: '7 dias', 30: '30 dias', 365: '1 ano' };
 function weightChart() {
-  const ks = Object.keys(S.logs.weights).sort().slice(-60);
-  if (ks.length < 2) return `<p class="muted small">Registre seu peso por alguns dias pra ver a tendência. Pese de manhã, em jejum, depois do banheiro.</p>`;
-  const ys = ks.map(k => S.logs.weights[k]), avg = movingAvg(ys, 7);
-  const lo = Math.min(...ys) - 0.5, hi = Math.max(...ys) + 0.5;
+  const all = Object.keys(S.logs.weights).sort();
+  if (all.length < 3) {
+    const n = all.length;
+    return `<div class="wempty"><p class="small"><b>Registre seu peso algumas vezes pra acompanhar sua evolução.</b></p>
+      <p class="small muted">De manhã, em jejum, depois do banheiro. Com 3 registros o gráfico aparece.</p>
+      <div class="wdots" aria-label="${n} de 3 registros">${[0, 1, 2].map(i => `<i class="${i < n ? 'on' : ''}"></i>`).join('')}<span class="small muted">${n} de 3</span></div></div>`;
+  }
+  const r = +(S.ui.wRange || 30), from = dayKey(new Date(Date.now() - r * 864e5));
+  const ks = all.filter(k => k >= from), ys = ks.map(k => S.logs.weights[k]);
+  const last = S.logs.weights[all[all.length - 1]], prev = S.logs.weights[all[all.length - 2]], dPrev = last - prev;
+  const segs = `<div class="segs small wseg">${Object.entries(W_RANGES).map(([k, v]) => `<button class="${+k === r ? 'on' : ''}" data-act="wRange" data-r="${k}">${v}</button>`).join('')}</div>`;
+  const stats = `<div class="wstats"><div><small class="muted">Atual</small><b class="mono">${fmt(last)} kg</b></div>
+    <div><small class="muted">vs anterior</small><b class="mono ${dPrev < 0 ? 'down' : dPrev > 0 ? 'up' : ''}">${dPrev > 0 ? '+' : ''}${fmt(dPrev)} kg</b></div>`;
+  if (ks.length < 3) return `${segs}${stats}<div><small class="muted">Tendência</small><b class="mono">—</b></div></div><p class="small muted">Poucos registros nesse período. Tente um período maior.</p>`;
+  const avg = movingAvg(ys, 7), lo = Math.min(...ys) - 0.5, hi = Math.max(...ys) + 0.5;
   const W = 320, H = 120, px = i => 8 + i * (W - 16) / (ks.length - 1), py = v => H - 10 - (v - lo) / (hi - lo) * (H - 24);
   const line = avg.map((v, i) => `${i ? 'L' : 'M'}${px(i).toFixed(1)},${py(v).toFixed(1)}`).join(' ');
   const dots = ys.map((v, i) => `<circle cx="${px(i).toFixed(1)}" cy="${py(v).toFixed(1)}" r="2.2" class="dot"/>`).join('');
   const delta = avg[avg.length - 1] - avg[0];
-  return `<svg viewBox="0 0 ${W} ${H}" class="chart" role="img" aria-label="Gráfico de peso">${dots}<path d="${line}" class="trend"/></svg>
-    <div class="row between small muted"><span>${ks[0].slice(8)}/${ks[0].slice(5, 7)}</span><span>Tendência: <b class="${delta < 0 ? 'down' : 'up'}">${delta > 0 ? '+' : ''}${fmt(delta)} kg</b></span><span>${ks[ks.length - 1].slice(8)}/${ks[ks.length - 1].slice(5, 7)}</span></div>`;
+  return `${segs}${stats}<div><small class="muted">Tendência</small><b class="mono ${delta < 0 ? 'down' : delta > 0 ? 'up' : ''}">${delta > 0 ? '+' : ''}${fmt(delta)} kg</b></div></div>
+    <svg viewBox="0 0 ${W} ${H}" class="chart" role="img" aria-label="Gráfico de peso">${dots}<path d="${line}" class="trend"/></svg>
+    <div class="row between small muted"><span>${ks[0].slice(8)}/${ks[0].slice(5, 7)}</span><span>${ks.length} registros</span><span>${ks[ks.length - 1].slice(8)}/${ks[ks.length - 1].slice(5, 7)}</span></div>`;
 }
+// barra da tela Hoje: deixa claro o que já foi e o que falta (a bar() original continua na Nutrição)
+function macroBar(name, v, max, color) {
+  const pct = Math.min(100, max ? v / max * 100 : 0), left = Math.max(0, max - v);
+  return `<div class="bar mbar"><div class="bar-top"><span>${name}</span><span class="mono">${fmt(v, 0)}<i>/${fmt(max, 0)}g</i></span></div>
+    <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${color}"></div></div>
+    <small class="left">${v >= max && max ? 'meta batida ✓' : `faltam ${fmt(left, 0)} g`}</small></div>`;
+}
+// garrafa de água: enche até o traço do ideal e continua acima dele (sem teto)
+let lastWaterPct = null;
+function waterBottle(v, goal) {
+  const cap = Math.max(goal * 1.25, v * 1.08), pct = Math.min(100, v / cap * 100), mk = goal / cap * 100;
+  const from = lastWaterPct ?? pct; lastWaterPct = pct;
+  const top = 26, bot = 150, hTot = bot - top, y = bot - hTot * pct / 100, ym = bot - hTot * mk / 100;
+  return `<svg class="bottle" viewBox="0 0 80 160" role="img" aria-label="Garrafa com ${fmt(v / 1000, 2)} litros de ${fmt(goal / 1000, 1)} ideais">
+    <defs><clipPath id="btl"><path d="M30 6h20v12c0 4 14 8 14 20v104c0 6-4 10-10 10H26c-6 0-10-4-10-10V38c0-12 14-16 14-20z"/></clipPath></defs>
+    <g clip-path="url(#btl)"><rect x="0" y="0" width="80" height="160" class="b-bg"/>
+      <g class="b-water" style="--from:${(bot - hTot * from / 100).toFixed(1)}px;--to:${y.toFixed(1)}px"><path class="b-wave" d="M-80 6 q10 -6 20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 V200 H-80z"/></g></g>
+    <line x1="10" x2="70" y1="${ym.toFixed(1)}" y2="${ym.toFixed(1)}" class="b-goal"/>
+    <path d="M30 6h20v12c0 4 14 8 14 20v104c0 6-4 10-10 10H26c-6 0-10-4-10-10V38c0-12 14-16 14-20z" class="b-line"/>
+    <rect x="28" y="1" width="24" height="7" rx="1" class="b-cap"/></svg>`;
+}
+// ciência do dia: alterna assuntos (só os esportes que a pessoa pratica)
+function scienceOfDay() {
+  const sportCats = { boxe: 'Boxe', muaythai: 'Muay thai', jiu: 'Jiu-jitsu', mma: 'MMA', corrida: 'Corrida' };
+  const mine = new Set(mySports().map(id => sportCats[id]));
+  const cats = [...new Set(EVIDENCE.map(e => e.cat))].filter(c => !Object.values(sportCats).includes(c) || mine.has(c));
+  const n = Math.floor(new Date(today() + 'T12:00') / 864e5), cat = cats[n % cats.length];
+  const list = EVIDENCE.filter(e => e.cat === cat);
+  return list[Math.floor(n / cats.length) % list.length];
+}
+const readMin = e => Math.max(1, Math.round((e.do + ' ' + e.why).split(/\s+/).length / 180));
+function scienceCard(e) {
+  if (!e) return '';
+  return `<details class="card ev sci" id="h-sci" ${S.ui.sci === today() ? '' : ''}><summary><div><small class="cat">${esc(e.cat)}</small><h3>${esc(e.title)}</h3>
+    <p class="small sum">${esc(e.do)}</p><span class="small muted rt">Leitura de ${readMin(e)} min</span><span class="go">Ler →</span></div>${levelBadge(e.level)}</summary>
+    <p class="why">${esc(e.why)}</p><ul class="refs">${e.refs.map(r => `<li>${esc(r)}</li>`).join('')}</ul>
+    <a class="small" href="#ciencia">Mais ciência →</a></details>`;
+}
+const ICO = {
+  treino: '<svg viewBox="0 0 24 24"><path d="M6 7v10M3 9v6M18 7v10M21 9v6M6 12h12"/></svg>',
+  comida: '<svg viewBox="0 0 24 24"><path d="M7 3v8a2 2 0 0 0 2 2v8M5 3v5M9 3v5M17 3c-2 2-2 6 0 8v10"/></svg>',
+  agua: '<svg viewBox="0 0 24 24"><path d="M12 3s6 7 6 11a6 6 0 0 1-12 0c0-4 6-11 6-11z"/></svg>',
+  ciencia: '<svg viewBox="0 0 24 24"><path d="M3 5h7a2 2 0 0 1 2 2v13a2 2 0 0 0-2-2H3zM21 5h-7a2 2 0 0 0-2 2v13a2 2 0 0 1 2-2h7z"/></svg>'
+};
 const levelBadge = l => `<span class="lvl lvl-${l}" title="Nível de evidência">${l}</span>`;
 function evCard(e, open = false) {
   if (!e) return '';
@@ -201,41 +259,75 @@ views.hoje = () => {
   const next = plan.days[nextIdx];
   const hour = new Date().getHours();
   const greet = hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite';
-  const tip = EVIDENCE[(new Date().getDate() + new Date().getMonth()) % EVIDENCE.length];
+  const tip = scienceOfDay();
   const todayS = S.logs.sessions.filter(b => b.date === curDay());
+  const todayW = S.logs.workouts.filter(x => x.date === curDay());
   const wl = S.logs.water[curDay()] || [];
-  const cs = curSport();
+  const cs = curSport(), SP = SPORTS[cs], spMin = sportsOf(S.profile)[cs]?.min || 60;
+  const items = S.logs.food[curDay()] || [], mealsDone = new Set(items.map(i => i.m || 'extra'));
+  const nMeals = MEALS.filter(m => m.id !== 'extra' && mealsDone.has(m.id)).length;
+  const doneTrain = todayS.length + todayW.length;
+  // treino sugerido: força se ainda não fez força ontem/hoje (ou se não tem esporte); senão o esporte
+  const lift = next && (S.profile.liftDays ?? 2) > 0 && next.items.length;
+  const yest = dayKey(new Date(Date.now() - 864e5));
+  const liftRecent = lastW && (lastW.date === today() || lastW.date === yest);
+  const hasSport = mySports().length > 0;
+  const primary = lift && (!liftRecent || !hasSport) ? 'forca' : hasSport ? 'esporte' : lift ? 'forca' : null;
+  const liftEx = lift ? next.items.filter(i => EXERCISES[i.ex].t !== 'prehab') : [];
+  const sportCard = { cat: SP.n, title: SP.combat ? 'Rounds de ' + SP.n.toLowerCase() : 'Corrida do dia', desc: SP.combat ? 'Rounds com tema, combinações faladas e foco nos seus pontos fracos.' : 'Rodagem, intervalado ou tiros, com o timer marcando cada bloco.', meta: `~${spMin} min`, href: '#esporte', cta: SP.combat ? 'Montar e começar' : 'Montar corrida' };
+  const liftCard = lift ? { cat: 'Força · ' + plan.split, title: next.name, desc: liftEx.slice(0, 4).map(i => i.name).join(' · ') + (liftEx.length > 4 ? '…' : ''), meta: `${liftEx.length} exercícios · ~${S.profile.liftMin ?? 40} min`, href: '#sessao-' + nextIdx, cta: 'Começar treino' } : null;
+  const P = primary === 'forca' ? liftCard : primary === 'esporte' ? sportCard : null;
+  const alt = primary === 'forca' && hasSport ? sportCard : primary === 'esporte' && liftCard ? liftCard : null;
+  const tiles = [
+    { id: 'h-treino', ico: ICO.treino, n: 'Treino', v: doneTrain ? `${doneTrain} feito${doneTrain > 1 ? 's' : ''}` : 'Pendente', ok: doneTrain > 0 },
+    { id: 'h-nutri', ico: ICO.comida, n: 'Refeições', v: `${nMeals} de ${MEALS.length - 1}`, ok: f.k >= t.kcal * 0.9 },
+    { id: 'h-agua', ico: ICO.agua, n: 'Água', v: `${fmt(w / 1000, 1)} / ${fmt(t.water / 1000, 1)} L`, ok: w >= t.water },
+    { id: 'h-sci', ico: ICO.ciencia, n: 'Ciência', v: S.ui.sci === today() ? 'Lida' : '1 nova', ok: S.ui.sci === today() }
+  ];
+  const okN = tiles.filter(x => x.ok).length;
   return `<section class="head"><div>${viewDay ? '<small class="muted">Editando um dia passado</small><br>' : `<small class="muted">${greet}</small><br>`}<h1>${viewDay ? 'Registro' : 'Hoje'}</h1></div></section>
   ${dayNav()}
-  <div class="card glow">
+  ${viewDay ? '' : `<div class="dayrow" aria-label="Resumo do dia: ${okN} de 4">${tiles.map(x => `<button class="dtile ${x.ok ? 'ok' : ''}" data-act="jump" data-to="${x.id}">${x.ico}<b>${x.n}</b><small>${x.ok ? '✓ ' : ''}${esc(x.v)}</small></button>`).join('')}</div>`}
+  <div class="card glow" id="h-nutri">
     <div class="row">
-      ${ring(f.k, t.kcal, fmt(Math.max(0, t.kcal - f.k), 0), 'kcal restantes')}
-      <div class="grow">${bar('Proteína', f.p, t.protein, 'g', 'var(--acc)')}${bar('Carboidrato', f.c, t.carbs, 'g', 'var(--cyan)')}${bar('Gordura', f.f, t.fat, 'g', 'var(--amber)')}</div>
+      ${ring(f.k, t.kcal, f.k > t.kcal ? '+' + fmt(f.k - t.kcal, 0) : fmt(Math.max(0, t.kcal - f.k), 0), f.k > t.kcal ? 'kcal acima' : 'kcal restantes')}
+      <div class="grow">${macroBar('Proteína', f.p, t.protein, 'var(--acc)')}${macroBar('Carboidrato', f.c, t.carbs, 'var(--cyan)')}${macroBar('Gordura', f.f, t.fat, 'var(--amber)')}</div>
     </div>
-    <div class="row gap mt"><a class="btn small" href="#nutri">+ Comida</a></div>
-    ${waterBar(w, t.water)}
-    <div class="water">
-      <button class="btn small" data-act="water" data-v="250">+250</button><button class="btn small" data-act="water" data-v="500">+500</button>
-      <button class="btn small ghost" data-act="water" data-v="-250" ${w ? '' : 'disabled'} aria-label="Tirar 250 ml">−250</button>
-      <form id="waterForm" class="row gap"><input name="ml" inputmode="numeric" placeholder="ml" aria-label="Outra quantidade em ml"><button class="btn small ghost" type="submit">ok</button></form>
+    <p class="kcalline small"><b class="mono">${fmt(f.k, 0)}</b> de <b class="mono">${fmt(t.kcal, 0)}</b> kcal consumidas</p>
+    <div class="mealrow">${MEALS.map(m => `<a href="#nutri" class="mchip ${mealsDone.has(m.id) ? 'on' : ''}" title="${esc(m.n)}"><span>${m.ico}</span><small>${esc(m.n.split(' ')[0])}</small></a>`).join('')}</div>
+    <a class="btn small block" href="#nutri">+ Registrar refeição</a>
+  </div>
+  <div class="card" id="h-agua">
+    <div class="wtop">
+      ${waterBottle(w, t.water)}
+      <div class="grow">
+        <h3>Água</h3>
+        <p class="wbig mono">${fmt(w / 1000, 2)} L</p>
+        <p class="small muted">ideal ${fmt(t.water / 1000, 1)} L · ${w >= t.water ? `<b class="ok">meta batida ✓${w > t.water ? ` +${fmt((w - t.water) / 1000, 2)} L` : ''}</b>` : `faltam ${fmt((t.water - w) / 1000, 2)} L`}</p>
+        <div class="water">
+          <button class="btn small" data-act="water" data-v="250">+250</button><button class="btn small" data-act="water" data-v="500">+500</button>
+          <button class="btn small ghost" data-act="water" data-v="-250" ${w ? '' : 'disabled'} aria-label="Tirar 250 ml">−250</button>
+        </div>
+        <form id="waterForm" class="row gap"><input name="ml" inputmode="numeric" placeholder="outra (ml)" aria-label="Outra quantidade em ml"><button class="btn small ghost" type="submit">ok</button></form>
+      </div>
     </div>
-    ${wl.length ? `<details class="wlist"><summary class="small">Ver ${wl.length} registro(s) de água</summary><ul class="list">${wl.map(x => `<li><span class="small">${x.ml > 0 ? '+' : ''}${x.ml} ml</span><button class="x" data-act="delWater" data-id="${x.id}" aria-label="Apagar">×</button></li>`).join('')}</ul></details>` : ''}
+    ${wl.length ? `<details class="wlist"><summary class="small">Histórico de hoje (${wl.length})</summary><ul class="list">${wl.map(x => `<li><span class="small mono">${x.t ? new Date(x.t).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '—'}</span><span class="small grow">${x.ml > 0 ? '+' : ''}${x.ml} ml</span><button class="x" data-act="delWater" data-id="${x.id}" aria-label="Apagar">×</button></li>`).join('')}</ul></details>` : ''}
   </div>
-  ${viewDay ? '' : `<a class="card link panel" href="#esporte"><small class="cat">${esc(SPORTS[cs].n)}</small><h3>${SPORTS[cs].combat ? 'Gerar treino de hoje' : 'Gerar corrida de hoje'}</h3>
-    <p class="muted small">${SPORTS[cs].combat ? 'Rounds com tema, combinações faladas e foco nos seus pontos fracos.' : 'Rodagem, intervalado ou tiros, com o timer marcando cada bloco.'}</p><span class="go">Montar →</span></a>`}
-  ${next && !viewDay ? `<a class="card link" href="#sessao-${nextIdx}">
-    <small class="cat">Próximo treino de força · ${esc(plan.split)}</small><h3>${esc(next.name)}</h3>
-    <p class="muted small">${next.items.filter(i => EXERCISES[i.ex].t !== 'prehab').slice(0, 4).map(i => esc(i.name)).join(' · ')}…</p>
-    <span class="go">Começar →</span></a>` : ''}
-  <div class="card"><h3>Treinos ${viewDay ? 'do dia' : 'de hoje'}</h3>
-    ${todayS.length ? todayS.map(b => `<p class="small">${esc(SPORTS[b.sport]?.n || '')} · ${esc(SPORTS[b.sport]?.types[b.type]?.n || '')} · ${b.min} min · ~${fmt(b.kcal, 0)} kcal</p>`).join('') : `<p class="muted small">Nenhuma sessão registrada ${viewDay ? 'nesse dia' : 'hoje'}.</p>`}
+  <div class="card ${viewDay ? '' : 'panel'}" id="h-treino">
+    <small class="cat">${viewDay ? 'Treinos do dia' : 'Seu treino de hoje'}</small>
+    ${doneTrain ? `<ul class="done">${todayW.map(x => `<li>✓ <b>${esc(x.name)}</b> <span class="muted small">· força</span></li>`).join('')}${todayS.map(b => `<li>✓ <b>${esc(SPORTS[b.sport]?.n || '')}</b> <span class="muted small">· ${esc(SPORTS[b.sport]?.types[b.type]?.n || '')} · ${b.min} min · ~${fmt(b.kcal, 0)} kcal</span></li>`).join('')}</ul>` : viewDay ? `<p class="muted small">Nenhuma sessão registrada nesse dia.</p>` : ''}
+    ${viewDay ? '' : P ? `<div class="tmain"><small class="muted tcat">${doneTrain ? 'Quer mais? ' : ''}${esc(P.cat)}</small><h3>${esc(P.title)}</h3>
+      <p class="small muted">${esc(P.desc)}</p><p class="small tmeta mono">${esc(P.meta)}</p>
+      <a class="btn primary block" href="${P.href}">${P.cta} →</a></div>
+      ${alt ? `<a class="talt small" href="${alt.href}">Prefere outro? <b>${esc(alt.cat.split(' · ')[0])}: ${esc(alt.title)}</b> →</a>` : ''}`
+    : `<p class="small">Você ainda não tem treino programado.</p><a class="btn primary block" href="#perfil">Montar meu plano →</a>`}
   </div>
-  <div class="card">
+  <div class="card" id="h-peso">
     <form id="weighForm" class="row between"><h3>Peso${viewDay ? ' do dia' : ''}</h3><div class="row gap"><input name="kg" inputmode="decimal" placeholder="${S.logs.weights[curDay()] != null ? fmt(S.logs.weights[curDay()]) : fmt(latestWeight())} kg" style="width:96px" aria-label="Peso do dia"><button class="btn small" type="submit">Salvar</button></div></form>
     ${weightChart()}
   </div>
   <small class="cat pad">Ciência do dia</small>
-  ${evCard(tip)}`;
+  ${scienceCard(tip)}`;
 };
 
 views.nutri = () => {
@@ -704,7 +796,7 @@ views.login = () => `<div class="gate">
   <p class="gate-tag">Sem mestre. Só disciplina.</p>
   ${GATE.recovery && cloud.user() ? accountCard() : authBlock()}
   <button class="linkbtn gate-skip" data-act="skipLogin">Continuar sem conta</button>
-  <p class="gate-ver">v3.7</p></div>`;
+  <p class="gate-ver">v3.8</p></div>`;
 async function afterLogin() {
   const u = cloud.user();
   // outra conta? os dados deste aparelho são da conta anterior: descarta antes de juntar
@@ -730,7 +822,7 @@ views.perfil = () => `<section class="head"><h1>Perfil e ajustes</h1></section>
   <div class="card"><h3>Seus dados</h3>
     <div class="row gap wrap"><button class="btn small" data-act="export">Exportar backup</button><label class="btn small ghost">Restaurar<input type="file" accept="application/json" id="importFile" hidden></label><button class="btn small danger" data-act="reset">Apagar tudo</button></div>
   </div>
-  <p class="small muted center pad">RONIN v3.7 · não substitui acompanhamento profissional.</p>`;
+  <p class="small muted center pad">RONIN v3.8 · não substitui acompanhamento profissional.</p>`;
 
 // ---------------- Roteador ----------------
 const ICONS = { hoje: 'M3 12l9-8 9 8M5 10v10h14V10', nutri: 'M12 3c4 3 6 6 6 10a6 6 0 0 1-12 0c0-4 2-7 6-10z', treino: 'M3 10v4M6 7v10M18 7v10M21 10v4M6 12h12', esporte: 'M7 4h7a4 4 0 0 1 4 4v4a6 6 0 0 1-6 6H9a4 4 0 0 1-4-4V6a2 2 0 0 1 2-2zM9 18v3h6v-3', coach: 'M4 5h16v11H8l-4 4z' };
@@ -810,6 +902,7 @@ function bindAfter(v, arg) {
       S.logs.weights[curDay()] = kg; S.meta.wt[curDay()] = Date.now(); save(); render(); toast('Peso registrado');
     });
     $('#waterForm').addEventListener('submit', e => { e.preventDefault(); const ml = Math.round(num(e.target.ml.value) || 0); if (!ml) return; addWater(ml); });
+    $('#h-sci')?.addEventListener('toggle', e => { if (e.target.open && S.ui.sci !== today()) { S.ui.sci = today(); save(true); const tl = document.querySelector('[data-to="h-sci"]'); if (tl) { tl.classList.add('ok'); tl.querySelector('small').textContent = '✓ Lida'; } } });
   }
   if (v === 'nutri') {
     const inp = $('#foodSearch'), res = $('#foodResults');
@@ -905,7 +998,7 @@ function addWater(ml) {
   const tot = dayWater();
   if (ml < 0) ml = Math.max(ml, -tot);
   if (!ml) return;
-  (S.logs.water[curDay()] ||= []).push({ id: newId(), ml }); save(); render();
+  (S.logs.water[curDay()] ||= []).push({ id: newId(), ml, t: Date.now() }); save(); render();
 }
 function addFood(item) {
   (S.logs.food[curDay()] ||= []).push({ id: newId(), t: Date.now(), m: addMeal || defaultMeal(), ...item });
@@ -926,6 +1019,8 @@ document.addEventListener('click', async e => {
   const el = e.target.closest('[data-act]'); if (!el) return;
   const a = el.dataset.act;
   if (a === 'water') addWater(+el.dataset.v);
+  if (a === 'wRange') { S.ui.wRange = +el.dataset.r; save(true); render(); }
+  if (a === 'jump') { const t = document.getElementById(el.dataset.to); if (t) { if (t.tagName === 'DETAILS') t.open = true; t.scrollIntoView({ behavior: 'smooth', block: 'start' }); } }
   if (a === 'delWater') { const id = el.dataset.id; S.logs.water[curDay()] = (S.logs.water[curDay()] || []).filter(x => x.id !== id); S.del[id] = Date.now(); save(); render(); }
   if (a === 'day') { shiftDay(+el.dataset.d); render(); }
   if (a === 'dayToday') { viewDay = null; render(); }
