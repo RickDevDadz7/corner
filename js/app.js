@@ -155,7 +155,7 @@ function macroBar(name, v, max, color) {
     <small class="left">${v >= max && max ? 'meta batida ✓' : `faltam ${fmt(left, 0)} g`}</small></div>`;
 }
 // garrafa de água: enche até o traço do ideal e continua acima dele (sem teto)
-let lastWaterPct = null;
+let lastWaterPct = null, wlOpen = false, clearArm = 0;
 function waterBottle(v, goal) {
   const cap = Math.max(goal * 1.25, v * 1.08), pct = Math.min(100, v / cap * 100), mk = goal / cap * 100;
   const from = lastWaterPct ?? pct; lastWaterPct = pct;
@@ -311,7 +311,8 @@ views.hoje = () => {
         <form id="waterForm" class="row gap"><input name="ml" inputmode="numeric" placeholder="outra (ml)" aria-label="Outra quantidade em ml"><button class="btn small ghost" type="submit">ok</button></form>
       </div>
     </div>
-    ${wl.length ? `<details class="wlist"><summary class="small">Histórico de hoje (${wl.length})</summary><ul class="list">${wl.map(x => `<li><span class="small mono">${x.t ? new Date(x.t).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '—'}</span><span class="small grow">${x.ml > 0 ? '+' : ''}${x.ml} ml</span><button class="x" data-act="delWater" data-id="${x.id}" aria-label="Apagar">×</button></li>`).join('')}</ul></details>` : ''}
+    ${wl.length ? `<details class="wlist" ${wlOpen ? 'open' : ''}><summary class="small">Histórico ${viewDay ? 'do dia' : 'de hoje'} (${wl.length})</summary><ul class="list">${wl.map(x => `<li><span class="small mono">${x.t ? new Date(x.t).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '—'}</span><span class="small grow">${x.ml > 0 ? '+' : ''}${x.ml} ml</span><button class="x" data-act="delWater" data-id="${x.id}" aria-label="Apagar">×</button></li>`).join('')}</ul>
+      <button class="linkbtn wclear" data-act="clearWater">Apagar todo o histórico</button></details>` : ''}
   </div>
   <div class="card ${viewDay ? '' : 'panel'}" id="h-treino">
     <small class="cat">${viewDay ? 'Treinos do dia' : 'Seu treino de hoje'}</small>
@@ -902,6 +903,7 @@ function bindAfter(v, arg) {
       S.logs.weights[curDay()] = kg; S.meta.wt[curDay()] = Date.now(); save(); render(); toast('Peso registrado');
     });
     $('#waterForm').addEventListener('submit', e => { e.preventDefault(); const ml = Math.round(num(e.target.ml.value) || 0); if (!ml) return; addWater(ml); });
+    $('.wlist')?.addEventListener('toggle', e => { wlOpen = e.target.open; });
     $('#h-sci')?.addEventListener('toggle', e => { if (e.target.open && S.ui.sci !== today()) { S.ui.sci = today(); save(true); const tl = document.querySelector('[data-to="h-sci"]'); if (tl) { tl.classList.add('ok'); tl.querySelector('small').textContent = '✓ Lida'; } } });
   }
   if (v === 'nutri') {
@@ -1019,6 +1021,12 @@ document.addEventListener('click', async e => {
   const el = e.target.closest('[data-act]'); if (!el) return;
   const a = el.dataset.act;
   if (a === 'water') addWater(+el.dataset.v);
+  if (a === 'clearWater') {
+    // dois toques: o primeiro arma, o segundo (em até 4 s) apaga
+    if (Date.now() - clearArm > 4000) { clearArm = Date.now(); el.textContent = 'Toque de novo pra apagar tudo'; el.classList.add('armed'); setTimeout(() => { if (el.isConnected) { el.textContent = 'Apagar todo o histórico'; el.classList.remove('armed'); } }, 4000); return; }
+    clearArm = 0; const list = S.logs.water[curDay()] || []; for (const x of list) S.del[x.id] = Date.now();
+    S.logs.water[curDay()] = []; wlOpen = false; save(); render(); toast('Histórico de água apagado');
+  }
   if (a === 'wRange') { S.ui.wRange = +el.dataset.r; save(true); render(); }
   if (a === 'jump') { const t = document.getElementById(el.dataset.to); if (t) { if (t.tagName === 'DETAILS') t.open = true; t.scrollIntoView({ behavior: 'smooth', block: 'start' }); } }
   if (a === 'delWater') { const id = el.dataset.id; S.logs.water[curDay()] = (S.logs.water[curDay()] || []).filter(x => x.id !== id); S.del[id] = Date.now(); save(); render(); }
