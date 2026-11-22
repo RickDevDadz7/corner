@@ -1,5 +1,5 @@
 // Service worker: app funciona offline. Mude VERSION a cada publicação.
-const VERSION = 'ronin-v3.8.1';
+const VERSION = 'ronin-v3.8.2';
 const FILES = ['./', 'index.html', 'styles.css', 'manifest.webmanifest', 'js/app.js', 'js/calc.js', 'js/data.js', 'js/sports.js', 'js/techniques.js', 'js/cloud.js', 'js/sync.js', 'js/rig.js',
   'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png'];
 
@@ -13,7 +13,8 @@ self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
   if (e.request.method !== 'GET' || url.origin !== location.origin) return; // API da IA passa direto
   e.respondWith(
-    fetch(e.request).then(res => { const copy = res.clone(); caches.open(VERSION).then(c => c.put(e.request, copy)); return res; })
+    // no-cache: sempre confere com o servidor (ETag), então versão nova chega na hora, sem esperar o cache de 10 min do GitHub Pages
+    (e.request.mode === 'navigate' ? fetch(e.request.url, { cache: 'no-cache' }) : fetch(e.request, { cache: 'no-cache' })).then(res => { const copy = res.clone(); caches.open(VERSION).then(c => c.put(e.request, copy)); return res; })
       .catch(() => caches.match(e.request).then(r => r || caches.match('index.html')))
   );
 });
