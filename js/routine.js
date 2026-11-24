@@ -3,6 +3,7 @@
 import { EXERCISES, TEMPLATES, SLOTS, MUSCLES } from './data.js';
 import { equipment, canDo, sportDays, sportsOf } from './calc.js';
 import { SPORTS } from './sports.js';
+import { avoidSet, goalParams, repsFor, restFor } from './periodize.js';
 
 export const SPLIT_DEFS = {
   fb: { n: 'Full Body', d: 'Corpo inteiro em toda sessão. Cada músculo 2 a 3 vezes por semana com poucos dias. Combina bem com esporte.', opts: { 1: ['A'], 2: ['A', 'B'], 3: ['A', 'B', 'C'] } },
@@ -21,13 +22,13 @@ export const repsOf = (it) => it.lo === it.hi ? `${it.lo}` : `${it.lo}–${it.hi
 
 // monta uma sessão a partir de um modelo, escolhendo o exercício possível com o equipamento da pessoa
 function fromTemplate(p, key, extra = []) {
-  const t = TEMPLATES[key], eq = equipment(p), used = new Set(), items = [];
+  const t = TEMPLATES[key], eq = equipment(p), used = new Set(), items = [], avoid = avoidSet(p), gp = goalParams(p);
   const reduce = p.experience === 'iniciante' || sportDays(p) >= 4;
   for (const [slot, sets, lo, hi] of [...t.list, ...extra]) {
-    const ex = (SLOTS[slot] || []).find(id => canDo(id, eq) && !used.has(id)); if (!ex) continue;
+    const ex = (SLOTS[slot] || []).find(id => canDo(id, eq) && !used.has(id) && !avoid.has(id)); if (!ex) continue; // lesão marcada no perfil tira o exercício
     used.add(ex); const e = EXERCISES[ex];
-    const [rlo, rhi] = e.r || [lo, hi];
-    items.push({ ex, slot, sets: reduce && e.t !== 'power' && sets >= 3 ? sets - 1 : sets, lo: rlo, hi: rhi, rest: restOf(e) });
+    const [rlo, rhi] = repsFor(e, e.r || [lo, hi], gp);
+    items.push({ ex, slot, sets: reduce && e.t !== 'power' && sets >= 3 ? sets - 1 : sets, lo: rlo, hi: rhi, rest: restFor(e, gp) });
   }
   return { id: sid(), name: t.name, key, items };
 }

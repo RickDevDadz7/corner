@@ -671,3 +671,30 @@ body.resting #app{padding-bottom:calc(176px + var(--safe-b))}
 .btn.donebtn{background:var(--acc);border-color:var(--acc);color:var(--sheet);box-shadow:3px 3px 0 var(--ink)}
 .btn.off{opacity:.45;pointer-events:none;box-shadow:none;border-style:dashed}
 .set.fail input{background:#6f675b!important;text-decoration:line-through}.set.fail .sdone{background:#6f675b;border-color:#6f675b}
+/* ciclo e explicação do plano */
+.cyc{border:2px solid var(--ink);background:var(--paper);padding:8px 10px;margin:8px 0}
+.cyc.dl{border-color:var(--acc)}
+.cyc.off{border-style:dashed}
+.cyc>small{display:block;font-size:12.5px;margin-top:4px}
+.cyctag{font:900 10.5px var(--font);text-transform:uppercase;letter-spacing:.04em;background:var(--ink);color:var(--sheet);padding:3px 7px}
+.cyc.dl .cyctag{background:var(--acc)}
+.cycbar{display:flex;gap:4px;margin-top:6px}
+.cycbar i{flex:1;height:8px;border:2px solid var(--ink);background:var(--sheet)}
+.cycbar i.dl{border-style:dashed}
+.cycbar i.done{background:var(--ink)}
+.cycbar i.now{background:var(--acc);border-color:var(--acc)}
+.howplan{margin:6px 0 10px;border-top:2px solid var(--line, #d9d0bd);padding-top:6px}
+.howplan summary{font:800 13px var(--font);cursor:pointer;color:var(--acc)}
+.howplan p{margin:6px 0}
+.voltab{width:100%;border-collapse:collapse;font-size:13px;margin:6px 0}
+.voltab th{font:900 10.5px var(--font);text-transform:uppercase;color:var(--muted);text-align:left;padding:3px 4px;border-bottom:2px solid var(--ink)}
+.voltab td{padding:4px;border-bottom:1px solid #d9d0bd}
+.voltab tr.short td:first-child{color:var(--acc);font-weight:800}
+.care{background:#f3e1c4;border-left:4px solid #b8860b;padding:5px 8px;margin:6px 0}
+.stag{border-top:2px dashed var(--ink);margin-top:8px;padding-top:6px}
+.stag .chips{display:flex;flex-wrap:wrap;gap:6px}
+.tfine{border:2px solid var(--ink);background:var(--paper);padding:8px 10px;margin:8px 0}
+.tfine summary{font:800 14px var(--font);cursor:pointer}
+.tfine summary small{font-weight:600;color:var(--muted);margin-left:6px}
+.tfine label{display:block;margin-top:8px}
+.caretag{display:inline-block;font:800 10.5px var(--font);color:#8a6100;margin-left:4px}

@@ -218,7 +218,7 @@ const def = (k, o) => { PAT[k] = { gloves: false, cam: 22, ox: 0, act: [], tilt:
 // Prancha de Copenhague (vista de frente, deitado de lado)
 const TW = -90;
 { const c0 = { p: [0.05, 0.36, 0], py: 0, cy: 0, lean: -80, tw: TW, fL: [0.98, 0.47, 0], fR: [0.86, 0.1, 0.05], tL: [1, 0, 0], tR: [1, 0, 0], kL: [0, 1, -1], kR: [0, 1, -1], wR: [-0.28, 0.03, -0.22], wL: [0.0, 0.5, -0.12], eR: [0, 0, -1], eL: [0, 1, 0] };
-  const c1 = P(c0, { p: [0.05, 0.16, 0], lean: -86 });
+  const c1 = P(c0, { p: [0.05, 0.24, 0], lean: -84 });
   def('copen', { cam: 0, zoom: 0.9, ox: 20, frames: [F(c1, 500, 0), F(c0, 800, 0), F(c0, 1200, 1), F(c1, 800, 1)], steps: ['De lado, antebraço no chão e perna de cima apoiada no sofá: sobe o quadril', 'Segura com o corpo reto. A virilha de cima faz a força'],
     props: () => [{ k: 'box', x1: 0.78, x2: 1.2, y: 0.42 }] }); }
 // Isometria de pescoço e de pegada
@@ -249,6 +249,165 @@ const TW = -90;
   const r1 = P(r0, { py: 20, cy: 40, hL: [0.5, -0.05, -0.05], hR: [0.5, -0.05, -0.2] });
   def('mbr', { cam: 10, frames: [F(r0, 700, 0, 'load'), F(r1, 280, 1, 'snap'), F(r1, 400, 1), F(r0, 600, 0)], steps: ['De lado pra parede, carrega no quadril de trás', 'Gira o quadril antes dos ombros e solta a bola como um cruzado'],
     props: J => [{ k: 'ball', p: mid(J.haL, J.haR) }] }); }
+
+
+// ==================== Biblioteca ampliada (v3.21) ====================
+const SEAT = { p: [0, 0.5, 0], py: 0, cy: 0, lean: -4, fL: [0.45, 0, -0.14], fR: [0.45, 0, 0.14], kL: [1, 0.3, 0], kR: [1, 0.3, 0], tL: [1, 0, 0], tR: [1, 0, 0], hL: [0.05, -0.5, 0.26], hR: [0.05, -0.5, -0.26] };
+const BENCH = { ...SUP, p: [0, 0.52, 0], fL: [0.42, 0, -0.24], fR: [0.42, 0, 0.24], kL: [0.3, 1, -0.3], kR: [0.3, 1, 0.3], tL: [1, 0, -0.2], tR: [1, 0, 0.2] };
+const BENCHBOX = { k: 'box', x1: -0.95, x2: 0.15, y: 0.44, z1: -0.16, z2: 0.16 };
+const QUAD = { ...PRO, p: [-0.02, 0.52, 0], fL: [-0.45, 0.04, -0.12], fR: [-0.45, 0.04, 0.12], kL: [0, -1, 0], kR: [0, -1, 0], tL: [-1, 0, 0], tR: [-1, 0, 0], wL: [0.45, 0, -0.18], wR: [0.45, 0, 0.18], eL: [-1, 0, 0.3], eR: [-1, 0, -0.3] };
+const KNEEL = { p: [0, 0.52, 0], py: 0, cy: 0, lean: 0, fL: [-0.43, 0.04, -0.12], fR: [-0.43, 0.04, 0.12], kL: [0.2, -1, 0], kR: [0.2, -1, 0], tL: [-1, 0, 0], tR: [-1, 0, 0] };
+const seatBox = { k: 'box', x1: -0.22, x2: 0.4, y: 0.45, z1: -0.2, z2: 0.2 }, backRest = { k: 'line', a: [-0.2, 0.46, 0], b: [-0.28, 1.25, 0], w: 12, c: 'pr', layer: 'back' };
+const dbs = (d = [1, 0, 0]) => J => [{ k: 'db', p: J.haL, d }, { k: 'db', p: J.haR, d }];
+const barP = (r) => J => [{ k: 'bar', a: J.haL, b: J.haR, r }];
+const STD = P(ST, { fL: [0.03, 0, -0.15], fR: [0.03, 0, 0.15] });
+const rep4 = (a, b, d1 = 900, d2 = 1000) => [F(a, 400, 0), F(b, d1, 0), F(b, 200, 1), F(a, d2, 1)];
+
+// Pernas
+{ const bent = P(SEAT, { p: [0, 0.52, 0], fL: [0.47, 0.08, -0.12], fR: [0.47, 0.08, 0.12], kL: [1, 0.6, 0], kR: [1, 0.6, 0], tL: [1, 0.2, 0], tR: [1, 0.2, 0], wL: [0.05, 0.45, -0.3], wR: [0.05, 0.45, 0.3] });
+  const st = P(bent, { fL: [0.88, 0.47, -0.12], fR: [0.88, 0.47, 0.12], tL: [0.3, 1, 0], tR: [0.3, 1, 0] });
+  def('ext', { frames: [F(bent, 400, 0), F(st, 800, 0), F(st, 400, 1), F(bent, 1000, 1)], steps: ['Costas no encosto, estica a perna até o fim', 'Segura 1 s em cima e desce devagar'],
+    props: J => [seatBox, backRest, { k: 'line', a: [J.anL[0] + 0.05, J.anL[1] + 0.05, -0.22], b: [J.anL[0] + 0.05, J.anL[1] + 0.05, 0.22], w: 10, c: 'prb', layer: 'front' }] }); }
+{ const up = P(ST, { p: [-0.05, 0.86, 0], lean: -12, fL: [0.15, 0, -0.17], fR: [0.15, 0, 0.17], tL: [1, 0, -0.35], tR: [1, 0, 0.35], hL: [-0.04, 0.08, 0.3], hR: [-0.04, 0.08, -0.3], eL: [0, -1, 0.6], eR: [0, -1, -0.6] });
+  const dn = P(up, { p: [-0.2, 0.5, 0], lean: -4, kL: [1, 0.2, -0.4], kR: [1, 0.2, 0.4] });
+  def('hack', { frames: rep4(up, dn, 1200, 900), steps: ['Costas coladas no apoio, desce fundo', 'Sobe empurrando a plataforma com o pé inteiro'],
+    props: J => [{ k: 'line', a: [J.pel[0] - 0.14, J.pel[1] - 0.06, 0], b: [J.neck[0] - 0.14, J.neck[1] + 0.02, 0], w: 13, c: 'pr', layer: 'back' }, { k: 'line', a: [-0.3, 0.01, 0], b: [0.4, 0.01, 0], w: 6, c: 'prb', layer: 'back' }] }); }
+{ const up = P(ST, { p: [0, 0.88, 0], fL: [0.03, 0, -0.15], fR: [0.03, 0, 0.15], wL: [0.07, 0.76, -0.24], wR: [0.07, 0.76, 0.24], eL: [-1, -0.3, 0.2], eR: [-1, -0.3, -0.2] });
+  const dn = P(up, { p: [-0.24, 0.62, 0], lean: 62, wL: [0.15, 0.28, -0.24], wR: [0.15, 0.28, 0.24], kL: [1, 0, -0.3], kR: [1, 0, 0.3] });
+  def('dl', { cam: 30, frames: [F(dn, 500, 0), F(up, 1100, 0), F(up, 300, 1), F(dn, 1100, 1)], steps: ['Barra colada na canela, peito aberto, empurra o chão com as pernas', 'Trava o quadril em cima e desce com a barra raspando na perna'], props: barP(0.22) }); }
+{ const up = P(ST, { fL: [0.03, 0, -0.36], fR: [0.03, 0, 0.36], tL: [0.6, 0, -0.8], tR: [0.6, 0, 0.8], kL: [0.6, 0, -0.8], kR: [0.6, 0, 0.8], wL: [0.08, 0.82, -0.05], wR: [0.08, 0.82, 0.05], eL: [0, -1, 0.3], eR: [0, -1, -0.3] });
+  const dn = P(up, { p: [-0.08, 0.55, 0], lean: 12, wL: [0.1, 0.46, -0.05], wR: [0.1, 0.46, 0.05] });
+  def('sumo', { cam: 50, frames: rep4(up, dn, 1100, 900), steps: ['Pés afastados e virados pra fora, desce reto com o halter entre as pernas', 'Sobe empurrando os joelhos pra fora'],
+    props: J => [{ k: 'db', p: [mid(J.haL, J.haR)[0], mid(J.haL, J.haR)[1] - 0.1, 0], d: [0, 1, 0] }] }); }
+def('walklunge', { frames: PAT.afundo.frames, steps: ['Passo longo à frente, desce até o joelho de trás quase encostar', 'Sobe e já leva a outra perna pra frente'], props: dbs() });
+{ const s0 = P(ST, { p: [-0.02, 0.86, 0], lean: 10, fL: [0.4, 0.42, -0.12], fR: [-0.06, 0, 0.12], kL: [1, 0.2, -0.1], hL: [0.1, -0.45, 0.25], hR: [0.1, -0.45, -0.25] });
+  const s1 = P(s0, { p: [0.38, 1.3, 0], lean: 4, fR: [0.44, 0.42, 0.12] });
+  def('stepup', { zoom: 0.82, frames: rep4(s0, s1, 900, 1000), steps: ['Pé inteiro em cima do banco, sobe com a força dessa perna', 'Desce controlando, sem despencar'], props: () => [{ k: 'box', x1: 0.22, x2: 0.66, y: 0.42 }] }); }
+{ const up = P(ST, { fL: [0.03, 0, -0.1], fR: [-0.12, 0.05, 0.12], tR: [1, -0.4, 0], wL: [0.07, 0.76, -0.22], wR: [0.07, 0.76, 0.22], eL: [-1, -0.3, 0.2], eR: [-1, -0.3, -0.2] });
+  const dn = P(up, { p: [-0.15, 0.85, 0], lean: 80, fR: [-0.95, 0.66, 0.1], kR: [0, -1, 0], tR: [0, -1, 0], wL: [0.3, 0.36, -0.22], wR: [0.3, 0.36, 0.22] });
+  def('singlerdl', { frames: rep4(up, dn, 1300, 1000), steps: ['Apoiado numa perna, tronco desce e a perna de trás sobe junto', 'Volta apertando o glúteo da perna de apoio, quadril reto'], props: J => [{ k: 'db', p: J.haL, d: [1, 0, 0] }] }); }
+{ const up = P(KNEEL, { hL: [0.25, -0.25, 0.22], hR: [0.25, -0.25, -0.22], eL: [-0.6, -1, 0.3], eR: [-0.6, -1, -0.3] });
+  const dn = P(up, { p: [0.34, 0.36, 0], lean: 52, hL: [0.42, -0.12, 0.22], hR: [0.42, -0.12, -0.22] });
+  def('nordic', { frames: [F(up, 400, 0), F(dn, 1800, 0, 'lin'), F(dn, 200, 1), F(up, 1200, 1)], steps: ['Pés presos, corpo reto do joelho à cabeça: desce o mais devagar que conseguir', 'Aparou nas mãos, empurra e volta'],
+    props: J => [{ k: 'line', a: [J.anL[0] + 0.02, J.anL[1] + 0.08, -0.22], b: [J.anL[0] + 0.02, J.anL[1] + 0.08, 0.22], w: 10, c: 'prb', layer: 'front' }] }); }
+{ const up = { py: 0, cy: 0, p: [0, 0.8, 0], lean: 48, fL: [-0.6, 0.25, -0.1], fR: [-0.6, 0.25, 0.1], kL: [0, -1, 0], kR: [0, -1, 0], tL: [0.3, -1, 0], tR: [0.3, -1, 0], hL: [0.14, -0.06, 0.06], hR: [0.14, -0.06, -0.06], eL: [0, -1, 1], eR: [0, -1, -1] };
+  const dn = P(up, { lean: 128 });
+  def('hipext', { ox: 10, frames: [F(dn, 400, 0), F(up, 900, 0), F(up, 400, 1), F(dn, 1100, 1)], steps: ['Quadril no apoio, dobra pra frente e sobe apertando o glúteo', 'Para quando o corpo alinhar, sem jogar a cabeça pra trás'],
+    props: J => [{ k: 'line', a: [-0.62, 0.2, 0], b: [0.06, 0.72, 0], w: 7, c: 'pr', layer: 'back' }, { k: 'line', a: [-0.05, 0.68, 0], b: [0.14, 0.82, 0], w: 14, c: 'prb', layer: 'back' }, { k: 'line', a: [J.anL[0] + 0.06, J.anL[1] - 0.05, -0.2], b: [J.anL[0] + 0.06, J.anL[1] - 0.05, 0.2], w: 9, c: 'prb', layer: 'front' }, { k: 'line', a: [-0.62, 0.2, 0], b: [-0.62, 0, 0], w: 5, c: 'pr', layer: 'back' }] }); }
+{ const s0 = { p: [0, 0.5, 0], py: 0, cy: 0, lean: -12, fL: [0.42, 0.06, -0.14], fR: [0.42, 0.06, 0.14], kL: [1, 0.4, -0.2], kR: [1, 0.4, 0.2], tL: [1, 0, 0], tR: [1, 0, 0], wL: [0.0, 0.45, -0.3], wR: [0.0, 0.45, 0.3] };
+  const s1 = P(s0, { fL: [0.38, 0.06, -0.44], fR: [0.38, 0.06, 0.44], kL: [0.6, 0.4, -1], kR: [0.6, 0.4, 1], tL: [1, 0, -0.5], tR: [1, 0, 0.5] });
+  def('abd', { cam: 72, frames: rep4(s0, s1, 800, 1000), steps: ['Sentado com as costas no encosto, abre os joelhos contra a almofada', 'Volta devagar sem deixar o peso bater'],
+    props: J => [seatBox, backRest, { k: 'line', a: [J.knL[0], J.knL[1] - 0.06, J.knL[2] - 0.07], b: [J.knL[0], J.knL[1] + 0.08, J.knL[2] - 0.07], w: 9, c: 'prb', layer: 'front' }, { k: 'line', a: [J.knR[0], J.knR[1] - 0.06, J.knR[2] + 0.07], b: [J.knR[0], J.knR[1] + 0.08, J.knR[2] + 0.07], w: 9, c: 'prb', layer: 'back' }] }); }
+{ const s0 = P(ST, { lean: 25, p: [-0.05, 0.86, 0], fR: [0.03, 0, 0.13], fL: [0.0, 0.03, -0.13], wL: [0.5, 1.1, -0.2], wR: [0.5, 1.1, 0.2], eL: [-1, -0.3, 0.3], eR: [-1, -0.3, -0.3] });
+  const s1 = P(s0, { fL: [-0.62, 0.42, -0.13], kL: [0, -1, 0], tL: [0, -1, 0] });
+  def('cablekick', { frames: rep4(s0, s1, 800, 900), steps: ['Apoiado na máquina, leva a perna pra trás com o glúteo', 'Volta controlando, sem arquear a lombar'],
+    props: J => [{ k: 'line', a: [0.55, 0, -0.3], b: [0.55, 1.9, -0.3], w: 6, c: 'pr', layer: 'back' }, { k: 'line', a: J.anL, b: [0.55, 0.08, -0.13], w: 2, c: 'pr' }] }); }
+{ const dn = P(SEAT, { p: [0, 0.52, 0], lean: -2, fL: [0.47, 0.08, -0.13], fR: [0.47, 0.08, 0.13], kL: [1, 0.8, 0], kR: [1, 0.8, 0], tL: [1, 0.25, 0], tR: [1, 0.25, 0], wL: [0.42, 0.66, -0.22], wR: [0.42, 0.66, 0.22], eL: [0, -1, 0.5], eR: [0, -1, -0.5] });
+  const up = P(dn, { fL: [0.47, 0.16, -0.13], fR: [0.47, 0.16, 0.13], tL: [1, -0.8, 0], tR: [1, -0.8, 0] });
+  def('seatcalf', { frames: rep4(dn, up, 700, 1000), steps: ['Joelho embaixo da almofada, sobe na ponta do pé', 'Desce até alongar e pausa embaixo'],
+    props: J => [seatBox, { k: 'line', a: [J.knL[0] - 0.05, J.knL[1] + 0.07, -0.25], b: [J.knL[0] - 0.05, J.knL[1] + 0.07, 0.25], w: 10, c: 'prb', layer: 'front' }, { k: 'box', x1: 0.5, x2: 0.72, y: 0.1, z1: -0.25, z2: 0.25 }] }); }
+{ const dn = P(ST, { p: [-0.2, 0.8, 0], lean: 68, fL: [0.05, 0, -0.2], fR: [0.05, 0, 0.2], kL: [1, 0, -0.25], kR: [1, 0, 0.25], wL: [-0.05, 0.5, -0.05], wR: [-0.05, 0.5, 0.05], eL: [-1, 0, 0.2], eR: [-1, 0, -0.2] });
+  const up = P(ST, { p: [0.02, 0.9, 0], lean: -4, fL: [0.05, 0, -0.2], fR: [0.05, 0, 0.2], wL: [0.52, 1.2, -0.05], wR: [0.52, 1.2, 0.05], eL: [0, -1, 0.3], eR: [0, -1, -0.3] });
+  def('kbswing', { frames: [F(dn, 500, 0, 'load'), F(up, 350, 1, 'snap'), F(up, 150, 1), F(dn, 600, 0)], steps: ['Kettlebell passa entre as pernas, quadril vai pra trás', 'Joga o quadril pra frente: o peso sobe até o peito sozinho'],
+    props: J => [{ k: 'ball', p: [mid(J.haL, J.haR)[0], mid(J.haL, J.haR)[1] - 0.08, 0], r: 0.1, cls: 'dbb' }] }); }
+// Peito
+{ const iu = P(BENCH, { p: [0, 0.5, 0], lean: -58, wL: [-0.34, 1.32, -0.42], wR: [-0.34, 1.32, 0.42] }), id = P(iu, { wL: [-0.3, 0.95, -0.44], wR: [-0.3, 0.95, 0.44] });
+  def('incbp', { ox: 25, frames: rep4(iu, id, 1100, 800), steps: ['Banco a 30°, desce a barra no alto do peito', 'Empurra pra cima sem tirar as escápulas do banco'],
+    props: J => [{ k: 'box', x1: -0.2, x2: 0.2, y: 0.42, z1: -0.16, z2: 0.16 }, { k: 'line', a: [-0.12, 0.44, 0], b: [-0.62, 0.78, 0], w: 12, c: 'pr', layer: 'back' }, { k: 'bar', a: J.haL, b: J.haR }] }); }
+{ const up = P(BENCH, { wL: [-0.44, 1.02, -0.14], wR: [-0.44, 1.02, 0.14], eL: [-1, 0, 0.6], eR: [-1, 0, -0.6] }), dn = P(up, { wL: [-0.44, 0.64, -0.62], wR: [-0.44, 0.64, 0.62] });
+  def('fly', { ox: 25, cam: 38, frames: rep4(up, dn, 1100, 900), steps: ['Cotovelo levemente dobrado, abre os braços até alongar o peito', 'Fecha como num abraço, sem bater os halteres'], props: J => [BENCHBOX, ...dbs([1, 0, 0])(J)] });
+  const dp0 = P(BENCH, { wL: [-0.42, 1.02, -0.05], wR: [-0.42, 1.02, 0.05], eL: [-0.3, 0, 1], eR: [-0.3, 0, -1] }), dp1 = P(dp0, { wL: [-0.98, 0.64, -0.05], wR: [-0.98, 0.64, 0.05] });
+  def('dbpullover', { ox: 35, frames: rep4(dp0, dp1, 1100, 900), steps: ['Halter em cima do peito, leva pra trás da cabeça com o braço quase reto', 'Volta puxando com as costas'],
+    props: J => [BENCHBOX, { k: 'db', p: mid(J.haL, J.haR), d: [0.4, 1, 0] }] }); }
+{ const op = P(ST, { lean: 14, fL: [0.18, 0, -0.15], fR: [-0.15, 0, 0.15], wL: [0.15, 1.45, -0.72], wR: [0.15, 1.45, 0.72], eL: [-0.3, 0.2, 1], eR: [-0.3, 0.2, -1] }), cl = P(op, { wL: [0.48, 1.06, -0.06], wR: [0.48, 1.06, 0.06] });
+  def('cross', { cam: 55, frames: rep4(op, cl, 900, 1000), steps: ['Um pé à frente, braços abertos com o cotovelo levemente dobrado', 'Junta as mãos na frente do peito e volta devagar'],
+    props: J => [{ k: 'line', a: J.haL, b: [0.0, 2.05, -0.95], w: 2, c: 'pr' }, { k: 'line', a: J.haR, b: [0.0, 2.05, 0.95], w: 2, c: 'pr' }] }); }
+{ const op = P(SEAT, { lean: -2, hL: [-0.02, 0.0, 0.62], hR: [-0.02, 0.0, -0.62], eL: [0, -0.3, 1], eR: [0, -0.3, -1] }), cl = P(op, { hL: [0.45, 0.02, 0.05], hR: [0.45, 0.02, -0.05] });
+  def('pecdeck', { cam: 65, frames: rep4(op, cl, 900, 1000), steps: ['Costas no encosto, braços abertos na altura do peito', 'Junta as mãos à frente e volta sem deixar o peso bater'], props: () => [seatBox, backRest] }); }
+// Costas
+{ const ex = { p: [0, 0.45, 0], py: 0, cy: 0, lean: 18, fL: [0.82, 0.25, -0.12], fR: [0.82, 0.25, 0.12], kL: [0.2, 1, -0.1], kR: [0.2, 1, 0.1], tL: [0.3, 1, 0], tR: [0.3, 1, 0], wL: [0.66, 0.72, -0.08], wR: [0.66, 0.72, 0.08], eL: [-1, -0.3, 0.3], eR: [-1, -0.3, -0.3] };
+  const pl = P(ex, { lean: -2, wL: [0.12, 0.76, -0.18], wR: [0.12, 0.76, 0.18] });
+  def('seatrow', { ox: 10, frames: rep4(ex, pl, 800, 1000), steps: ['Peito estufado, puxa o triângulo até a barriga', 'Volta esticando os braços sem curvar a coluna'],
+    props: J => [{ k: 'box', x1: -0.3, x2: 0.3, y: 0.4, z1: -0.18, z2: 0.18 }, { k: 'line', a: [0.92, 0.05, 0], b: [0.92, 0.45, 0], w: 9, c: 'prb', layer: 'back' }, { k: 'line', a: mid(J.haL, J.haR), b: [1.05, 0.5, 0], w: 2, c: 'pr' }] }); }
+{ const dn = P(ST, { p: [-0.16, 0.8, 0], lean: 50, fL: [0.03, 0, -0.18], fR: [0.03, 0, 0.18], kL: [1, 0, -0.25], kR: [1, 0, 0.25], wL: [0.22, 0.52, -0.08], wR: [0.22, 0.52, 0.08], eL: [-1, 0, 0.4], eR: [-1, 0, -0.4] });
+  const up = P(dn, { wL: [0.12, 0.86, -0.08], wR: [0.12, 0.86, 0.08] }), piv = [-1.05, 0.03, 0];
+  def('tbar', { ox: 30, frames: rep4(dn, up, 800, 1000), steps: ['Tronco inclinado e travado, puxa a barra até o peito', 'Desce esticando os braços sem levantar o tronco'],
+    props: J => { const h = mid(J.haL, J.haR); return [{ k: 'line', a: piv, b: ext(h, piv, 0.15), w: 5, c: 'prb' }, { k: 'ball', p: ext(h, piv, 0.11), r: 0.17, cls: 'plt' }]; } }); }
+{ const up = P(ST, { lean: 22, p: [-0.06, 0.86, 0], wL: [0.55, 1.55, -0.15], wR: [0.55, 1.55, 0.15], eL: [-0.3, -1, 0.2], eR: [-0.3, -1, -0.2] }), dn = P(up, { wL: [0.25, 0.86, -0.15], wR: [0.25, 0.86, 0.15] });
+  def('pullover', { zoom: 0.92, frames: rep4(up, dn, 800, 1000), steps: ['Braço quase reto, empurra a barra até a coxa usando as costas', 'Volta até a altura dos olhos, devagar'],
+    props: J => [{ k: 'line', a: mid(J.haL, J.haR), b: [1.0, 2.1, 0], w: 2, c: 'pr' }, { k: 'bar', a: J.haL, b: J.haR, plates: false, ext: 0.1 }] }); }
+{ const dn = P(STD, { wL: [0.03, 0.8, -0.24], wR: [0.03, 0.8, 0.24], eL: [-0.3, -1, 0.2], eR: [-0.3, -1, -0.2] }), up = P(dn, { wL: [0.03, 0.88, -0.25], wR: [0.03, 0.88, 0.25] });
+  def('shrug', { cam: 45, frames: rep4(dn, up, 600, 900), steps: ['Braço reto, sobe os ombros em direção às orelhas', 'Segura 1 s e desce'], props: dbs() }); }
+// Ombros
+{ const dn = P(STD, { hL: [0.14, 0.04, 0.12], hR: [0.14, 0.04, -0.12], eL: [0.8, -1, 0.1], eR: [0.8, -1, -0.1] }), up = P(dn, { hL: [0.04, 0.5, 0.24], hR: [0.04, 0.5, -0.24], eL: [0, -1, 1], eR: [0, -1, -1] });
+  def('arnold', { cam: 40, zoom: 0.94, frames: rep4(dn, up, 900, 1000), steps: ['Halteres na frente do rosto, palmas pra você', 'Gira as mãos pra fora enquanto empurra pra cima, e faz o caminho de volta'], props: dbs() }); }
+{ const anc = [1.35, 0.02, 0], s0 = P(ATH, { fL: [0.25, 0, -0.15], fR: [-0.25, 0, 0.15], lean: 15, hL: [0.18, 0.02, 0.12], eL: [0.4, -1, 0.4] }), s1 = P(s0, { hL: [0.55, 0.32, 0.04] });
+  def('landpress', { frames: rep4(s0, s1, 800, 1000), steps: ['Ponta da barra na altura do ombro, um pé à frente', 'Empurra pra cima e pra frente até esticar o braço'],
+    props: J => [{ k: 'line', a: anc, b: ext(J.haL, anc, 0.1), w: 5, c: 'prb' }, { k: 'ball', p: ext(J.haL, anc, -0.12), r: 0.15, cls: 'plt' }] }); }
+{ const dn = P(STD, { hL: [0.06, -0.54, 0.12], eL: [-0.3, 0.2, 1] }), up = P(dn, { hL: [0.1, -0.06, 0.74] });
+  def('cablelat', { cam: 72, frames: rep4(dn, up, 900, 1000), steps: ['Cabo vindo do lado oposto, cruzando na frente do corpo', 'Sobe até a linha do ombro e desce devagar'], props: J => [{ k: 'line', a: J.haL, b: [0, 0.06, 0.5], w: 2, c: 'pr' }] }); }
+{ const dn = P(ST, { p: [-0.2, 0.84, 0], lean: 72, fL: [0.03, 0, -0.15], fR: [0.03, 0, 0.15], kL: [1, 0, -0.15], kR: [1, 0, 0.15], wL: [0.27, 0.42, -0.14], wR: [0.27, 0.42, 0.14], eL: [-1, 0.3, 0.6], eR: [-1, 0.3, -0.6] });
+  const up = P(dn, { wL: [0.27, 0.9, -0.74], wR: [0.27, 0.9, 0.74] });
+  def('rdelt', { cam: 55, frames: rep4(dn, up, 900, 1000), steps: ['Tronco inclinado, abre os braços pro lado com o cotovelo levemente dobrado', 'Desce devagar, sem embalar'], props: dbs() }); }
+{ const s0 = P(STD, { hL: [0.52, 0.0, 0.1], hR: [0.52, 0.0, -0.1], eL: [-0.3, -1, 0.3], eR: [-0.3, -1, -0.3] }), s1 = P(s0, { hL: [0.1, 0.0, 0.72], hR: [0.1, 0.0, -0.72] });
+  def('bandpull', { cam: 60, frames: rep4(s0, s1, 700, 900), steps: ['Braços esticados na frente segurando o elástico', 'Abre até encostar no peito, aperta as escápulas e volta'], props: J => [{ k: 'band', a: J.haL, b: J.haR }] }); }
+// Braços
+{ const up = P(BENCH, { wL: [-0.44, 1.02, -0.12], wR: [-0.44, 1.02, 0.12], eL: [1, 0.3, 0.2], eR: [1, 0.3, -0.2] }), dn = P(up, { wL: [-0.7, 0.86, -0.12], wR: [-0.7, 0.86, 0.12] });
+  def('skull', { ox: 30, frames: rep4(up, dn, 1000, 800), steps: ['Braços apontando pro teto, desce os halteres ao lado da cabeça dobrando só o cotovelo', 'Estica de volta sem mexer o braço'], props: J => [BENCHBOX, ...dbs([0, 0, 1])(J)] }); }
+{ const dn = P(STD, { hL: [-0.12, 0.28, 0.05], hR: [-0.12, 0.28, -0.05], eL: [0.3, 1, 0.3], eR: [0.3, 1, -0.3] }), up = P(dn, { hL: [0.03, 0.55, 0.05], hR: [0.03, 0.55, -0.05] });
+  def('ohtri', { zoom: 0.92, frames: rep4(dn, up, 800, 1000), steps: ['Halter atrás da cabeça, cotovelos apontando pra cima', 'Estica até o fim sem abrir os cotovelos'], props: J => [{ k: 'db', p: mid(J.haL, J.haR), d: [0, 1, 0] }] }); }
+{ const b0 = P(ST, { p: [-0.12, 0.84, 0], lean: 62, fL: [0.15, 0, -0.15], fR: [-0.2, 0, 0.15], kL: [1, 0, -0.1], kR: [1, 0, 0.1], wR: [0.55, 0.52, 0.2], eR: [0, -1, -0.3], wL: [0.04, 0.64, -0.22], eL: [-0.4, -1, 0.1] });
+  const b1 = P(b0, { wL: [-0.2, 0.8, -0.22] });
+  def('kick', { frames: rep4(b0, b1, 700, 900), steps: ['Mão de apoio no banco, braço colado no corpo', 'Estica o antebraço pra trás até o fim e volta'],
+    props: J => [{ k: 'box', x1: 0.4, x2: 0.92, y: 0.48, z1: 0, z2: 0.35 }, { k: 'db', p: J.haL, d: [1, 0, 0] }] }); }
+def('bbcurl', { frames: PAT.curl.frames, steps: ['Pegada na largura do ombro, cotovelo parado', 'Desce devagar até esticar'], props: barP(0.13) });
+{ const ex = { p: [0, 0.55, 0], py: 0, cy: 0, lean: 15, fL: [0.42, 0, -0.14], fR: [0.42, 0, 0.14], kL: [1, 0.3, 0], kR: [1, 0.3, 0], tL: [1, 0, 0], tR: [1, 0, 0], wL: [0.52, 0.6, -0.17], wR: [0.52, 0.6, 0.17], eL: [0.6, -1, 0.1], eR: [0.6, -1, -0.1] };
+  const cu = P(ex, { wL: [0.36, 1.04, -0.17], wR: [0.36, 1.04, 0.17] });
+  def('preacher', { frames: rep4(ex, cu, 800, 1100), steps: ['Braço todo apoiado no banco Scott, sobe a barra', 'Desce até quase esticar, devagar'],
+    props: J => [{ k: 'box', x1: -0.22, x2: 0.22, y: 0.5, z1: -0.18, z2: 0.18 }, { k: 'line', a: [0.12, 1.0, 0], b: [0.45, 0.72, 0], w: 16, c: 'pr', layer: 'back' }, { k: 'bar', a: J.haL, b: J.haR, r: 0.12 }] }); }
+{ const dn = { p: [0, 0.5, 0], py: 0, cy: 0, lean: 35, fL: [0.45, 0, -0.25], fR: [0.45, 0, 0.25], kL: [1, 0.3, -0.4], kR: [1, 0.3, 0.4], tL: [1, 0, -0.3], tR: [1, 0, 0.3], wL: [0.38, 0.35, -0.14], eL: [0, -1, -0.3], wR: [0.36, 0.55, 0.22], eR: [0, -1, -0.3] };
+  const up = P(dn, { wL: [0.42, 0.72, -0.16] });
+  def('conc', { frames: rep4(dn, up, 800, 1000), steps: ['Sentado, cotovelo apoiado na parte de dentro da coxa', 'Sobe apertando o bíceps e desce até esticar'],
+    props: J => [{ k: 'box', x1: -0.25, x2: 0.25, y: 0.45 }, { k: 'db', p: J.haL, d: [0, 0, 1] }] }); }
+// Core
+{ const s0 = { py: 0, cy: 0, p: [-0.3, 0.5, 0], lean: 60, fL: [-0.75, 0.07, -0.12], fR: [-0.75, 0.07, 0.12], kL: [0, -1, 0], kR: [0, -1, 0], tL: [-1, 0, 0], tR: [-1, 0, 0], wL: [0.14, 0.13, -0.15], wR: [0.14, 0.13, 0.15], eL: [-1, 0, 0.3], eR: [-1, 0, -0.3] };
+  const s1 = P(s0, { p: [-0.12, 0.3, 0], lean: 82, wL: [0.85, 0.13, -0.15], wR: [0.85, 0.13, 0.15] });
+  def('abwheel', { ox: 25, frames: rep4(s0, s1, 1200, 1000), steps: ['De joelhos, barriga dura: rola pra frente até onde a lombar aguenta', 'Volta puxando com o abdômen'],
+    props: J => [{ k: 'ball', p: [mid(J.haL, J.haR)[0], 0.1, 0], r: 0.1, cls: 'dbb' }] }); }
+{ const up = P(KNEEL, { lean: 8, hL: [0.08, 0.22, 0.1], hR: [0.08, 0.22, -0.1], eL: [0.6, -0.5, 0.6], eR: [0.6, -0.5, -0.6] }), dn = P(up, { p: [0.05, 0.48, 0], lean: 68 });
+  def('crunchcable', { frames: rep4(up, dn, 800, 1000), steps: ['Ajoelhado, corda ao lado da cabeça', 'Enrola a coluna levando o cotovelo à coxa; o quadril não se mexe'], props: J => [{ k: 'line', a: mid(J.haL, J.haR), b: [0.4, 2.1, 0], w: 2, c: 'pr' }] }); }
+{ const dn = { ...SUP, p: [0, 0.14, 0], lean: -92, fL: [0.88, 0.1, -0.06], fR: [0.88, 0.1, 0.06], kL: [0, 1, 0], kR: [0, 1, 0], tL: [1, 0.3, 0], tR: [1, 0.3, 0], wL: [-0.15, 0.03, -0.28], wR: [-0.15, 0.03, 0.28], eL: [0, 0, 1], eR: [0, 0, -1] };
+  const up = P(dn, { fL: [0.12, 0.98, -0.06], fR: [0.12, 0.98, 0.06], tL: [0, 1, 0], tR: [0, 1, 0] });
+  def('legraiseb', { ox: 15, frames: rep4(dn, up, 900, 1200), steps: ['Deitado, lombar colada no chão, sobe as pernas até a vertical', 'Desce devagar sem deixar a lombar sair do chão'] }); }
+{ const s0 = { p: [0.05, 0.34, 0], py: 0, cy: 0, lean: -80, tw: TW, fL: [0.92, 0.08, -0.02], fR: [0.9, 0.04, 0.04], tL: [1, 0, 0], tR: [1, 0, 0], kL: [0, 1, -1], kR: [0, 1, -1], wR: [-0.28, 0.03, -0.22], wL: [0.0, 0.5, -0.12], eR: [0, 0, -1], eL: [0, 1, 0] };
+  const s1 = P(s0, { p: [0.05, 0.24, 0], lean: -84 });
+  def('sideplank', { cam: 0, zoom: 0.9, ox: 20, frames: [F(s1, 500, 0), F(s0, 800, 0), F(s0, 1400, 1), F(s1, 800, 1)], steps: ['De lado, cotovelo embaixo do ombro, sobe o quadril', 'Segura com o corpo reto do pé à cabeça'] }); }
+{ const e1 = P(QUAD, { wL: [1.0, 0.56, -0.15], eL: [0, 0, 1], fR: [-0.92, 0.55, 0.12], kR: [0, 1, 0], tR: [0, -1, 0] }), e2 = P(QUAD, { wR: [1.0, 0.56, 0.15], eR: [0, 0, -1], fL: [-0.92, 0.55, -0.12], kL: [0, 1, 0], tL: [0, -1, 0] });
+  def('birddog', { ox: 20, frames: [F(QUAD, 400, 0), F(e1, 800, 0), F(e1, 600, 0), F(QUAD, 600, 1), F(e2, 800, 1), F(e2, 600, 1)], steps: ['De quatro, estica o braço e a perna opostos', 'Volta e troca o lado, sem o quadril girar'] }); }
+{ const b = { py: 0, cy: 0, ay: 0, p: [0, 0.14, 0], lean: -40, fL: [0.55, 0.22, -0.1], fR: [0.55, 0.22, 0.1], kL: [0.4, 1, -0.2], kR: [0.4, 1, 0.2], tL: [1, 0, 0], tR: [1, 0, 0], hL: [0.32, -0.12, 0.05], hR: [0.32, -0.12, -0.05], eL: [0, -1, 0.5], eR: [0, -1, -0.5] };
+  const r1 = P(b, { cy: -38, ay: -38 }), r2 = P(b, { cy: 38, ay: 38 });
+  def('russian', { cam: 40, ox: 10, frames: [F(r1, 600, 0), F(r2, 700, 0), F(r1, 700, 0)], steps: ['Tronco inclinado pra trás, pés fora do chão: gira o tronco inteiro de um lado pro outro'] }); }
+{ const hi = P(ATH, { p: [-0.03, 0.8, 0], fL: [0.05, 0, -0.25], fR: [0.05, 0, 0.25], cy: -30, py: -15, wL: [0.25, 1.68, -0.48], wR: [0.28, 1.64, -0.4], eL: [0, -1, 0.5], eR: [0, -1, -0.3] });
+  const lo = P(hi, { cy: 35, py: 15, wL: [0.4, 0.66, 0.38], wR: [0.42, 0.62, 0.46] }), anc = [0.2, 2.05, -1.0];
+  def('woodchop', { cam: 45, zoom: 0.94, frames: [F(hi, 500, 0, 'load'), F(lo, 600, 0), F(lo, 200, 1), F(hi, 900, 1)], steps: ['Elástico preso no alto, puxa cruzando o corpo até o quadril oposto', 'Pé gira, quadril leva. Volta controlando'],
+    props: J => [{ k: 'band', a: mid(J.haL, J.haR), b: anc }] }); }
+{ const b = { ...PRO, p: [0, 0.12, 0], fL: [-0.88, 0.05, -0.1], fR: [-0.88, 0.05, 0.1], tL: [-0.2, -1, 0], tR: [-0.2, -1, 0], kL: [0, -1, 0], kR: [0, -1, 0], wL: [0.98, 0.06, -0.2], wR: [0.98, 0.06, 0.2], eL: [0, 1, 0.4], eR: [0, 1, -0.4] };
+  const up = P(b, { lean: 84, wL: [0.96, 0.3, -0.2], wR: [0.96, 0.3, 0.2], fL: [-0.86, 0.28, -0.1], fR: [-0.86, 0.28, 0.1] });
+  def('superman', { ox: 15, frames: [F(b, 400, 0), F(up, 700, 0), F(up, 900, 0), F(b, 800, 0)], steps: ['De bruços, sobe braços e pernas juntos, segura 2 s e desce'] }); }
+// Potência
+{ const s0 = P(ST, { hL: [0.05, -0.5, 0.22], hR: [0.05, -0.5, -0.22] });
+  const dip = P(s0, { p: [-0.2, 0.58, 0], lean: 34, kL: [1, 0, -0.2], kR: [1, 0, 0.2], hL: [-0.32, -0.38, 0.2], hR: [-0.32, -0.38, -0.2] });
+  const air = P(s0, { p: [0.55, 1.12, 0], lean: 20, fL: [0.45, 0.42, -0.13], fR: [0.45, 0.42, 0.13], kL: [1, 0, -0.1], kR: [1, 0, 0.1], hL: [0.5, 0.1, 0.18], hR: [0.5, 0.1, -0.18] });
+  const land = P(s0, { p: [0.92, 0.6, 0], lean: 30, fL: [1.12, 0, -0.15], fR: [1.12, 0, 0.15], kL: [1, 0, -0.2], kR: [1, 0, 0.2], hL: [0.45, -0.1, 0.2], hR: [0.45, -0.1, -0.2] });
+  def('broad', { zoom: 0.72, ox: -25, frames: [F(s0, 500, 0), F(dip, 450, 0, 'load'), F(air, 300, 1, 'snap'), F(land, 320, 2), F(land, 600, 2)], steps: ['Desce e balança os braços pra trás', 'Explode pra frente jogando os braços', 'Aterrissa dobrando o joelho, estável'] }); }
+{ const L = P(ST, { p: [0, 0.78, -0.32], lean: 28, fL: [0.03, 0, -0.38], fR: [-0.22, 0.16, -0.12], kL: [1, 0, -0.2], kR: [0.3, -1, 0], tR: [0, -1, 0], hL: [0.25, -0.35, -0.1], hR: [0.3, -0.25, 0.35] });
+  const A = P(ST, { p: [0, 1.0, 0], lean: 18, fL: [0, 0.22, -0.2], fR: [0, 0.22, 0.2] });
+  const R = P(ST, { p: [0, 0.78, 0.32], lean: 28, fR: [0.03, 0, 0.38], fL: [-0.22, 0.16, 0.12], kR: [1, 0, 0.2], kL: [0.3, -1, 0], tL: [0, -1, 0], hR: [0.25, -0.35, 0.1], hL: [0.3, -0.25, -0.35] });
+  def('skater', { cam: 82, zoom: 0.9, frames: [F(L, 500, 0), F(A, 260, 0, 'snap'), F(R, 260, 0), F(R, 500, 1), F(A, 260, 1, 'snap'), F(L, 260, 1)], steps: ['Salta de lado de uma perna pra outra', 'Aterrissa na outra perna e segura 1 s antes de voltar'] }); }
+{ const up = P(ST, { p: [0, 0.94, 0], fL: [0.03, 0.04, -0.15], fR: [0.03, 0.04, 0.15], tL: [1, -0.4, -0.1], tR: [1, -0.4, 0.1], hL: [0.06, 0.54, 0.09], hR: [0.06, 0.54, -0.09], eL: [0, -1, 1], eR: [0, -1, -1] });
+  const dn = P(ST, { p: [-0.14, 0.62, 0], lean: 55, fL: [0.03, 0, -0.18], fR: [0.03, 0, 0.18], kL: [1, 0, -0.2], kR: [1, 0, 0.2], wL: [0.38, 0.22, -0.1], wR: [0.38, 0.22, 0.1] });
+  def('medslam', { zoom: 0.86, frames: [F(up, 600, 0, 'load'), F(dn, 240, 1, 'snap'), F(dn, 400, 1), F(up, 700, 0)], steps: ['Bola acima da cabeça, sobe na ponta do pé', 'Joga a bola no chão com o corpo todo'],
+    props: J => [{ k: 'ball', p: [mid(J.haL, J.haR)[0] + 0.04, Math.max(0.12, mid(J.haL, J.haR)[1] - 0.02), 0] }] }); }
 
 // exercício → demonstração (sombra explosiva usa o cruzado da aba de luta)
 const ALIAS = { plyopush: 'plyopush' };

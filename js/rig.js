@@ -184,7 +184,7 @@ function propSVG(list) {
     } else if (it.k === 'db') { // halter
       const d = it.d || [0, 0, 1], h = 0.09, A = it.p.map((v, i) => v - d[i] * h), B = it.p.map((v, i) => v + d[i] * h);
       ln(A, B, 4, 'prb', it.layer || 'front'); circ(A, 0.06 * S, 'dbb', it.layer || 'front'); circ(B, 0.06 * S, 'dbb', it.layer || 'front');
-    } else if (it.k === 'ball') circ(it.p, (it.r || 0.12) * S, 'mbl', it.layer || 'front');
+    } else if (it.k === 'ball') circ(it.p, (it.r || 0.12) * S, it.cls || 'mbl', it.layer || 'front');
     else if (it.k === 'box') { // caixa/banco visto de lado: x1..x2, altura y, profundidade z1..z2
       const z1 = it.z1 ?? -0.25, z2 = it.z2 ?? 0.25, y0 = it.y0 ?? 0;
       const c = [[it.x1, y0, z2], [it.x2, y0, z2], [it.x2, it.y, z2], [it.x1, it.y, z2], [it.x1, it.y, z1], [it.x2, it.y, z1], [it.x2, y0, z1]].map(proj);

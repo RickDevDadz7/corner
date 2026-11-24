@@ -8,14 +8,18 @@ import { startScan, lookupBarcode } from './scan.js';
 import { SPLIT_DEFS, genRoutine, recommend, cleanRoutine, alternatives, library, musclesOf, fmtRest, repsOf, restOf } from './routine.js';
 import { pickDay, solveDay, dayTargets, measure, shoppingList, shopQty, swapPick, foodByName, SLOTS, candidates, sameCarb } from './menu.js';
 import * as sync from './sync.js';
+import { TGOALS, INJURIES, FOCUS_MUSCLES, tgoalOf, injuriesOf, focusOf, careOf, goalParams, cycleInfo, readiness, weeklyTargets, planFor, fitVolume, sessionMin, stagnant, swapOptions } from './periodize.js';
 const buildPlan = p => plan_(p, S.prog);
+// trocas feitas pela pessoa (exercício estagnado) na rotina recomendada: {de: para}
+const swapsOf = () => { const sw = routinesState().swap; return sw && typeof sw === 'object' ? Object.fromEntries(Object.entries(sw).filter(([a, b]) => EXERCISES[a] && EXERCISES[b])) : {}; };
+const cycleNow = () => cycleInfo(S.profile, S.logs.workouts, today());
 // ---------- Rotinas de força ----------
 // "auto" = a rotina recomendada pelo perfil (comportamento de sempre: muda junto com o perfil até a pessoa editar)
-function routinesState() { const R = (S.routines ||= { active: 'auto', list: {} }); if (!R.list || typeof R.list !== 'object') R.list = {}; return R; }
+function routinesState() { const R = (S.routines ||= { active: 'auto', list: {} }); if (!R.list || typeof R.list !== 'object') R.list = {}; if (!R.swap || typeof R.swap !== 'object' || Array.isArray(R.swap)) R.swap = {}; return R; }
 function autoRoutine() {
-  const plan = buildPlan(S.profile);
-  return { id: 'auto', auto: true, name: 'Recomendada pelo perfil', split: 'auto', splitName: plan.split, none: !!plan.none, reduced: plan.reduced,
-    sessions: plan.days.map(d => ({ id: `auto-${d.key}-${d.idx}`, key: d.key, name: d.name, items: d.items.map(it => ({ ex: it.ex, sets: it.sets, lo: it.lo, hi: it.hi, rest: restOf(EXERCISES[it.ex]) })) })) };
+  const ci = cycleNow(), plan = planFor(S.profile, S.prog, { rot: ci.rot, swap: swapsOf() });
+  return { id: 'auto', auto: true, name: 'Recomendada pelo perfil', split: 'auto', splitName: plan.split, none: !!plan.none, swapped: plan.swapped,
+    sessions: plan.days.map(d => ({ id: `auto-${d.key}-${d.idx}`, key: d.key, name: d.name, items: d.items.map(it => ({ ex: it.ex, slot: it.slot, sets: it.sets, lo: it.lo, hi: it.hi, rest: it.rest })) })) };
 }
 function activeRoutine() {
   const R = routinesState();
@@ -23,14 +27,52 @@ function activeRoutine() {
   return autoRoutine();
 }
 function activePlan() {
-  const r = activeRoutine(), p = S.profile, startLvl = p.experience === 'iniciante' ? 0 : 1;
-  const days = r.sessions.map((s, i) => ({ key: s.key || s.id, sid: s.id, idx: i, name: s.name, items: s.items.map(it => {
+  const r = activeRoutine(), p = S.profile, startLvl = p.experience === 'iniciante' ? 0 : 1, gp = goalParams(p);
+  // ciclo: volume sobe semana a semana (dentro do tempo da sessão) e a cada 4–5 semanas vem uma semana leve
+  const ci = cycleNow(), rd = readiness(S.logs.workouts, today()), tg = weeklyTargets(p, ci, rd), auto = p.autoVol !== false;
+  const fit = auto ? fitVolume(r.sessions, p, tg, ci, { trim: r.auto, custom: !r.auto, goal: gp.g }) : null;
+  const sessions = fit ? fit.days : r.sessions;
+  const days = sessions.map((s, i) => ({ key: s.key || s.id, sid: s.id, idx: i, name: s.name, min: sessionMin(s.items), items: s.items.map((it, j) => {
     const e = EXERCISES[it.ex], lvl = e.vars ? Math.min(e.vars.length - 1, S.prog[it.ex] ?? startLvl) : null;
-    return { ...it, lvl, name: e.vars ? e.vars[lvl] : e.n, rir: e.t === 'power' ? null : (p.experience === 'iniciante' ? '2–3' : '1–2'), restS: it.rest, rest: fmtRest(it.rest) };
+    const base = r.sessions[i]?.items.find(x => x.ex === it.ex)?.sets ?? it.sets;
+    return { ...it, base, lvl, name: e.vars ? e.vars[lvl] : e.n, rir: e.t === 'power' ? null : ci.deload && auto ? '3–4' : e.t === 'comp' ? gp.rir : (gp.lv === 'iniciante' ? '2–3' : '1–2'), restS: it.rest, rest: fmtRest(it.rest), care: careOf(p, it.ex) };
   }) }));
   const vol = Object.fromEntries(Object.keys(MUSCLES).map(m => [m, 0]));
   for (const d of days) for (const it of d.items) for (const [m, f] of Object.entries(EXERCISES[it.ex].m)) vol[m] += it.sets * f;
-  return { routine: r, split: r.auto ? r.splitName : r.name, days, vol, reduced: !!r.reduced, home: p.env === 'casa', none: r.auto ? r.none : !days.length };
+  return { routine: r, split: r.auto ? r.splitName : r.name, days, vol, home: p.env === 'casa', none: r.auto ? r.none : !days.length,
+    auto, gp, ci, rd, tg: fit?.tg || tg, limited: fit?.limited || [], uncovered: fit?.uncovered || [], dropped: fit?.dropped || [], swapped: r.swapped || [] };
+}
+// ---------- Ciclo e explicação do plano ----------
+const MN = m => MUSCLES[m] || m;
+function cycleBox(plan) {
+  const p = S.profile, ci = plan.ci, rd = plan.rd, gp = plan.gp;
+  if (!plan.days.length) return '';
+  if (!plan.auto) return `<div class="cyc off"><small class="muted">Progressão automática de volume desligada no Perfil: as séries ficam como estão na rotina.</small></div>`;
+  const tag = ci.deload ? 'Semana leve' : rd.hold ? 'Segurando' : ci.week === 1 ? 'Começo do ciclo' : 'Volume subindo';
+  const msg = ci.resumed ? 'Voltando de pausa: o ciclo recomeçou do volume inicial. Vá com calma nas cargas.'
+    : ci.deload ? 'Séries pela metade e ~10% menos carga. É aqui que o corpo absorve o treino das últimas semanas.'
+    : rd.hold ? (rd.pain ? 'Você anotou dor esta semana: o volume não sobe até passar. Se persistir, procure um profissional.' : `${rd.fails} de ${rd.sets} séries não saíram na última semana: o volume fica igual até você completar.`)
+    : `${ci.week === 1 ? 'Volume de entrada.' : `Uma série a mais por músculo que na semana ${ci.week - 1}.`} Semana leve ${ci.acc - ci.week + 1 === 1 ? 'na próxima semana' : `daqui a ${ci.acc - ci.week + 1} semanas`}.`;
+  const bar = Array.from({ length: ci.total }, (_, i) => `<i class="${i + 1 < ci.week ? 'done' : i + 1 === ci.week ? 'now' : ''} ${i + 1 > ci.acc ? 'dl' : ''}" title="Semana ${i + 1}${i + 1 > ci.acc ? ' (leve)' : ''}"></i>`).join('');
+  const lim = plan.limited.filter(m => !plan.uncovered.includes(m));
+  const rows = FOCUS_MUSCLES.filter(m => (plan.tg[m] || 0) > 0).map(m => { const v = plan.vol[m] || 0, t = plan.tg[m], f = focusOf(p).includes(m);
+    return `<tr class="${v + 0.5 < t && !plan.uncovered.includes(m) ? 'short' : ''}"><td>${esc(MN(m))}${f ? ' ★' : ''}</td><td class="mono">${fmt(t, 0)}</td><td class="mono">${fmt(v, 1)}</td><td class="small muted">${plan.uncovered.includes(m) ? 'sem exercício direto' : lim.includes(m) ? 'não coube no tempo' : v + 0.5 >= t ? 'ok' : ''}</td></tr>`; }).join('');
+  const inj = injuriesOf(p), mins = Math.round(+p.liftMin) || 45;
+  return `<div class="cyc ${ci.deload ? 'dl' : ''}"><div class="row between"><b>Ciclo ${ci.cycle} · semana ${ci.week} de ${ci.total}</b><span class="cyctag">${esc(tag)}</span></div>
+    <div class="cycbar">${bar}</div><small>${esc(msg)}</small></div>
+  <details class="howplan"><summary>Como o app montou seu treino</summary>
+    <p class="small"><b>Objetivo:</b> ${esc(TGOALS[gp.g].n)}. ${esc(TGOALS[gp.g].d)}</p>
+    <p class="small"><b>Você:</b> ${esc({ iniciante: 'iniciante', intermediario: 'intermediário', avancado: 'avançado' }[gp.lv])}, ${plan.days.length} ${plan.days.length === 1 ? 'dia' : 'dias'} de força, ${mins} min por sessão${sportDays(p) ? `, ${sportDays(p)} treinos de esporte na semana` : ''}${(p.age || 0) >= 50 ? ', 50+ anos (teto de volume menor)' : ''}.</p>
+    <p class="small"><b>Repetições:</b> principais ${gp.comp.join('–')}, isoladores ${gp.iso.join('–')} (só nos exercícios com carga; calistenia sobe de nível). Descanso de ${fmtRest(gp.rc)} nos principais.</p>
+    <table class="voltab"><tr><th>Músculo</th><th>Alvo</th><th>No plano</th><th></th></tr>${rows}</table>
+    <p class="small muted">Séries por semana (exercício que ajuda conta 0,5). O alvo começa em ${gp.start} e sobe 1 por semana até ${gp.cap}${focusOf(p).length ? ' (★ prioridade: começa 3 acima e sobe 2)' : ''}. Depois de ${ci.acc} semanas vem uma semana leve.</p>
+    ${lim.length ? `<p class="small note">Não coube tudo em ${mins} min: ${esc(lim.map(MN).join(', '))} ficaram abaixo do alvo. Com uns 15 min a mais por sessão ou 1 dia a mais, chega lá. <a href="#perfil">Ajustar no Perfil</a></p>` : ''}
+    ${plan.routine.auto && plan.dropped.length ? `<p class="small muted">Ficaram de fora pra caber no tempo: ${esc([...new Set(plan.dropped)].map(x => EXERCISES[x].n).join(', '))}.</p>` : ''}
+    ${inj.length ? `<p class="small"><b>Cuidados:</b> ${esc(inj.map(k => INJURIES[k].n).join(', '))}. ${plan.swapped.length ? 'Trocas feitas: ' + esc([...new Map(plan.swapped.map(x => [x.join(), x])).values()].map(([a, b]) => `${EXERCISES[a].n} → ${EXERCISES[b].n}`).join('; ')) + '.' : 'Os exercícios que pioram essas regiões saíram da rotina.'}</p>` : ''}
+    ${plan.routine.auto ? `<p class="small"><b>Variedade:</b> os exercícios principais ficam fixos pra você progredir carga; os complementares trocam a cada ciclo${ci.deload ? ' (troca na semana que vem)' : ` (próxima troca em ${ci.total - ci.week + 1} ${ci.total - ci.week + 1 === 1 ? 'semana' : 'semanas'})`}. Se um exercício parar de evoluir, o app sugere outro na hora do treino.</p>`
+      : '<p class="small"><b>Sua rotina:</b> o app mantém seus exercícios e só soma séries semana a semana, com semana leve no fim do ciclo.</p>'}
+    <p class="small muted">Base: dose-resposta de volume (Schoenfeld 2017; Pelland 2024), descanso (Grgic 2018), reps na reserva (Helms 2016). A semana leve é prática consagrada de treinadores, com evidência ainda limitada. Os números são ponto de partida: o app ajusta pelo que você registra.</p>
+  </details>`;
 }
 // próxima sessão: a seguinte à última feita nesta rotina
 function nextSessionIdx(plan) {
@@ -350,6 +392,16 @@ views.onboarding = () => {
       <label>Dias por semana ${sel('liftDays', { 0: '0 (por enquanto)', 1: '1', 2: '2', 3: '3', 4: '4', 5: '5', 6: '6' }, p.liftDays ?? 2)}</label>
       <label>Min. por sessão <input name="liftMin" inputmode="numeric" value="${esc(p.liftMin ?? 40)}"></label>
     </div>
+    <details class="tfine" ${p.tgoal || (p.inj || []).length || (p.focus || []).length ? 'open' : ''}><summary>Ajustes do treino de força <small>objetivo, dores, prioridades</small></summary>
+      <label>Objetivo do treino ${sel('tgoal', { '': `Automático (${TGOALS[tgoalOf({ ...p, tgoal: '' })].n.toLowerCase()})`, ...Object.fromEntries(Object.entries(TGOALS).map(([k, v]) => [k, v.n])) }, p.tgoal || '')}</label>
+      <fieldset class="equip"><legend>Dor ou lesão que precisa poupar</legend>
+        ${Object.entries(INJURIES).map(([k, v]) => `<label class="check"><input type="checkbox" name="inj" value="${k}" ${(p.inj || []).includes(k) ? 'checked' : ''}><span>${esc(v.n)}</span></label>`).join('')}
+        <small class="muted">O app tira os exercícios que mais pioram a região e avisa nos que pedem cuidado. Não substitui fisioterapeuta.</small></fieldset>
+      <fieldset class="equip"><legend>Prioridade (até 3 músculos)</legend>
+        ${FOCUS_MUSCLES.map(m => `<label class="check"><input type="checkbox" name="focus" value="${m}" ${(p.focus || []).includes(m) ? 'checked' : ''}><span>${esc(MUSCLES[m])}</span></label>`).join('')}
+        <small class="muted">Começam com mais séries e sobem mais rápido no ciclo.</small></fieldset>
+      <label class="check"><input type="checkbox" name="autoVol" ${p.autoVol === false ? '' : 'checked'}><span>Subir o volume sozinho em ciclos (com semana leve)</span></label>
+    </details>
     <fieldset class="equip"><legend>O que você tem em casa?</legend>
       ${Object.entries(EQUIP).map(([k, v]) => `<label class="check"><input type="checkbox" name="equip" value="${k}" ${(p.equip || []).includes(k) ? 'checked' : ''}><span>${esc(v)}</span></label>`).join('')}
       <small class="muted">Sem nada marcado = só peso corporal (calistenia). O app escolhe os exercícios pelo que você tem.</small>
@@ -775,6 +827,7 @@ document.addEventListener('change', e => {
 // correções em treino salvo, nota e faixa de referência do volume
 document.addEventListener('change', e => {
   const t = e.target, k = t.dataset?.wk;
+  if (t.name === 'focus' && t.checked && document.querySelectorAll('input[name=focus]:checked').length > 3) { t.checked = false; toast('Até 3 prioridades: mais que isso vira prioridade nenhuma.'); return; }
   if (k) {
     const [id, ex, i, f] = k.split('|'), w = S.logs.workouts.find(x => x.id === id), a = w?.sets?.[ex], x = Array.isArray(a) ? a[+i] : null; if (!x || typeof x !== 'object') return;
     const v = num(t.value);
@@ -852,15 +905,16 @@ views.treino = () => {
     <div class="row between"><small class="cat">Minha rotina</small><span class="rbadge">Ativa</span></div>
     <h2>${esc(r.auto ? plan.split : r.name)}</h2>
     <p class="small muted">${plan.days.length} ${plan.days.length === 1 ? 'sessão' : 'sessões'} por semana${r.auto ? ' · recomendada pelo seu perfil, se ajusta sozinha' : r.split !== 'custom' ? ' · ' + esc(SPLIT_DEFS[r.split].n) : ''}${plan.home ? ' · em casa' : ''}</p>
+    ${cycleBox(plan)}
     ${plan.days.length ? `<ul class="rsess">${plan.days.map((d, i) => { const last = lastDoneOf(d.sid), mus = musclesOf(d.items).slice(0, 3); return `<li class="${i === nx ? 'next' : ''}">
       <span class="rday">DIA ${i + 1}</span>
-      <div class="grow"><b>${esc(d.name)}</b><small>${esc(mus.join(', ') || 'sem exercícios')} · ${d.items.length} exerc. · ${last ? 'última: ' + last.split('-').reverse().slice(0, 2).join('/') : 'ainda não feita'}</small></div>
+      <div class="grow"><b>${esc(d.name)}</b><small>${esc(mus.join(', ') || 'sem exercícios')} · ${d.items.length} exerc. · ~${d.min} min · ${last ? 'última: ' + last.split('-').reverse().slice(0, 2).join('/') : 'ainda não feita'}</small></div>
       <a class="btn small ghost" href="#ver-${i}">Ver</a>${!d.items.length ? '' : todayW ? (todayW.sid === d.sid ? `<a class="btn small donebtn" href="#wk-${esc(todayW.id)}">✓ Hoje</a>` : '<span class="btn small off" aria-disabled="true">Amanhã</span>') : `<a class="btn small ${i === nx ? 'primary' : ''}" href="#sessao-${i}">Começar</a>`}</li>`; }).join('')}</ul>
     ${todayW ? '<p class="small muted">Força de hoje feita. A próxima sessão libera amanhã: músculo cresce no descanso.</p>' : ''}`
       : '<p class="small">Essa rotina ainda não tem sessões.</p>'}
     <div class="row gap"><a class="btn small block" href="#rotina">Editar rotina</a></div>
   </div>
-  ${r.auto && plan.reduced ? `<p class="note small">Volume ajustado pra baixo (${S.profile.experience === 'iniciante' ? 'iniciante' : 'muitos treinos do esporte na semana'}). Recupere bem antes de subir.</p>` : ''}
+
   ${r.auto && extras.length ? `<p class="note small">Inclui exercícios específicos pra ${esc(extras.join(' e '))} (pegada, adutor, panturrilha, pescoço…).</p>` : ''}
   ${weekCard(plan)}
   ${volumeCard(plan)}
@@ -1015,7 +1069,8 @@ views.rotina = () => {
   const r = activeRoutine(), lib = rtAdd ? library(S.profile) : null;
   const restOpts = [30, 45, 60, 90, 120, 150, 180, 240, 300];
   const itemRow = (s, it, i) => { const e = EXERCISES[it.ex], key = `${s.id}|${i}`;
-    return `<li class="rit"><div class="row between"><b class="grow">${esc(e.vars ? e.vars[Math.min(e.vars.length - 1, S.prog[it.ex] ?? 0)] : e.n)}</b>
+    const cr = careOf(S.profile, it.ex);
+    return `<li class="rit"><div class="row between"><b class="grow">${esc(e.vars ? e.vars[Math.min(e.vars.length - 1, S.prog[it.ex] ?? 0)] : e.n)}${cr.length ? ` <small class="caretag">⚠ ${esc(cr.map(k => INJURIES[k].n.toLowerCase()).join(', '))}</small>` : ''}</b>
       <button class="ibtn" data-act="rtMove" data-k="${key}" data-d="-1" ${i ? '' : 'disabled'} aria-label="Subir">↑</button><button class="ibtn" data-act="rtMove" data-k="${key}" data-d="1" ${i < s.items.length - 1 ? '' : 'disabled'} aria-label="Descer">↓</button>
       <button class="ibtn" data-act="rtSwapOpen" data-k="${key}" aria-label="Substituir">↻</button><button class="x" data-act="rtRemove" data-k="${key}" aria-label="Remover">×</button></div>
       <div class="rfields"><label>Séries<input data-rt="${key}|sets" inputmode="numeric" value="${it.sets}"></label><label>Reps de<input data-rt="${key}|lo" inputmode="numeric" value="${it.lo}"></label><label>até<input data-rt="${key}|hi" inputmode="numeric" value="${it.hi}"></label>
@@ -1028,7 +1083,7 @@ views.rotina = () => {
     <div class="row between"><input class="rsname" data-rtname="${s.id}" value="${esc(s.name)}" maxlength="40" aria-label="Nome da sessão ${si + 1}"><span class="rday">DIA ${si + 1}</span></div>
     <ul class="list ritems">${s.items.map((it, i) => itemRow(s, it, i)).join('') || '<li class="muted small">Sem exercícios ainda.</li>'}</ul>
     ${rtAdd === s.id ? `<div class="subs"><input id="rtSearch" placeholder="Buscar exercício" value="${esc(rtQuery)}" autocomplete="off">
-      ${Object.entries(lib).map(([g, l]) => `<div class="rlib"><small class="cat">${esc(g)}</small><div class="chips">${l.map(x => `<button class="chipbtn ${x.ok ? '' : 'bad'}" data-act="rtAddEx" data-s="${s.id}" data-ex="${x.id}" data-q="${esc(norm(EXERCISES[x.id].n))}">${esc(EXERCISES[x.id].n)}${x.ok ? '' : ' ·  equipamento'}</button>`).join('')}</div></div>`).join('')}
+      ${Object.entries(lib).map(([g, l]) => `<div class="rlib"><small class="cat">${esc(g)}</small><div class="chips">${l.map(x => `<button class="chipbtn ${x.ok ? '' : 'bad'}" data-act="rtAddEx" data-s="${s.id}" data-ex="${x.id}" data-q="${esc(norm(EXERCISES[x.id].n))}">${esc(EXERCISES[x.id].n)}${x.ok ? '' : ' ·  equipamento'}${careOf(S.profile, x.id).length ? ' ⚠' : ''}</button>`).join('')}</div></div>`).join('')}
       <button class="linkbtn" data-act="rtAddOpen" data-s="">Fechar</button></div>`
       : `<button class="btn small ghost block" data-act="rtAddOpen" data-s="${s.id}">+ Adicionar exercício</button>`}
     <div class="row gap rsact"><button class="btn small" data-act="rtSessDup" data-s="${s.id}">Duplicar sessão</button><button class="btn small ghost" data-act="rtSessMove" data-s="${s.id}" data-d="-1" ${si ? '' : 'disabled'}>↑</button><button class="btn small ghost" data-act="rtSessMove" data-s="${s.id}" data-d="1" ${si < r.sessions.length - 1 ? '' : 'disabled'}>↓</button><button class="x ${rtArm === s.id ? 'armed' : ''}" data-act="rtSessDel" data-s="${s.id}" aria-label="Apagar sessão">${rtArm === s.id ? 'apagar?' : '×'}</button></div>
@@ -1106,7 +1161,8 @@ views.sessao = (idx) => {
   return `<section class="head"><div><a href="#treino" class="backlink">← Força</a><h1>${esc(day.name)}</h1></div><a class="chip" href="#ver-${day.idx}">Ver treino</a></section>
   <div class="card sprog" id="sprog"><div class="row between"><b class="mono">${doneN} de ${planned} séries</b><span class="mono" id="sessClock">${clockTxt()}</span></div>
     <div class="kbar"><div style="width:${planned ? Math.round(doneN / planned * 100) : 0}%"></div></div>
-    <small class="muted">Aqueça 5–10 min e faça 1–2 séries leves no primeiro composto. Potência primeiro, sempre descansado.</small></div>
+    <small class="muted">Aqueça 5–10 min e faça 1–2 séries leves no primeiro composto. Potência primeiro, sempre descansado.</small>
+    ${plan.auto && plan.ci.deload ? '<p class="small note">Semana leve: metade das séries e ~10% menos carga. Saia do treino com energia sobrando.</p>' : ''}</div>
   ${day.items.map((it, xi) => {
     const e = EXERCISES[it.ex], last = lastFor(it.ex), sg = suggest(it, last?.sets);
     const unit = e.u === 's' ? 's' : e.u === 'm' ? 'm' : 'reps';
@@ -1125,12 +1181,13 @@ views.sessao = (idx) => {
     const lv = e.vars ? `<div class="lvl-row"><button class="lvlbtn" data-act="lvl" data-ex="${it.ex}" data-d="-1" ${it.lvl <= 0 ? 'disabled' : ''} aria-label="Mais fácil">‹</button>
         <span class="small">Nível ${it.lvl + 1} de ${e.vars.length}${it.lvl < e.vars.length - 1 ? ` · próximo: ${esc(e.vars[it.lvl + 1])}` : ' · último nível'}</span><button class="lvlbtn ${sg.up ? 'hot' : ''}" data-act="lvl" data-ex="${it.ex}" data-d="1" ${it.lvl >= e.vars.length - 1 ? 'disabled' : ''} aria-label="Mais difícil">›</button></div>` : '';
     return `<div class="card ex" id="ex-${xi}"><div class="row between"><h3><span class="mono exn">${xi + 1}</span> ${esc(it.name)}</h3><button class="ibtn" data-act="exOpen" data-i="-1" aria-label="Recolher">▴</button></div>
-      <div class="presc"><small class="cat">Prescrição</small><span><b>${it.sets} séries</b> · <b>${repsOf(it)}</b> ${unit}${e.u && !['s', 'm'].includes(e.u) ? ' ' + esc(e.u) : ''} · descanso <b>${esc(it.rest)}</b>${it.rir ? ` · pare com ${it.rir} na reserva` : ''}</span></div>
+      ${it.care.length ? `<p class="small care">⚠ Cuidado com ${esc(it.care.map(k => INJURIES[k].n.toLowerCase()).join(' e '))}: carga moderada e pare se doer.</p>` : ''}
+      <div class="presc"><small class="cat">Prescrição</small><span><b>${it.sets} séries</b>${it.sets !== it.base ? ` <small>(${it.sets > it.base ? '+' : ''}${it.sets - it.base} esta semana)</small>` : ''} · <b>${repsOf(it)}</b> ${unit}${e.u && !['s', 'm'].includes(e.u) ? ' ' + esc(e.u) : ''} · descanso <b>${esc(it.rest)}</b>${it.rir ? ` · pare com ${it.rir} na reserva` : ''}</span></div>
       <p class="small">${esc(e.cue)}${e.req.length ? ` <span class="muted">· ${esc(e.req.map(k => EQUIP[k] || (k === 'gym' ? 'academia' : k)).join(', '))}</span>` : ''}</p>
       ${demoBtn(it.ex)}
       <div class="progbox"><small class="cat">Orientação de progressão</small>
         <p class="small">Faixa: <b>${repsOf(it)} ${unit}</b>. ${e.vars ? `Quando fizer ${it.hi}+ em todas as séries, avance pro próximo nível.` : e.inc ? `Quando fizer ${it.hi} em todas as séries, suba ${fmt(e.inc)} kg e volte pra ${it.lo}.` : e.t === 'power' ? 'Potência: qualidade acima de cansaço.' : `Quando fizer ${it.hi} em todas as séries, aumente a dificuldade.`}</p>
-        <p class="small sug">${esc(sg.text)}</p>${lv}</div>
+        <p class="small sug">${esc(sg.text)}</p>${lv}${stagBox(it, day, plan)}</div>
       <div class="realized"><small class="cat">Realizado</small>${last ? `<small class="muted">Última vez (${last.date.split('-').reverse().slice(0, 2).join('/')}): ${esc(setsTxt(last.sets))}</small>` : ''}
         <div class="sethead"><span>#</span><span>${e.inc ? 'kg' : ''}</span><span>${unit}</span><span></span></div>${rows}
         <button class="linkbtn" data-act="setAdd" data-ex="${esc(it.ex)}" data-i="${xi}">+ série extra</button></div>
@@ -1140,6 +1197,14 @@ views.sessao = (idx) => {
   <button class="btn primary block" data-act="finishWorkout">Finalizar treino</button>
   <button class="linkbtn center-link" data-act="discardWorkout">Descartar este treino</button>`;
 };
+// estagnou? oferece variações compatíveis (mesmo padrão de movimento, sem as lesões marcadas)
+function stagBox(it, day, plan) {
+  if (plan.ci.deload || EXERCISES[it.ex].t === 'power') return '';
+  if (!stagnant(exHistory(it.ex))) return '';
+  const opts = swapOptions(S.profile, it.ex, it.slot, day.items.map(x => x.ex));
+  return `<div class="stag"><p class="small"><b>Sem evoluir nos últimos 3 treinos.</b> Vale caprichar no sono e na comida, ou trocar o estímulo:</p>
+    ${opts.length ? `<div class="chips">${opts.map(o => `<button class="chip" data-act="stagSwap" data-sid="${esc(day.sid)}" data-ex="${esc(it.ex)}" data-to="${esc(o)}">${esc(EXERCISES[o].n)}</button>`).join('')}</div>` : ''}</div>`;
+}
 // resumo antes de salvar
 function workoutStats(w) {
   let sets = 0, vol = 0, exN = 0;
@@ -1430,9 +1495,10 @@ function coachContext() {
 REGRAS: Baseie-se em evidência científica. Use as cartas de evidência abaixo como base principal e cite-as pelo título e autor/ano. Se algo não estiver bem estabelecido na literatura, diga que a evidência é limitada. Nunca invente estudos. Não faça diagnósticos médicos; para dor persistente, sintomas após pancada na cabeça, condições de saúde ou cortes de peso agressivos, recomende um profissional. Respostas curtas e práticas (leitura no celular).
 PERFIL: ${p.sex === 'f' ? 'mulher' : 'homem'}, ${p.age} anos, ${p.height} cm, ${latestWeight()} kg${p.bf ? `, ${p.bf}% gordura` : ''}. Objetivo: ${GOALS[p.goal]}. Experiência: ${p.experience}.${activeRestr().length ? ` RESTRIÇÕES (não sugerir nada com isso): ${(() => { const r = restrOfProfile(); return [r.perm.length ? 'para sempre: ' + r.perm.map(k => RESTR[k].n).join(', ') : '', tempOn(r) ? 'temporárias' + (r.until ? ` até ${r.until}` : '') + ': ' + r.temp.map(k => RESTR[k].n).join(', ') : ''].filter(Boolean).join('; '); })()}.` : ''}
 ESPORTES: ${Object.entries(sp).map(([id, s]) => `${SPORTS[id]?.n} ${s.days}x/semana, ${s.min} min, ${SPORTS[id]?.types[s.type]?.n || ''}, ${s.where}`).join('; ') || 'nenhum'}.
-FORÇA: ${p.liftDays}x/semana (${p.env === 'casa' ? 'em casa; equipamento: ' + ((p.equip || []).map(k => EQUIP[k]).join(', ') || 'só peso corporal/calistenia') : 'academia'}).
+FORÇA: ${p.liftDays}x/semana (${p.env === 'casa' ? 'em casa; equipamento: ' + ((p.equip || []).map(k => EQUIP[k]).join(', ') || 'só peso corporal/calistenia') : 'academia'}). ${Math.round(+p.liftMin) || 45} min/sessão. Objetivo do treino: ${TGOALS[tgoalOf(p)].n}.${injuriesOf(p).length ? ' Poupar: ' + injuriesOf(p).map(k => INJURIES[k].n).join(', ') + '.' : ''}${focusOf(p).length ? ' Prioridade: ' + focusOf(p).map(m => MUSCLES[m]).join(', ') + '.' : ''}
 METAS: ${t.kcal} kcal, P ${t.protein} g, C ${t.carbs} g, G ${t.fat} g, água ${t.water} ml. Gasto estimado ${Math.round(t.tdee)} kcal (${t.source}).
 HOJE: consumido ${Math.round(dayFood().k)} kcal, P ${Math.round(dayFood().p)} g.
+CICLO: ${plan.auto ? `ciclo ${plan.ci.cycle}, semana ${plan.ci.week} de ${plan.ci.total}${plan.ci.deload ? ' (semana leve)' : ''}${plan.rd.hold ? ', volume segurado (falhas/dor)' : ''}` : 'progressão automática desligada'}.
 PLANO DE FORÇA: ${plan.split}: ${plan.days.map(d => d.name + ' [' + d.items.map(i => i.name + ' ' + i.sets + 'x' + i.lo + '-' + i.hi).join(', ') + ']').join(' | ')}.
 PONTOS FRACOS: ${S.weak.map(id => { const w = weakAll.find(x => x.id === id); return w ? `${SPORTS[w.sport].n}: ${w.n}` : ''; }).filter(Boolean).join(', ') || 'não informados'}.
 CARTAS DE EVIDÊNCIA:
@@ -1626,7 +1692,8 @@ function bindAfter(v, arg) {
       for (const id of SPORT_IDS) if (g('sp_' + id)) sports[id] = { days: num(g('sd_' + id)) || 1, min: num(g('sm_' + id)) || 60, type: g('st_' + id), where: g('sw_' + id) };
       const p = {
         sex: g('sex'), age: num(g('age')), height: num(g('height')), weight: num(g('weight')), bf: num(g('bf')), neat: num(g('neat')), goal: g('goal'), rate: num(g('rate')),
-        experience: g('experience'), liftDays: num(g('liftDays')) ?? 0, liftMin: num(g('liftMin')) || 40, env: g('env'), equip: fd.getAll('equip'), sports
+        experience: g('experience'), liftDays: num(g('liftDays')) ?? 0, liftMin: Math.max(15, Math.min(180, num(g('liftMin')) || 40)), env: g('env'), equip: fd.getAll('equip'), sports,
+        tgoal: TGOALS[g('tgoal')] ? g('tgoal') : '', inj: fd.getAll('inj').filter(k => INJURIES[k]), focus: fd.getAll('focus').filter(m => FOCUS_MUSCLES.includes(m)).slice(0, 3), autoVol: !!g('autoVol')
       };
       let rd = { perm: [], temp: [] }; try { rd = JSON.parse(g('restrData') || '{}'); } catch (e) { }
       const perm = [...new Set((rd.perm || []).filter(k => RESTR[k]))], temp = [...new Set((rd.temp || []).filter(k => RESTR[k] && !perm.includes(k)))];
@@ -1922,6 +1989,13 @@ document.addEventListener('click', async e => {
   if (a === 'restPause') { if (REST.paused) { REST.end = Date.now() + REST.left * 1000; REST.paused = false; } else { REST.paused = true; } restTick(); }
   if (a === 'restReset') restStart(REST.total, REST.label);
   if (a === 'restSkip') restStop();
+  if (a === 'stagSwap') {
+    const from = el.dataset.ex, to = el.dataset.to, sid = el.dataset.sid; if (!EXERCISES[from] || !EXERCISES[to]) return;
+    const R = routinesState();
+    if (R.active === 'auto' || !R.list[R.active]) { R.swap = { ...swapsOf(), [from]: to }; delete R.swap[to]; save(true); render(); }
+    else editRoutine(rr => { const it = rr.sessions.find(x => x.id === sid)?.items.find(x => x.ex === from); if (it) { it.ex = to; const e = EXERCISES[to]; if (e.r) [it.lo, it.hi] = e.r; } });
+    toast(`Trocado: ${EXERCISES[to].n}`);
+  }
   if (a === 'volMode') { volMode = el.dataset.m === 'plan' ? 'plan' : 'done'; S.ui = { ...(S.ui || {}), volOpen: true }; save(); render(); }
   if (a === 'histAll') { histAll = !histAll; render(); }
   if (a === 'wkSetDel') { const [id, ex, i] = el.dataset.k.split('|'), w = S.logs.workouts.find(x => x.id === id); if (!w || !Array.isArray(w.sets?.[ex])) return; w.sets[ex].splice(+i, 1); if (!w.sets[ex].length) delete w.sets[ex]; w.t = Date.now(); save(); render(); toast('Série apagada'); }
