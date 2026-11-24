@@ -3,6 +3,7 @@ import { NEAT, GOALS, targets, adaptiveTDEE, buildPlan as plan_, suggest, dayKey
 import { SPORTS, SPORT_IDS, combatSession, runSession } from './sports.js';
 import { TECHNIQUES, TIRED, CATS, animate, thumbSVG } from './techniques.js';
 import { cloud } from './cloud.js';
+import { startScan, lookupBarcode } from './scan.js';
 import * as sync from './sync.js';
 const buildPlan = p => plan_(p, S.prog);
 
@@ -101,8 +102,8 @@ function T() { return targets(S.profile, S.settings.adaptive ? adaptiveTDEE(S.lo
 function dayFood(d = curDay()) { return (S.logs.food[d] || []).reduce((a, i) => ({ k: a.k + i.k, p: a.p + i.p, c: a.c + i.c, f: a.f + i.f, fb: a.fb + (i.fb || 0) }), { k: 0, p: 0, c: 0, f: 0, fb: 0 }); }
 // restrições alimentares ativas (perfil) e o que cada registro fere
 function activeRestr() { const r = S.profile?.restr; return r?.ids?.length && (!r.until || today() <= r.until) ? r.ids.filter(k => RESTR[k]) : []; }
-const hitsOf = n => { const a = activeRestr(); return a.length ? restrOf(n).filter(k => a.includes(k)) : []; };
-const dayHits = d => (S.logs.food[d] || []).filter(i => hitsOf(i.n).length);
+const hitsOf = v => { const a = activeRestr(); if (!a.length) return []; const it = typeof v === 'string' ? { n: v } : v || {}; const tags = new Set([...restrOf(it.n || ''), ...(Array.isArray(it.x) ? it.x : [])]); return a.filter(k => tags.has(k)); };
+const dayHits = d => (S.logs.food[d] || []).filter(i => hitsOf(i).length);
 function cleanStreak() {
   const since = S.profile?.restr?.since || today(); let n = 0;
   for (let i = 0; i < 400; i++) {
@@ -448,11 +449,12 @@ function mealCard(m, list) {
     : `<div class="mhead"><span class="mico">${m.ico}</span><span class="grow"><b>${esc(m.n)}</b><small>Nada registrado</small></span>${adding ? '' : `<button class="btn small" data-act="addMeal" data-m="${m.id}" aria-label="Adicionar ${addLabel} em ${esc(m.n)}">+ Adicionar</button>`}</div>`;
   return `<div class="card meal ${adding ? 'open' : ''} ${list.length ? '' : 'empty'}" id="meal-${m.id}">
     ${head}
-    ${open && list.length ? `<ul class="list items">${list.map(it => `<li class="${hitsOf(it.n).length ? 'hit' : ''}"><div class="grow"><b>${esc(it.n)}</b>${hitsOf(it.n).length ? `<em class="rtag">⚠ ${esc(hitsOf(it.n).map(k => RESTR[k].n.split(' (')[0]).join(', '))}</em>` : ''}<small><b class="mono">${fmt(it.k, 0)} kcal</b> · P ${fmt(it.p, 0)} · C ${fmt(it.c, 0)} · G ${fmt(it.f, 0)}</small></div>
+    ${open && list.length ? `<ul class="list items">${list.map(it => `<li class="${hitsOf(it).length ? 'hit' : ''}"><div class="grow"><b>${esc(it.n)}</b>${hitsOf(it).length ? `<em class="rtag">⚠ ${esc(hitsOf(it).map(k => RESTR[k].n.split(' (')[0]).join(', '))}</em>` : ''}<small><b class="mono">${fmt(it.k, 0)} kcal</b> · P ${fmt(it.p, 0)} · C ${fmt(it.c, 0)} · G ${fmt(it.f, 0)}</small></div>
       <div class="qty"><button data-act="qty" data-id="${it.id}" data-d="-1" aria-label="Menos">−</button><input data-qty="${it.id}" inputmode="decimal" value="${fmt(amtOf(it), 1)}" aria-label="Quantidade"><span>${esc(unitOf(it))}</span><button data-act="qty" data-id="${it.id}" data-d="1" aria-label="Mais">+</button></div>
       <button class="x" data-act="delFood" data-id="${it.id}" aria-label="Remover">×</button></li>`).join('')}</ul>
       <div class="msum"><span>Total</span><b class="mono">${fmt(tot.k, 0)} kcal</b><span class="mono">P ${fmt(tot.p, 0)}g</span><span class="mono">C ${fmt(tot.c, 0)}g</span><span class="mono">G ${fmt(tot.f, 0)}g</span><span class="mono">Fibra ${fmt(tot.fb, 0)}g</span></div>` : ''}
     ${adding ? `<div class="addbox">
+      <button class="btn small block scanbtn" data-act="scanOpen"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7V4h3M18 4h3v3M21 17v3h-3M6 20H3v-3M7 8v8M10 8v8M13 8v8M16 8v8"/></svg> Escanear código de barras</button>
       <input id="foodSearch" placeholder="Buscar (ovo, banana, arroz, chocolate…)" autocomplete="off">
       <div class="segs small">${Object.entries(FOOD_CATS).map(([k, v]) => `<button class="${foodCat === k ? 'on' : ''}" data-act="foodCat" data-c="${k}">${v}</button>`).join('')}</div>
       <div id="foodRecent"></div>
@@ -466,6 +468,59 @@ function mealCard(m, list) {
     : open ? `<button class="btn small ghost block addbtn" data-act="addMeal" data-m="${m.id}">+ Adicionar ${addLabel}</button>` : ''}
   </div>`;
 }
+let scanStop = null, scanProd = null;
+function closeScan() { try { scanStop?.(); } catch (e) { } scanStop = null; scanProd = null; $('#scanbox')?.remove(); }
+function scanMsg(html) { const m = $('#scanMsg'); if (m) m.innerHTML = html; }
+function openScan() {
+  closeScan();
+  const box = document.createElement('div'); box.id = 'scanbox'; box.className = 'scanbox'; box.setAttribute('role', 'dialog'); box.setAttribute('aria-label', 'Escanear código de barras');
+  box.innerHTML = `<div class="scancard"><div class="row between"><h3>Escanear código</h3><button class="x" data-act="scanClose" aria-label="Fechar">×</button></div>
+    <div class="scanview" id="scanView"><video id="scanVid" playsinline muted></video><span class="scanframe"></span></div>
+    <p class="small" id="scanMsg">Aponte a câmera pro código de barras do produto.</p>
+    <form id="scanCode" class="row gap"><input name="code" inputmode="numeric" maxlength="14" placeholder="ou digite o código" autocomplete="off"><button class="btn small" type="submit">Buscar</button></form>
+    <div id="scanRes"></div></div>`;
+  document.body.appendChild(box);
+  $('#scanCode').addEventListener('submit', e => { e.preventDefault(); const c = e.target.code.value.replace(/\D/g, ''); if (c.length < 8) { scanMsg('O código tem de 8 a 13 números.'); return; } try { scanStop?.(); } catch (er) { } scanStop = null; scanFound(c); });
+  scanCam();
+}
+async function scanCam() {
+  const v = $('#scanVid'), view = $('#scanView'); if (!v) return;
+  view.hidden = false; $('#scanCode').hidden = false; $('#scanRes').innerHTML = ''; scanMsg('Aponte a câmera pro código de barras do produto.');
+  if (!navigator.mediaDevices?.getUserMedia) { view.hidden = true; scanMsg('Este navegador não abre a câmera. Digite os números do código.'); return; }
+  try { const stop = await startScan(v, scanFound); if (!$('#scanbox') || !v.isConnected) stop(); else scanStop = stop; }
+  catch (e) { view.hidden = true; scanMsg(e && e.name === 'NotAllowedError' ? 'Sem permissão pra câmera. Libere nas configurações do navegador ou digite os números do código.' : 'Não consegui abrir a câmera. Digite os números do código.'); }
+}
+async function scanFound(code) {
+  if (!$('#scanbox')) return;
+  $('#scanView').hidden = true; scanMsg(`Buscando <b class="mono">${esc(code)}</b>…`);
+  const r = await lookupBarcode(code);
+  if (!$('#scanbox')) return;
+  if (r.error) { scanMsg(`Não deu pra buscar: ${esc(r.error)}.`); $('#scanRes').innerHTML = `<button class="btn small block" data-act="scanRetry">Tentar de novo</button>`; return; }
+  if (r.notFound) {
+    scanMsg(`O código <b class="mono">${esc(code)}</b> não está na base de produtos${r.partial ? ' com a tabela nutricional' : ''}.`);
+    $('#scanRes').innerHTML = `<div class="row gap"><button class="btn small primary" data-act="scanManual" data-n="${esc(r.partial || '')}">Digitar os valores do rótulo</button><button class="btn small" data-act="scanRetry">Escanear outro</button></div>`;
+    return;
+  }
+  scanProd = r; $('#scanCode').hidden = true;
+  const h = hitsOf(r), def = r.serving || 100;
+  scanMsg('Achei:');
+  $('#scanRes').innerHTML = `<form id="scanPick" class="pick"><b>${esc(r.n)}</b>
+    <small class="muted">Por 100 ${r.u}: ${fmt(r.k, 0)} kcal · P ${fmt(r.p)} · C ${fmt(r.c)} · G ${fmt(r.f)} · Fibra ${fmt(r.fb)}</small>
+    <div class="row gap"><input name="g" inputmode="decimal" value="${fmt(def, 0)}" aria-label="quantidade"><span>${r.u}</span><button class="btn small primary" type="submit">Adicionar</button></div>
+    <small class="muted" id="scanInfo"></small>
+    ${h.length ? `<p class="rwarn small">⚠ Tem ${esc(h.map(k => RESTR[k].n.toLowerCase()).join(' e '))}, que você está evitando.</p>` : ''}
+    <button class="linkbtn" type="button" data-act="scanRetry">Escanear outro</button></form>`;
+  const f = $('#scanPick'), upd = () => { const m = (num(f.g.value) || 0) / 100; $('#scanInfo').textContent = `${fmt(r.k * m, 0)} kcal · P ${fmt(r.p * m)} · C ${fmt(r.c * m)} · G ${fmt(r.f * m)} · Fibra ${fmt(r.fb * m)}`; };
+  f.g.addEventListener('input', upd); upd();
+  f.addEventListener('submit', e => {
+    e.preventDefault(); const g = num(f.g.value) || 0; if (g <= 0 || g > 5000) { toast('Quantidade inválida'); return; }
+    const m = g / 100, p = scanProd; closeScan();
+    addFood({ n: p.n, g, u: p.u, st: g <= 60 ? g : 10, k: p.k * m, p: p.p * m, c: p.c * m, f: p.f * m, fb: p.fb * m, x: p.x, bc: p.code });
+  });
+}
+document.addEventListener('visibilitychange', () => { if (document.hidden && scanStop) { try { scanStop(); } catch (e) { } scanStop = null; if ($('#scanbox')) { $('#scanView').hidden = true; scanMsg('Câmera pausada.'); $('#scanRes').innerHTML = `<button class="btn small block" data-act="scanRetry">Ligar a câmera de novo</button>`; } } });
+window.addEventListener('hashchange', closeScan);
+
 function foodPickHTML(i) {
   const fd = FOODS[i];
   return `<form id="pickForm" class="pick" data-i="${i}"><b>${esc(fd.n)}</b>
@@ -996,7 +1051,7 @@ function bindAfter(v, arg) {
       const list = FOODS.map((f, i) => [f, i]).filter(([f]) => (!foodCat || (f.cat || 'base') === foodCat) && (!q || norm(f.n).includes(q))).slice(0, q || foodCat ? 20 : 10);
       list.sort((a, b) => (hitsOf(a[0].n).length ? 1 : 0) - (hitsOf(b[0].n).length ? 1 : 0));
       res.innerHTML = list.map(([f, i]) => { const h = hitsOf(f.n).length; return `<button class="chipbtn ${h ? 'bad' : ''}" data-act="pickFood" data-i="${i}">${h ? '⚠ ' : ''}${esc(f.n)}</button>`; }).join('');
-      const rc = $('#foodRecent'); if (rc) { const r = q || foodCat ? [] : recentFoods(); rc.innerHTML = r.length ? `<small class="muted">Recentes (toque pra repetir a mesma quantidade)</small><div class="chips">${r.map((x, j) => `<button class="chipbtn rec ${hitsOf(x.it.n).length ? 'bad' : ''}" data-act="reAdd" data-r="${j}">${hitsOf(x.it.n).length ? '⚠ ' : ''}${esc(x.it.n)} <i>${fmt(amtOf(x.it), 0)} ${esc(unitOf(x.it))}</i></button>`).join('')}</div><small class="muted">Sugestões</small>` : ''; }
+      const rc = $('#foodRecent'); if (rc) { const r = q || foodCat ? [] : recentFoods(); rc.innerHTML = r.length ? `<small class="muted">Recentes (toque pra repetir a mesma quantidade)</small><div class="chips">${r.map((x, j) => `<button class="chipbtn rec ${hitsOf(x.it).length ? 'bad' : ''}" data-act="reAdd" data-r="${j}">${hitsOf(x.it).length ? '⚠ ' : ''}${esc(x.it.n)} <i>${fmt(amtOf(x.it), 0)} ${esc(unitOf(x.it))}</i></button>`).join('')}</div><small class="muted">Sugestões</small>` : ''; }
     };
     if (inp) {
       inp.addEventListener('input', show); show();
@@ -1119,6 +1174,10 @@ document.addEventListener('click', async e => {
   if (a === 'addMeal') { addMeal = el.dataset.m || null; if (addMeal) mealShut.delete(addMeal); foodCat = ''; render(); }
   if (a === 'mealToggle') { const m = el.dataset.m; if (mealShut.has(m)) mealShut.delete(m); else { mealShut.add(m); if (addMeal === m) addMeal = null; } render(); }
   if (a === 'syncWeight') { const lw = latestWeight(); if (lw && lw >= 35 && lw <= 250) { S.profile = { ...S.profile, weight: lw }; save(true); render(); toast(`Metas recalculadas com ${fmt(lw)} kg`); } }
+  if (a === 'scanOpen') openScan();
+  if (a === 'scanClose') closeScan();
+  if (a === 'scanRetry') { try { scanStop?.(); } catch (er) { } scanStop = null; scanCam(); }
+  if (a === 'scanManual') { const n = el.dataset.n || ''; closeScan(); const d = $('#manualFood')?.closest('details'); if (d) { d.open = true; if (n) $('#manualFood').n.value = n; $('#manualFood').k.focus({ preventScroll: true }); d.scrollIntoView({ block: 'center' }); } }
   if (a === 'reAdd') { const r = recentFoods()[+el.dataset.r]; if (r) { const { id, t, m, ...rest } = r.it; addFood(rest); } }
   if (a === 'foodCat') { foodCat = el.dataset.c; const q = $('#foodSearch')?.value || ''; render(); const i = $('#foodSearch'); if (i) { i.value = q; i.dispatchEvent(new Event('input')); } }
   if (a === 'qty') { const it = (S.logs.food[curDay()] || []).find(x => x.id === el.dataset.id); if (it) { const st = stepOf(it), cur = amtOf(it); setAmount(it.id, Math.max(st, cur + st * +el.dataset.d)); } }

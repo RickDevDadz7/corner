@@ -457,3 +457,17 @@ details>summary.small{font-weight:900;margin-top:8px;color:var(--acc)}
 .items li.hit{border-left:4px solid var(--acc);padding-left:8px}
 .rtag{display:block;font-style:normal;font-size:11px;font-weight:900;color:var(--acc);text-transform:uppercase;letter-spacing:.03em}
 .restr{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+/* leitor de código de barras */
+.scanbtn{display:flex;align-items:center;justify-content:center;gap:8px}
+.scanbtn svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:square}
+.scanbox{position:fixed;inset:0;z-index:60;background:rgba(26,23,20,.72);display:flex;align-items:flex-end;justify-content:center;padding:12px 12px calc(12px + var(--safe-b))}
+.scancard{width:100%;max-width:520px;max-height:100%;overflow:auto;background:var(--sheet);border:3px solid var(--ink);box-shadow:6px 6px 0 var(--acc);padding:14px;display:flex;flex-direction:column;gap:10px}
+.scancard h3{margin:0}
+.scanview{position:relative;background:#000;border:2.5px solid var(--ink);aspect-ratio:4/3;overflow:hidden}
+.scanview video{width:100%;height:100%;object-fit:cover;display:block}
+.scanframe{position:absolute;left:12%;right:12%;top:30%;bottom:30%;border:3px solid var(--acc);box-shadow:0 0 0 999px rgba(0,0,0,.35)}
+.scanframe::after{content:"";position:absolute;left:0;right:0;top:50%;height:2px;background:var(--acc);animation:scanline 1.6s ease-in-out infinite alternate}
+@keyframes scanline{from{transform:translateY(-34px)}to{transform:translateY(34px)}}
+.scancard #scanCode input{flex:1;min-width:0}
+.scancard .pick{display:flex;flex-direction:column;gap:6px}
+.scancard .rwarn{margin:0}
