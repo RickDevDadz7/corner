@@ -731,3 +731,12 @@ body.resting #app{padding-bottom:calc(176px + var(--safe-b))}
 :root[data-theme=dark] .nav a{color:#8f877a}
 :root[data-theme=dark] .nav a.on{color:#fff}
 :root[data-theme=dark] .topbar{background:rgba(20,18,15,.92)}
+/* contorno: cada membro ganha uma borda da cor do papel, separando braço, perna e tronco quando se cruzam */
+.fig .ol{fill:var(--sheet);stroke:var(--sheet);stroke-width:5;stroke-linejoin:round}
+.fig .hd{stroke:var(--sheet);stroke-width:2.5;paint-order:stroke}
+.fig .badge rect:first-child{fill:var(--sheet);stroke:var(--ink);stroke-width:1.5}
+.fig .badge text{font:800 8.5px var(--font);fill:var(--ink)}
+.fig .bh-in{fill:var(--acc);stroke:var(--ink);stroke-width:1}.fig .bh-out{fill:var(--ink);stroke:var(--ink);stroke-width:1}
+.fig .bh-line{stroke:var(--sheet);stroke-width:1;fill:none}
+.fig .mus{stroke:var(--acc);opacity:.6}
+.fig .twl{stroke:#8f8778;stroke-dasharray:4 3}

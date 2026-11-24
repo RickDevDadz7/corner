@@ -426,6 +426,101 @@ def('bbcurl', { frames: PAT.curl.frames, steps: ['Pegada na largura do ombro, co
     props: () => [{ k: 'line', a: [0.6, 0, 0], b: [0.6, 2.0, 0], w: 8, c: 'pr', layer: 'back' }] }); }
 def('suitcase', { frames: PAT.farm.frames, steps: ['Peso numa mão só, tronco reto sem tombar pro lado, passos firmes'], props: J => [{ k: 'db', p: J.haL, d: [1, 0, 0] }] });
 
+
+// ==================== Revisão do Rick (v3.24) ====================
+{ // salto: desce da caixa a pé, sem o boneco "arrastar" de volta
+  const s0 = P(ST, { hL: [0.05, -0.5, 0.22], hR: [0.05, -0.5, -0.22] });
+  const dip = P(s0, { p: [-0.2, 0.58, 0], lean: 34, kL: [1, 0, -0.2], kR: [1, 0, 0.2], hL: [-0.32, -0.38, 0.2], hR: [-0.32, -0.38, -0.2] });
+  const air = P(s0, { p: [0.14, 1.28, 0], lean: 0, fL: [0.18, 0.4, -0.13], fR: [0.18, 0.4, 0.13], tL: [1, -0.6, 0], tR: [1, -0.6, 0], hL: [0.3, 0.46, 0.18], hR: [0.3, 0.46, -0.18], eL: [0, -1, 0.3], eR: [0, -1, -0.3] });
+  const land = P(s0, { p: [0.38, 0.98, 0], lean: 26, fL: [0.6, 0.5, -0.15], fR: [0.6, 0.5, 0.15], kL: [1, 0, -0.2], kR: [1, 0, 0.2], hL: [0.4, -0.15, 0.2], hR: [0.4, -0.15, -0.2] });
+  const top = P(s0, { p: [0.58, 1.4, 0], fL: [0.6, 0.5, -0.13], fR: [0.6, 0.5, 0.13] });
+  const step = P(s0, { p: [0.3, 0.86, 0], lean: 6, fL: [0.55, 0.5, -0.13], fR: [0.12, 0, 0.13], kL: [1, 0.3, -0.1], kR: [1, 0, 0.1] });
+  const step2 = P(s0, { p: [0.12, 0.88, 0], fL: [0.2, 0.08, -0.13], fR: [0.08, 0, 0.13], tL: [1, -0.5, 0] });
+  def('jump', { zoom: 0.82, ox: -10, frames: [F(s0, 500, 0), F(dip, 450, 0, 'load'), F(air, 260, 1, 'snap'), F(land, 300, 2), F(top, 500, 2), F(step, 550, 2), F(step2, 350, 2), F(s0, 450, 2)], steps: PAT.jump.steps, props: PAT.jump.props }); }
+// rotacionais com a câmera do cruzado (de cima e de frente)
+def('mbr', { ...PAT.mbr, cam: 72, tilt: 22, zoom: 1.05 });
+def('lmr', { ...PAT.lmr, cam: 72, tilt: 22, zoom: 0.95 });
+{ // panturrilha na máquina: plataforma, coluna e ombreira
+  const dn = P(ST, { p: [0, 0.96, 0], fL: [0.03, 0.08, -0.12], fR: [0.03, 0.08, 0.12], tL: [1, 0.35, 0], tR: [1, 0.35, 0], hL: [-0.02, 0.06, 0.32], hR: [-0.02, 0.06, -0.32], eL: [0, -1, 0.6], eR: [0, -1, -0.6] });
+  const up = P(dn, { p: [0, 1.07, 0], fL: [0.03, 0.2, -0.12], fR: [0.03, 0.2, 0.12], tL: [1, -0.85, 0], tR: [1, -0.85, 0] });
+  def('calf', { zoom: 0.9, frames: [F(dn, 400, 0), F(up, 700, 0), F(up, 500, 1), F(dn, 900, 1)], steps: PAT.calf.steps,
+    props: J => [{ k: 'box', x1: 0.12, x2: 0.45, y: 0.12, z1: -0.3, z2: 0.3 }, { k: 'line', a: [-0.32, 0, 0], b: [-0.32, 1.95, 0], w: 8, c: 'pr', layer: 'back' },
+      { k: 'line', a: [-0.32, J.shL[1] + 0.08, 0], b: [J.shL[0], J.shL[1] + 0.08, 0], w: 6, c: 'pr', layer: 'back' }, { k: 'line', a: [J.shL[0] - 0.02, J.shL[1] + 0.07, -0.3], b: [J.shR[0] - 0.02, J.shR[1] + 0.07, 0.3], w: 11, c: 'prb' }, { k: 'line', a: [J.anL[0], J.anL[1] + 0.03, 0], b: [J.anL[0] + 0.01, J.anL[1] - 0.06, 0], w: 1, c: 'mus' }] }); }
+// roscas vistas de 3/4 pela frente, com a pegada
+{ const o = PAT.curl; def('curl', { ...o, cam: 50, tilt: 6, props: J => [...o.props(J), { k: 'badge', palm: 'in', text: 'Palma pra|cima' }] }); }
+{ const o = PAT.ham; def('ham', { ...o, cam: 50, tilt: 6, props: J => [...o.props(J), { k: 'badge', palm: 'neutral', text: 'Pegada neutra|(martelo)' }] }); }
+def('bbcurl', { ...PAT.bbcurl, cam: 40, tilt: 6 });
+def('er', { ...PAT.er, cam: 80, tilt: 16 });
+{ const o = PAT.chin; def('chin', { ...o, props: J => [...o.props(J), { k: 'badge', palm: 'in', text: 'Palmas viradas|pra você' }] }); }
+{ const o = PAT.pullup; def('pullup', { ...o, props: J => [...o.props(J), { k: 'badge', palm: 'out', text: 'Palmas viradas|pra frente' }] }); }
+{ // pike: desce bem a cabeça, à frente das mãos
+  const pk = { ...PRO, p: [-0.2, 0.86, 0], lean: 140, fL: [-0.6, 0.05, -0.12], fR: [-0.6, 0.05, 0.12], tL: [0.4, -1, 0], tR: [0.4, -1, 0], kL: [-1, 0, 0], kR: [-1, 0, 0], wL: [0.34, 0, -0.25], wR: [0.34, 0, 0.25], eL: [-1, 0, 0.35], eR: [-1, 0, -0.35] };
+  const dn = P(pk, { p: [-0.05, 0.7, 0], lean: 108 });
+  def('pike', { ox: 20, cam: 12, frames: [F(pk, 400, 0), F(dn, 1000, 0), F(dn, 200, 1), F(pk, 800, 1)], steps: PAT.pike.steps }); }
+def('diamond', { ...PAT.diamond, cam: 34, tilt: 14, props: () => [{ k: 'badge', text: 'Mãos juntas|embaixo do peito' }] });
+def('ytw', { ...PAT.ytw, cam: 12, tilt: 62, zoom: 0.95, ox: 15 });
+{ // ponte e flexora deslizando: braços ao lado do quadril, toalha no calcanhar
+  const dn = { ...SUP, p: [-0.06, 0.2, 0], lean: -95, fL: [0.4, 0, -0.14], fR: [0.4, 0, 0.14], kL: [0.2, 1, -0.2], kR: [0.2, 1, 0.2], wL: [-0.02, 0.03, -0.32], wR: [-0.02, 0.03, 0.32], eL: [0, -1, 0.4], eR: [0, -1, -0.4] };
+  const up = P(dn, { p: [-0.02, 0.4, 0], lean: -112 });
+  def('sgb', { ox: 25, cam: 18, tilt: 10, frames: [F(dn, 400, 0), F(up, 800, 0), F(up, 900, 1), F(dn, 900, 1)], steps: PAT.sgb.steps });
+  const ex = P(up, { p: [0.04, 0.3, 0], lean: -110, fL: [0.86, 0.03, -0.14], fR: [0.86, 0.03, 0.14] });
+  def('slide', { ox: 15, cam: 18, tilt: 12, frames: [F(up, 500, 0), F(ex, 1300, 0), F(ex, 200, 1), F(up, 1000, 1)], steps: PAT.slide.steps,
+    props: J => [{ k: 'line', a: [J.anL[0] - 0.04, 0.01, -0.22], b: [J.anL[0] + 0.14, 0.01, 0.22], w: 7, c: 'twl', layer: 'back' }] }); }
+{ // hollow: braços e pernas afastados, visto um pouco de cima
+  const h0 = { ...SUP, p: [0, 0.1, 0], lean: -76, wL: [-0.98, 0.42, -0.22], wR: [-0.98, 0.42, 0.22], eL: [0, 1, 0.3], eR: [0, 1, -0.3], fL: [0.86, 0.32, -0.1], fR: [0.86, 0.32, 0.1], tL: [1, 0.2, 0], tR: [1, 0.2, 0], kL: [0, 1, 0], kR: [0, 1, 0] };
+  const h1 = P(h0, { lean: -84, wL: [-0.98, 0.3, -0.22], wR: [-0.98, 0.3, 0.22], fL: [0.88, 0.2, -0.1], fR: [0.88, 0.2, 0.1] });
+  def('hollow', { ox: 20, zoom: 0.9, cam: 22, tilt: 26, frames: [F(h0, 900, 0), F(h1, 900, 0)], steps: PAT.hollow.steps }); }
+{ // toalha: vista de frente, uma mão gira pra cada lado
+  const g0 = P(ST, { fL: [0.03, 0, -0.15], fR: [0.03, 0, 0.15], hL: [0.4, -0.08, 0.16], hR: [0.4, -0.08, -0.16], eL: [-0.4, -1, 0.6], eR: [-0.4, -1, -0.6] });
+  const g1 = P(g0, { hL: [0.42, -0.02, 0.16], hR: [0.38, -0.16, -0.16] }), g2 = P(g0, { hL: [0.38, -0.16, 0.16], hR: [0.42, -0.02, -0.16] });
+  def('towelgrip', { cam: 72, tilt: 10, frames: [F(g1, 350, 0), F(g2, 350, 0), F(g1, 350, 0)], steps: PAT.towelgrip.steps,
+    props: J => [{ k: 'line', a: J.haL, b: J.haR, w: 12, c: 'twl' }, { k: 'badge', text: 'Torce a toalha|com força' }] }); }
+{ // hack: trilhos, encosto, ombreiras e plataforma
+  const up = P(ST, { p: [-0.05, 0.86, 0], lean: -12, fL: [0.15, 0.06, -0.17], fR: [0.15, 0.06, 0.17], tL: [1, 0.1, -0.35], tR: [1, 0.1, 0.35], hL: [-0.04, 0.08, 0.3], hR: [-0.04, 0.08, -0.3], eL: [0, -1, 0.6], eR: [0, -1, -0.6] });
+  const dn = P(up, { p: [-0.2, 0.52, 0], lean: -4, kL: [1, 0.2, -0.4], kR: [1, 0.2, 0.4] });
+  def('hack', { frames: rep4(up, dn, 1200, 900), steps: PAT.hack.steps,
+    props: J => [{ k: 'line', a: [-0.62, 0.02, -0.3], b: [-0.08, 1.95, -0.3], w: 6, c: 'pr', layer: 'back' }, { k: 'line', a: [-0.62, 0.02, 0.3], b: [-0.08, 1.95, 0.3], w: 6, c: 'pr', layer: 'back' },
+      { k: 'line', a: [J.pel[0] - 0.14, J.pel[1] - 0.06, 0], b: [J.neck[0] - 0.14, J.neck[1] + 0.02, 0], w: 14, c: 'prb', layer: 'back' },
+      { k: 'line', a: [J.shL[0] - 0.04, J.shL[1] + 0.07, -0.3], b: [J.shR[0] - 0.04, J.shR[1] + 0.07, 0.3], w: 10, c: 'prb' }, { k: 'line', a: [-0.05, 0.03, 0], b: [0.42, 0.1, 0], w: 8, c: 'prb', layer: 'back' }] }); }
+{ // avanço caminhando: anda pra frente alternando as pernas
+  const lg = (x, lead) => { const f = x + 0.6, b = x; const o = lead === 'L' ? { fL: [f, 0, -0.12], fR: [b, 0.06, 0.12], tR: [1, -0.6, 0], kR: [0.1, -1, 0], kL: [1, 0, -0.1] } : { fR: [f, 0, 0.12], fL: [b, 0.06, -0.12], tL: [1, -0.6, 0], kL: [0.1, -1, 0], kR: [1, 0, 0.1] }; return P(ST, { p: [x + 0.28, 0.5, 0], lean: 4, ...o }); };
+  const st = x => P(ST, { p: [x, 0.88, 0], fL: [x + 0.03, 0, -0.12], fR: [x + 0.03, 0, 0.12] });
+  def('walklunge', { zoom: 0.8, ox: 0, frames: [F(st(-0.6), 400, 0), F(lg(-0.57, 'L'), 800, 0), F(st(0.0), 700, 1), F(lg(0.03, 'R'), 800, 0), F(st(0.6), 700, 1), F(st(0.6), 300, 1)], steps: PAT.walklunge.steps, props: dbs() }); }
+{ // glúteo na polia: inclinado, perna de trás estica e sobe
+  const s0 = P(ST, { lean: 32, p: [-0.05, 0.86, 0], fR: [0.05, 0, 0.13], fL: [0.02, 0.05, -0.13], kL: [1, 0, -0.1], wL: [0.48, 1.08, -0.18], wR: [0.48, 1.08, 0.18], eL: [-1, -0.3, 0.3], eR: [-1, -0.3, -0.3] });
+  const s1 = P(s0, { fL: [-0.66, 0.52, -0.13], kL: [0, -1, 0], tL: [0, -1, 0] });
+  def('cablekick', { cam: 10, frames: rep4(s0, s1, 800, 900), steps: PAT.cablekick.steps,
+    props: J => [{ k: 'line', a: [0.58, 0, -0.3], b: [0.58, 1.9, -0.3], w: 7, c: 'pr', layer: 'back' }, { k: 'line', a: J.anL, b: [0.58, 0.1, -0.13], w: 2, c: 'pr' }, { k: 'line', a: [0.5, 1.08, -0.3], b: [0.5, 1.08, 0.3], w: 6, c: 'prb', layer: 'back' }] }); }
+{ // swing: o arco do peso (entre as pernas → cintura → peito)
+  const dn = P(ST, { p: [-0.2, 0.8, 0], lean: 68, fL: [0.05, 0, -0.2], fR: [0.05, 0, 0.2], kL: [1, 0, -0.25], kR: [1, 0, 0.25], wL: [-0.1, 0.52, -0.04], wR: [-0.1, 0.52, 0.04], eL: [-1, 0, 0.2], eR: [-1, 0, -0.2] });
+  const mid_ = P(dn, { p: [-0.08, 0.86, 0], lean: 22, wL: [0.32, 0.78, -0.04], wR: [0.32, 0.78, 0.04] });
+  const up = P(ST, { p: [0.02, 0.9, 0], lean: -4, fL: [0.05, 0, -0.2], fR: [0.05, 0, 0.2], wL: [0.52, 1.2, -0.04], wR: [0.52, 1.2, 0.04], eL: [0, -1, 0.3], eR: [0, -1, -0.3] });
+  def('kbswing', { cam: 28, frames: [F(dn, 450, 0, 'load'), F(mid_, 220, 1, 'snap'), F(up, 250, 1), F(up, 120, 1), F(mid_, 300, 0), F(dn, 350, 0)], steps: PAT.kbswing.steps, props: PAT.kbswing.props }); }
+def('pecdeck', { ...PAT.pecdeck, props: J => [seatBox, backRest, { k: 'line', a: [-0.3, 0, 0], b: [-0.3, 1.9, 0], w: 8, c: 'pr', layer: 'back' }, { k: 'line', a: [-0.3, 1.9, 0], b: [0.05, 1.9, 0], w: 6, c: 'pr', layer: 'back' },
+  { k: 'line', a: J.elL, b: J.haL, w: 13, c: 'prb', layer: 'back' }, { k: 'line', a: J.elR, b: J.haR, w: 13, c: 'prb', layer: 'back' }, { k: 'line', a: J.haL, b: [0.05, 1.9, -0.05], w: 1.5, c: 'pr', layer: 'back' }, { k: 'line', a: J.haR, b: [0.05, 1.9, 0.05], w: 1.5, c: 'pr', layer: 'back' }] });
+def('dbpullover', { ...PAT.dbpullover, cam: 34, tilt: 14 });
+{ // encolhimento: o ombro sobe de verdade e o trapézio fica marcado
+  const dn = P(STD, { wL: [0.03, 0.8, -0.24], wR: [0.03, 0.8, 0.24], eL: [-0.3, -1, 0.2], eR: [-0.3, -1, -0.2], shrug: 0 }), up = P(dn, { shrug: 1, wL: [0.03, 0.87, -0.24], wR: [0.03, 0.87, 0.24] });
+  def('shrug', { cam: 55, frames: rep4(dn, up, 600, 900), steps: PAT.shrug.steps,
+    props: J => [...dbs()(J), { k: 'line', a: J.neck, b: J.shL, w: 9, c: 'mus' }, { k: 'line', a: J.neck, b: J.shR, w: 9, c: 'mus' }] }); }
+{ // tríceps testa: braço parado apontando pro teto, só o antebraço desce
+  const up = P(BENCH, { wL: [-0.45, 1.02, -0.2], wR: [-0.45, 1.02, 0.2], eL: [1, -0.4, 0.05], eR: [1, -0.4, -0.05] }), dn = P(up, { wL: [-0.72, 0.84, -0.2], wR: [-0.72, 0.84, 0.2] });
+  def('skull', { ox: 30, cam: 26, frames: rep4(up, dn, 1000, 800), steps: PAT.skull.steps, props: J => [BENCHBOX, ...dbs([0, 0, 1])(J)] }); }
+{ const dn = P(STD, { hL: [-0.16, 0.2, 0.06], hR: [-0.16, 0.2, -0.06], eL: [0.1, 1, 0.25], eR: [0.1, 1, -0.25] }), up = P(dn, { hL: [0.03, 0.56, 0.06], hR: [0.03, 0.56, -0.06] });
+  def('ohtri', { zoom: 0.92, cam: 32, frames: rep4(dn, up, 800, 1000), steps: PAT.ohtri.steps, props: PAT.ohtri.props }); }
+def('kick', { ...PAT.kick, cam: 6 });
+def('preacher', { ...PAT.preacher, props: J => [{ k: 'box', x1: -0.22, x2: 0.22, y: 0.5, z1: -0.18, z2: 0.18 }, { k: 'line', a: [0.3, 0.72, 0], b: [0.3, 0, 0], w: 6, c: 'pr', layer: 'back' }, { k: 'line', a: [0.12, 0.8, 0.18], b: [0.5, 0.52, 0.18], w: 14, c: 'pr', layer: 'front' }, { k: 'line', a: [0.12, 0.8, -0.18], b: [0.5, 0.52, -0.18], w: 14, c: 'pr', layer: 'back' }, { k: 'bar', a: J.haL, b: J.haR, r: 0.12 }] });
+def('birddog', { ...PAT.birddog, cam: 32, tilt: 30 });
+def('superman', { ...PAT.superman, cam: 22, tilt: 22 });
+{ // prancha lateral / Copenhague: vista de frente, braço de cima na cintura
+  const base = { p: [0.05, 0.36, 0], py: 0, cy: 0, lean: -80, tw: TW, tL: [1, 0, 0], tR: [1, 0, 0], kL: [0, 1, -1], kR: [0, 1, -1], wR: [-0.4, 0.03, -0.24], eR: [0, 0, -1], eL: [-1, 0, 0.6] };
+  const sp0 = { ...base, fL: [0.92, 0.1, -0.03], fR: [0.9, 0.04, 0.04] };
+  const sp = J => [{ k: 'line', a: J.pel, b: J.haL, w: 0.1, c: 'pr' }];
+  const s1 = P(sp0, { p: [0.05, 0.22, 0], lean: -84, wL: [0.0, 0.36, -0.12] }), s0 = P(sp0, { wL: [0.03, 0.5, -0.12] });
+  def('sideplank', { cam: 6, tilt: 12, zoom: 0.92, ox: 20, frames: [F(s1, 500, 0), F(s0, 800, 0), F(s0, 1400, 1), F(s1, 800, 1)], steps: PAT.sideplank.steps });
+  const c0 = { ...base, fL: [0.98, 0.47, 0], fR: [0.86, 0.1, 0.05], wL: [0.03, 0.5, -0.12] }, c1 = P(c0, { p: [0.05, 0.22, 0], lean: -84, wL: [0.0, 0.36, -0.12] });
+  def('copen', { cam: 6, tilt: 12, zoom: 0.9, ox: 20, frames: [F(c1, 500, 0), F(c0, 800, 0), F(c0, 1200, 1), F(c1, 800, 1)], steps: PAT.copen.steps, props: () => [{ k: 'box', x1: 0.8, x2: 1.22, y: 0.42 }] }); }
+
 // exercício → demonstração (sombra explosiva usa o cruzado da aba de luta)
 const ALIAS = { plyopush: 'plyopush' };
 export function hasDemo(ex) { return ex === 'shadowx' || !!PAT[ALIAS[ex] || ex]; }

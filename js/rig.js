@@ -54,7 +54,8 @@ export function solve(P) {
   const chest = add(pel, mul(U, B.spine));
   const J = { pel, chest };
   J.hipL = add(pel, mul(Lp, B.hip)); J.hipR = add(pel, mul(Lp, -B.hip));
-  J.shL = add(add(chest, mul(L, B.sh)), mul(U, -0.03)); J.shR = add(add(chest, mul(L, -B.sh)), mul(U, -0.03));
+  const shU = -0.03 + (P.shrug || 0) * 0.07; // shrug: ombros sobem (encolhimento)
+  J.shL = add(add(chest, mul(L, B.sh)), mul(U, shU)); J.shR = add(add(chest, mul(L, -B.sh)), mul(U, shU));
   J.neck = add(chest, mul(U, B.neck)); J.head = add(add(J.neck, mul(U, B.head)), mul(F, 0.02));
   const loc = v => add(chest, add(add(mul(Fa, v[0]), mul(Ua, v[1])), mul(La, v[2])));
   const locDir = v => add(add(mul(Fa, v[0]), mul(Ua, v[1])), mul(La, v[2]));
@@ -139,7 +140,16 @@ export function draw(J, { gloves = true, hi = [], trail = null, burst = null, ca
   const head = `<circle cx="${P.head[0].toFixed(1)}" cy="${P.head[1].toFixed(1)}" r="14" class="hd"/>`;
   const glove = (s, isFar) => gloves ? `<circle cx="${P['ha' + s][0].toFixed(1)}" cy="${P['ha' + s][1].toFixed(1)}" r="10.5" class="${isFar ? 'gb' : 'gf'}"/>` : `<circle cx="${P['ha' + s][0].toFixed(1)}" cy="${P['ha' + s][1].toFixed(1)}" r="4.5" class="${isFar ? 'hb' : 'hf'}"/>`;
   let back = '', frontLegs = '', front = '';
-  for (const s of segs) { const f = far(s); const h = line(s, s.kind === 'pros' ? 'lp' : f ? 'lb' : 'lf'); if (f) back += h; else if (s.kind === 'arm') front += h; else frontLegs += h; }
+  // membro inteiro (coxa+canela+pé ou braço+antebraço) ganha um contorno único da cor do papel por baixo:
+  // separa do tronco e do outro membro sem marcar as juntas por dentro
+  const groups = {};
+  for (const s of segs) { const k = (s.kind === 'arm' ? 'arm' : 'leg') + s.side; (groups[k] ||= { k, segs: [], arm: s.kind === 'arm' }).segs.push(s); }
+  const gl = Object.values(groups).map(g => ({ ...g, z: g.segs.reduce((a, s) => a + s.z, 0) / g.segs.length })).sort((a, b) => b.z - a.z);
+  for (const g of gl) {
+    const f = far({ z: g.z, kind: g.arm ? 'arm' : 'leg', side: g.k.slice(-1) });
+    const halo = g.segs.map(s => line(s, 'ol')).join(''), body = g.segs.map(s => line(s, s.kind === 'pros' ? 'lp' : f ? 'lb' : 'lf')).join('');
+    if (f) back += halo + body; else if (g.arm) front += halo + body; else frontLegs += halo + body;
+  }
   const farH = s => P['ha' + s][2] > zMid + 0.02 && !act.includes('arm' + s);
   const gL = miss.has('armL') || miss.has('handL') ? '' : glove('L', farH('L')), gR = miss.has('armR') || miss.has('handR') ? '' : glove('R', farH('R'));
   const gBack = (farH('L') ? gL : '') + (farH('R') ? gR : '');
@@ -166,10 +176,13 @@ export function draw(J, { gloves = true, hi = [], trail = null, burst = null, ca
   }
   // equipamentos (barra, halter, banco, elástico...): atrás ou na frente do corpo conforme a profundidade
   let pBack = '', pFront = '';
+  // selo fixo no canto (ex.: posição da mão)
+  let badge = '';
+  for (const it of props || []) if (it && it.k === 'badge') badge += badgeSVG(it, -ox);
   if (props) for (const it of propSVG(props)) { if (it.layer === 'back' || (it.layer !== 'front' && it.z > zMid + 0.02)) pBack += it.svg; else pFront += it.svg; }
   return `<svg viewBox="${-ox} 0 230 200" class="fig" role="img" aria-hidden="true">
     ${TILT ? '' : `<line x1="${6 - ox - 120}" y1="${GY}" x2="${224 - ox + 120}" y2="${GY}" class="gr"/>`}${shadow}${hl}
-    ${pBack}${back}${gBack}${torso}${frontLegs}${trunks}${head}${front}${gFront}${pFront}${tg}${fx}</svg>`;
+    ${pBack}${back}${gBack}${torso}${frontLegs}${trunks}${head}${front}${gFront}${pFront}${tg}${fx}${badge}</svg>`;
 }
 
 // ---------- equipamentos ----------
@@ -190,7 +203,8 @@ function propSVG(list) {
     } else if (it.k === 'db') { // halter
       const d = it.d || [0, 0, 1], h = 0.09, A = it.p.map((v, i) => v - d[i] * h), B = it.p.map((v, i) => v + d[i] * h);
       ln(A, B, 4, 'prb', it.layer || 'front'); circ(A, 0.06 * S, 'dbb', it.layer || 'front'); circ(B, 0.06 * S, 'dbb', it.layer || 'front');
-    } else if (it.k === 'ball') circ(it.p, (it.r || 0.12) * S, it.cls || 'mbl', it.layer || 'front');
+    } else if (it.k === 'badge') { /* desenhado à parte */ }
+    else if (it.k === 'ball') circ(it.p, (it.r || 0.12) * S, it.cls || 'mbl', it.layer || 'front');
     else if (it.k === 'box') { // caixa/banco visto de lado: x1..x2, altura y, profundidade z1..z2
       const z1 = it.z1 ?? -0.25, z2 = it.z2 ?? 0.25, y0 = it.y0 ?? 0;
       const c = [[it.x1, y0, z2], [it.x2, y0, z2], [it.x2, it.y, z2], [it.x1, it.y, z2], [it.x1, it.y, z1], [it.x2, it.y, z1], [it.x2, y0, z1]].map(proj);
@@ -199,4 +213,15 @@ function propSVG(list) {
     }
   }
   return out;
+}
+
+// selo com a posição da mão: palma pra você (supinada), dorso pra você (pronada) ou de lado (neutra)
+function badgeSVG(it, x0) {
+  const x = x0 + 4, y = 4, w = 104, t = String(it.text || '').replace(/[<>&"]/g, '');
+  const hand = it.palm ? `<g transform="translate(${x + 16},${y + 20}) rotate(${it.palm === 'neutral' ? -90 : 0})">
+    <rect x="-7" y="-2" width="14" height="13" rx="3" class="${it.palm === 'in' ? 'bh-in' : 'bh-out'}"/>
+    ${[-6, -2.2, 1.6, 5.4].map(fx => `<rect x="${fx - 1.6}" y="-12" width="3.2" height="11" rx="1.6" class="${it.palm === 'in' ? 'bh-in' : 'bh-out'}"/>`).join('')}
+    <rect x="${it.palm === 'in' ? 6 : -10}" y="1" width="4" height="8" rx="2" transform="rotate(${it.palm === 'in' ? -30 : 30} ${it.palm === 'in' ? 8 : -8} 5)" class="${it.palm === 'in' ? 'bh-in' : 'bh-out'}"/>
+    ${it.palm === 'in' ? '<path d="M-4 4h8M-4 7h6" class="bh-line"/>' : '<path d="M-5 -1h10" class="bh-line"/>'}</g>` : '';
+  return `<g class="badge"><rect x="${x}" y="${y}" width="${w}" height="36" rx="3"/>${hand}<text x="${x + (it.palm ? 31 : 6)}" y="${y + 15}">${t.split('|')[0]}</text><text x="${x + (it.palm ? 31 : 6)}" y="${y + 28}">${t.split('|')[1] || ''}</text></g>`;
 }
