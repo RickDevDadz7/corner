@@ -450,3 +450,4 @@ details>summary.small{font-weight:900;margin-top:8px;color:var(--acc)}
 .chipbtn.rec i{font-style:normal;color:var(--muted);font-weight:700;font-size:11px}
 #foodRecent{display:flex;flex-direction:column;gap:6px}
 #foodRecent,#foodResults{overflow-anchor:none}
+.grid4.g5{grid-template-columns:repeat(3,1fr)}

@@ -35,7 +35,10 @@ function load() {
       for (const k of ['boxDays', 'boxMin', 'boxType', 'boxWhere']) delete d.profile[k];
     }
     if (d.logs.boxing) { for (const x of d.logs.boxing) d.logs.sessions.push({ id: newId(), sport: 'boxe', date: x.date, type: x.type in SPORTS.boxe.types ? x.type : 'tecnica', min: x.min, kcal: x.kcal }); delete d.logs.boxing; }
-    for (const items of Object.values(d.logs.food)) for (const it of items) it.id ||= newId();
+    for (const items of Object.values(d.logs.food)) for (const it of items) {
+      it.id ||= newId();
+      if (it.fb == null) { const fd = FOODS.find(x => x.n === it.n); it.fb = fd && it.g != null ? fd.fb * it.g / 100 : 0; }
+    }
     for (const [day, v] of Object.entries(d.logs.water)) if (typeof v === 'number') d.logs.water[day] = v ? [{ id: newId(), ml: v }] : [];
     for (const w of d.logs.workouts) w.id ||= newId();
     for (const s of d.logs.sessions) s.id ||= newId();
@@ -95,7 +98,7 @@ function toast(msg) {
 }
 function foodTotals() { const out = {}; for (const [d, items] of Object.entries(S.logs.food)) out[d] = items.reduce((a, i) => a + i.k, 0); return out; }
 function T() { return targets(S.profile, S.settings.adaptive ? adaptiveTDEE(S.logs.weights, foodTotals()) : null); }
-function dayFood(d = curDay()) { return (S.logs.food[d] || []).reduce((a, i) => ({ k: a.k + i.k, p: a.p + i.p, c: a.c + i.c, f: a.f + i.f }), { k: 0, p: 0, c: 0, f: 0 }); }
+function dayFood(d = curDay()) { return (S.logs.food[d] || []).reduce((a, i) => ({ k: a.k + i.k, p: a.p + i.p, c: a.c + i.c, f: a.f + i.f, fb: a.fb + (i.fb || 0) }), { k: 0, p: 0, c: 0, f: 0, fb: 0 }); }
 const dayWater = (d = curDay()) => (S.logs.water[d] || []).reduce((a, w) => a + (w.ml || 0), 0);
 function latestWeight() { const ks = Object.keys(S.logs.weights).sort(); return ks.length ? S.logs.weights[ks[ks.length - 1]] : S.profile?.weight; }
 const mySports = () => Object.keys(sportsOf(S.profile || {})).filter(id => SPORTS[id]);
@@ -345,7 +348,7 @@ views.nutri = () => {
     <div class="kcalhead"><b class="big mono">${fmt(f.k, 0)}</b><span class="mono">/ ${fmt(t.kcal, 0)} kcal</span></div>
     <div class="kbar ${over ? 'over' : ''}"><div style="width:${pct}%"></div></div>
     <p class="kleft small"><b class="${over ? 'warn' : ''}">${over ? `${fmt(f.k - t.kcal, 0)} kcal acima da meta` : f.k ? `${fmt(left, 0)} kcal restantes` : `${fmt(t.kcal, 0)} kcal pra hoje`}</b><span class="muted mono">${fmt(pct, 0)}%</span></p>
-    <div class="mgrid">${macroBar('Proteína', f.p, t.protein, 'var(--acc)')}${macroBar('Carboidrato', f.c, t.carbs, 'var(--cyan)')}${macroBar('Gordura', f.f, t.fat, 'var(--amber)')}</div>
+    <div class="mgrid">${macroBar('Proteína', f.p, t.protein, 'var(--acc)')}${macroBar('Carboidrato', f.c, t.carbs, 'var(--cyan)')}${macroBar('Gordura', f.f, t.fat, 'var(--amber)')}${macroBar('Fibras', f.fb, t.fiber, 'var(--ink2)')}</div>
     ${waterBar(w, t.water)}
   </div>
   <div class="card" id="n-analise">
@@ -353,10 +356,10 @@ views.nutri = () => {
     <ul class="alist">
       <li><b>Tendência prevista</b><span class="mono">${t.weekChange > 0 ? '+' : ''}${fmt(t.weekChange, 2)} kg/semana</span>
         <small>Se você bater a meta: (${fmt(t.kcal, 0)} − ${fmt(t.tdee, 0)} kcal de gasto) × 7 dias ÷ 7.700 kcal por kg.</small></li>
-      <li><b>Tendência real</b><span class="mono">${ad.ready ? `${ad.slopeWeek > 0 ? '+' : ''}${fmt(ad.slopeWeek, 2)} kg/semana` : '—'}</span>
-        <small>${ad.ready ? `Das suas ${ad.weighIns} pesagens nos últimos 28 dias.` : `Aparece com ≥ 8 pesagens e ≥ 10 dias de comida registrados em 28 dias. Agora: ${ad.weighIns} ${ad.weighIns === 1 ? "pesagem" : "pesagens"}, ${ad.foodDays} ${ad.foodDays === 1 ? "dia" : "dias"}.`}</small></li>
-      <li><b>Fibras</b><span class="mono">≥ ${t.fiber} g/dia</span>
-        <small>14 g a cada 1.000 kcal da sua meta (recomendação do IOM/EUA). O app ainda não conta fibras dos alimentos.</small></li>
+      ${ad.ready ? `<li><b>Tendência real</b><span class="mono">${ad.slopeWeek > 0 ? '+' : ''}${fmt(ad.slopeWeek, 2)} kg/semana</span>
+        <small>Das suas ${ad.weighIns} pesagens nos últimos 28 dias.</small></li>` : ''}
+      <li><b>Fibras</b><span class="mono">${fmt(f.fb, 0)} / ${t.fiber} g</span>
+        <small>Meta de 14 g a cada 1.000 kcal (recomendação do IOM/EUA). Vêm de feijão, aveia, frutas, verduras e integrais.</small></li>
       ${t.notes.map(n => `<li class="alert"><b>Atenção</b><span></span><p class="small">${esc(n.msg)}</p><small>Base: ${esc(n.base)}</small></li>`).join('')}
     </ul>
     ${t.notes.length ? '' : '<p class="small muted">Nenhum alerta: seus dados não indicam nada fora da faixa.</p>'}
@@ -413,7 +416,7 @@ function recentFoods() {
   return out;
 }
 function mealCard(m, list) {
-  const tot = list.reduce((a, i) => ({ k: a.k + i.k, p: a.p + i.p, c: a.c + i.c, f: a.f + i.f }), { k: 0, p: 0, c: 0, f: 0 });
+  const tot = list.reduce((a, i) => ({ k: a.k + i.k, p: a.p + i.p, c: a.c + i.c, f: a.f + i.f, fb: a.fb + (i.fb || 0) }), { k: 0, p: 0, c: 0, f: 0, fb: 0 });
   const adding = addMeal === m.id, open = adding || (list.length > 0 && !mealShut.has(m.id));
   const addLabel = m.id === 'extra' ? 'belisco' : 'alimento';
   const head = list.length
@@ -424,7 +427,7 @@ function mealCard(m, list) {
     ${open && list.length ? `<ul class="list items">${list.map(it => `<li><div class="grow"><b>${esc(it.n)}</b><small><b class="mono">${fmt(it.k, 0)} kcal</b> · P ${fmt(it.p, 0)} · C ${fmt(it.c, 0)} · G ${fmt(it.f, 0)}</small></div>
       <div class="qty"><button data-act="qty" data-id="${it.id}" data-d="-1" aria-label="Menos">−</button><input data-qty="${it.id}" inputmode="decimal" value="${fmt(amtOf(it), 1)}" aria-label="Quantidade"><span>${esc(unitOf(it))}</span><button data-act="qty" data-id="${it.id}" data-d="1" aria-label="Mais">+</button></div>
       <button class="x" data-act="delFood" data-id="${it.id}" aria-label="Remover">×</button></li>`).join('')}</ul>
-      <div class="msum"><span>Total</span><b class="mono">${fmt(tot.k, 0)} kcal</b><span class="mono">P ${fmt(tot.p, 0)}g</span><span class="mono">C ${fmt(tot.c, 0)}g</span><span class="mono">G ${fmt(tot.f, 0)}g</span></div>` : ''}
+      <div class="msum"><span>Total</span><b class="mono">${fmt(tot.k, 0)} kcal</b><span class="mono">P ${fmt(tot.p, 0)}g</span><span class="mono">C ${fmt(tot.c, 0)}g</span><span class="mono">G ${fmt(tot.f, 0)}g</span><span class="mono">Fibra ${fmt(tot.fb, 0)}g</span></div>` : ''}
     ${adding ? `<div class="addbox">
       <input id="foodSearch" placeholder="Buscar (ovo, banana, arroz, chocolate…)" autocomplete="off">
       <div class="segs small">${Object.entries(FOOD_CATS).map(([k, v]) => `<button class="${foodCat === k ? 'on' : ''}" data-act="foodCat" data-c="${k}">${v}</button>`).join('')}</div>
@@ -432,7 +435,7 @@ function mealCard(m, list) {
       <div id="foodResults" class="chips"></div><div id="foodPick"></div>
       <details><summary class="small">Adicionar manualmente (rótulo, restaurante)</summary>
         <form id="manualFood" class="form"><input name="n" placeholder="Nome" required>
-          <div class="grid4"><input name="k" placeholder="kcal" inputmode="decimal" required><input name="p" placeholder="P g" inputmode="decimal"><input name="c" placeholder="C g" inputmode="decimal"><input name="f" placeholder="G g" inputmode="decimal"></div>
+          <div class="grid4 g5"><input name="k" placeholder="kcal" inputmode="decimal" required><input name="p" placeholder="P g" inputmode="decimal"><input name="c" placeholder="C g" inputmode="decimal"><input name="f" placeholder="G g" inputmode="decimal"><input name="fb" placeholder="Fibra g" inputmode="decimal"></div>
           <button class="btn small" type="submit">Adicionar</button></form>
       </details>
       <button class="linkbtn" data-act="addMeal" data-m="">Fechar</button></div>`
@@ -971,7 +974,7 @@ function bindAfter(v, arg) {
       inp.addEventListener('input', show); show();
       $('#manualFood').addEventListener('submit', e => {
         e.preventDefault(); const fd = Object.fromEntries(new FormData(e.target));
-        addFood({ n: fd.n, q: 1, u: 'porção', st: 1, k: num(fd.k) || 0, p: num(fd.p) || 0, c: num(fd.c) || 0, f: num(fd.f) || 0 });
+        addFood({ n: fd.n, q: 1, u: 'porção', st: 1, k: num(fd.k) || 0, p: num(fd.p) || 0, c: num(fd.c) || 0, f: num(fd.f) || 0, fb: num(fd.fb) || 0 });
       });
     }
     document.querySelectorAll('[data-qty]').forEach(i => i.addEventListener('change', () => setAmount(i.dataset.qty, num(i.value))));
@@ -1064,7 +1067,7 @@ function setAmount(id, amt) {
   const list = S.logs.food[curDay()] || [], it = list.find(x => x.id === id);
   if (!it || amt == null || amt <= 0) { render(); return; }
   const old = amtOf(it) || 1, r = amt / old;
-  for (const k of ['k', 'p', 'c', 'f']) it[k] = (it[k] || 0) * r;
+  for (const k of ['k', 'p', 'c', 'f', 'fb']) it[k] = (it[k] || 0) * r;
   if (it.g != null) it.g = Math.round(amt * 10) / 10; else it.q = Math.round(amt * 10) / 10;
   it.t = Date.now(); save(); render();
 }
@@ -1094,12 +1097,12 @@ document.addEventListener('click', async e => {
   if (a === 'pickFood') {
     const i = +el.dataset.i; $('#foodPick').innerHTML = foodPickHTML(i);
     const f = $('#pickForm'), info = $('#pickInfo');
-    const upd = () => { const g = num(f.g.value) || 0, fd = FOODS[i], m = g / 100; info.textContent = `${fmt(fd.k * m, 0)} kcal · P ${fmt(fd.p * m)} · C ${fmt(fd.c * m)} · G ${fmt(fd.f * m)}`; };
+    const upd = () => { const g = num(f.g.value) || 0, fd = FOODS[i], m = g / 100; info.textContent = `${fmt(fd.k * m, 0)} kcal · P ${fmt(fd.p * m)} · C ${fmt(fd.c * m)} · G ${fmt(fd.f * m)} · Fibra ${fmt(fd.fb * m)}`; };
     f.g.addEventListener('input', upd); upd(); f.g.focus({ preventScroll: true }); f.g.select();
     f.addEventListener('submit', ev2 => {
       ev2.preventDefault(); const g = num(f.g.value) || 0, fd = FOODS[i], m = g / 100;
       const st = fd.g <= 60 ? fd.g : Math.max(10, Math.round(fd.g / 3 / 10) * 10);
-      addFood({ n: fd.n, g, u: /\(ml\)/.test(fd.n) ? 'ml' : 'g', st, k: fd.k * m, p: fd.p * m, c: fd.c * m, f: fd.f * m });
+      addFood({ n: fd.n, g, u: /\(ml\)/.test(fd.n) ? 'ml' : 'g', st, k: fd.k * m, p: fd.p * m, c: fd.c * m, f: fd.f * m, fb: fd.fb * m });
     });
   }
   if (a === 'delFood') { const id = el.dataset.id; S.logs.food[curDay()] = (S.logs.food[curDay()] || []).filter(x => x.id !== id); S.del[id] = Date.now(); save(); render(); }
