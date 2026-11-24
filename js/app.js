@@ -778,7 +778,7 @@ document.addEventListener('change', e => {
   if (k) {
     const [id, ex, i, f] = k.split('|'), w = S.logs.workouts.find(x => x.id === id), a = w?.sets?.[ex], x = Array.isArray(a) ? a[+i] : null; if (!x || typeof x !== 'object') return;
     const v = num(t.value);
-    if (f === 'reps' && !(v > 0)) { toast('Repetições precisam ser maiores que zero. Pra tirar a série, use ×.'); t.value = +x.reps || ''; return; }
+    if (f === 'reps' && !(v >= 0)) { toast('Digite as repetições (0 se não conseguiu fazer). Pra tirar a série, use ×.'); t.value = x.reps ?? ''; return; }
     x[f] = f === 'kg' ? (v > 0 && v < 1000 ? v : null) : Math.min(999, Math.round(v));
     w.t = Date.now(); save(); render(); toast('Série corrigida');
   }
@@ -961,7 +961,7 @@ views.wk = (id) => {
     <div class="sethead"><span>#</span><span>${e.inc ? 'kg' : ''}</span><span>${e.u === 's' ? 's' : e.u === 'm' ? 'm' : 'reps'}</span><span></span><span></span></div>
     ${arr.map((x, i) => x ? `<div class="set wkset ${pr[ex] && +x.kg === pr[ex].kg && +x.reps === pr[ex].reps ? 'pr' : ''}"><span class="mono">${i + 1}</span>
       ${e.inc ? `<input data-wk="${esc(w.id)}|${ex}|${i}|kg" inputmode="decimal" value="${esc(+x.kg || '')}" aria-label="Carga série ${i + 1}">` : '<span class="muted small">—</span>'}
-      <input data-wk="${esc(w.id)}|${ex}|${i}|reps" inputmode="numeric" value="${esc(+x.reps || '')}" aria-label="Repetições série ${i + 1}">
+      <input data-wk="${esc(w.id)}|${ex}|${i}|reps" inputmode="numeric" value="${x.reps == null ? '' : esc(+x.reps || 0)}" aria-label="Repetições série ${i + 1}">
       <span class="small">${pr[ex] && +x.kg === pr[ex].kg && +x.reps === pr[ex].reps ? '<span class="prtag">PR</span>' : ''}</span>
       <button class="x" data-act="wkSetDel" data-k="${esc(w.id)}|${ex}|${i}" aria-label="Apagar série ${i + 1}">×</button></div>${typeof x.note === 'string' && x.note ? `<small class="muted setnote-t">✎ ${esc(x.note)}</small>` : ''}` : '').join('')}</div>`; }).join('')}
   <div class="card"><label>Nota do treino<textarea id="wkNote" data-id="${esc(w.id)}" maxlength="300" rows="3" placeholder="Sem nota">${esc(typeof w.note === 'string' ? w.note : '')}</textarea></label></div>
@@ -1068,7 +1068,8 @@ const DRAFT_KEY = 'ronin:draft';
 let draft = (() => { try { const d = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null'); if (!d || typeof d.sid !== 'string' || !d.sets || typeof d.sets !== 'object') return null; for (const k of Object.keys(d.sets)) { if (!EXERCISES[k] || !Array.isArray(d.sets[k])) delete d.sets[k]; else d.sets[k] = d.sets[k].map(x => x && typeof x === 'object' ? x : {}); } d.start = Object.values(d.sets).flat().some(x => x && x.done) ? (+d.start || Date.now()) : null; d.date = Object.values(d.sets).flat().some(x => x && x.reps) ? d.date : today(); d.name = String(d.name || 'Treino'); return d; } catch (e) { return null; } })();
 function saveDraft() { try { draft ? localStorage.setItem(DRAFT_KEY, JSON.stringify(draft)) : localStorage.removeItem(DRAFT_KEY); } catch (e) { } }
 const lastFor = (ex, beforeId) => { for (let i = S.logs.workouts.length - 1; i >= 0; i--) { const w = S.logs.workouts[i]; if (w.id === beforeId) continue; const a = w.sets?.[ex]; if (Array.isArray(a) && a.some(x => x && +x.reps > 0)) return { sets: a.filter(x => x && typeof x === 'object'), date: String(w.date || '') }; } return null; };
-const setsTxt = sets => sets.filter(s => s && s.reps).map(s => `${s.kg ? fmt(s.kg) + '×' : ''}${s.reps}`).join(', ');
+// série com 0 = tentou e não saiu (conta como feita, fica fora do volume e dos recordes)
+const setsTxt = sets => sets.filter(s => s && (+s.reps > 0 || (s.done && +s.reps === 0))).map(s => +s.reps > 0 ? `${s.kg ? fmt(s.kg) + '×' : ''}${s.reps}` : '0 (não saiu)').join(', ');
 const elapsed = () => draft?.start ? (Date.now() - draft.start) / 1000 : 0;
 const clockTxt = () => draft?.start ? '⏱ ' + mmss(elapsed()) : '⏱ começa na 1ª série';
 const mmss = sec => `${Math.floor(sec / 60)}:${String(Math.floor(sec % 60)).padStart(2, '0')}`;
@@ -1151,7 +1152,7 @@ views.resumo = () => {
   <button class="btn primary block" data-act="saveWorkout" ${st.sets ? '' : 'disabled'}>Salvar treino</button>
   ${draftIdx() >= 0 ? `<a class="btn block" href="#sessao-${draftIdx()}">Voltar pro treino</a>` : ''}`;
 };
-const cleanSets = sets => Object.fromEntries(Object.entries(sets || {}).map(([k, v]) => [k, (v || []).filter(x => x && (x.reps || x.kg)).map(x => ({ kg: x.kg ?? null, reps: x.reps ?? null, done: !!x.done, ...(x.note ? { note: String(x.note).slice(0, 120) } : {}) }))]).filter(([, v]) => v.length));
+const cleanSets = sets => Object.fromEntries(Object.entries(sets || {}).map(([k, v]) => [k, (v || []).filter(x => x && (x.reps || x.kg || (x.done && x.reps === 0))).map(x => ({ kg: x.kg ?? null, reps: x.reps ?? null, done: !!x.done, ...(x.note ? { note: String(x.note).slice(0, 120) } : {}) }))]).filter(([, v]) => v.length));
 
 // cronômetro de descanso: barra fixa acima da navegação, não some quando a tela redesenha
 const REST = { end: 0, left: 0, total: 0, paused: false, iv: null, label: '' };
@@ -1895,7 +1896,8 @@ document.addEventListener('click', async e => {
     const card = el.closest('.set'), kgI = card.querySelector('[data-set$="|kg"]'), rI = card.querySelector('[data-set$="|reps"]');
     if (kgI && kgI.value) v.kg = num(kgI.value);
     if (rI && rI.value) v.reps = num(rI.value);
-    if (!v.reps) { toast('Digite as repetições feitas'); rI?.focus(); return; }
+    if (rI && rI.value === '' && v.reps == null) { toast('Digite as repetições feitas (0 se não conseguiu)'); rI?.focus(); return; }
+    if (v.reps == null) v.reps = 0;
     v.done = true; if (!draft.start) draft.start = Date.now(); saveDraft();
     const doneAll = arr.filter(x => x?.done).length >= it.sets;
     const day = activePlan().days.find(d => d.sid === draft.sid);
