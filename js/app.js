@@ -1056,10 +1056,12 @@ views.demo = (ex) => {
 // ---------- Execução do treino ----------
 // rascunho do treino em andamento fica guardado no aparelho (sobrevive a fechar o app no meio da série)
 const DRAFT_KEY = 'ronin:draft';
-let draft = (() => { try { const d = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null'); if (!d || typeof d.sid !== 'string' || !d.sets || typeof d.sets !== 'object') return null; for (const k of Object.keys(d.sets)) { if (!EXERCISES[k] || !Array.isArray(d.sets[k])) delete d.sets[k]; else d.sets[k] = d.sets[k].map(x => x && typeof x === 'object' ? x : {}); } d.start = +d.start || Date.now(); d.name = String(d.name || 'Treino'); return d; } catch (e) { return null; } })();
+let draft = (() => { try { const d = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null'); if (!d || typeof d.sid !== 'string' || !d.sets || typeof d.sets !== 'object') return null; for (const k of Object.keys(d.sets)) { if (!EXERCISES[k] || !Array.isArray(d.sets[k])) delete d.sets[k]; else d.sets[k] = d.sets[k].map(x => x && typeof x === 'object' ? x : {}); } d.start = Object.values(d.sets).flat().some(x => x && x.done) ? (+d.start || Date.now()) : null; d.date = Object.values(d.sets).flat().some(x => x && x.reps) ? d.date : today(); d.name = String(d.name || 'Treino'); return d; } catch (e) { return null; } })();
 function saveDraft() { try { draft ? localStorage.setItem(DRAFT_KEY, JSON.stringify(draft)) : localStorage.removeItem(DRAFT_KEY); } catch (e) { } }
 const lastFor = (ex, beforeId) => { for (let i = S.logs.workouts.length - 1; i >= 0; i--) { const w = S.logs.workouts[i]; if (w.id === beforeId) continue; const a = w.sets?.[ex]; if (Array.isArray(a) && a.some(x => x && +x.reps > 0)) return { sets: a.filter(x => x && typeof x === 'object'), date: String(w.date || '') }; } return null; };
 const setsTxt = sets => sets.filter(s => s && s.reps).map(s => `${s.kg ? fmt(s.kg) + '×' : ''}${s.reps}`).join(', ');
+const elapsed = () => draft?.start ? (Date.now() - draft.start) / 1000 : 0;
+const clockTxt = () => draft?.start ? '⏱ ' + mmss(elapsed()) : '⏱ começa na 1ª série';
 const mmss = sec => `${Math.floor(sec / 60)}:${String(Math.floor(sec % 60)).padStart(2, '0')}`;
 let noteOpen = null;
 const draftDone = () => Object.values(draft?.sets || {}).flat().filter(x => x && x.reps).length;
@@ -1078,11 +1080,11 @@ views.sessao = (idx) => {
       ${di >= 0 ? `<a class="btn primary block" href="#sessao-${di}">Continuar ${esc(draft.name)}</a>` : ''}<a class="btn block" href="#resumo">Ver resumo e salvar</a>
       <button class="linkbtn center-link" data-act="discardWorkout" data-then="${+idx}">Descartar e começar ${esc(day.name)}</button></div>`;
   }
-  if (!draft || draft.sid !== day.sid) { draft = { idx: day.idx, key: day.key, sid: day.sid, rid: plan.routine.id, name: day.name, date: today(), start: Date.now(), sets: {}, open: 0 }; saveDraft(); }
+  if (!draft || draft.sid !== day.sid) { draft = { idx: day.idx, key: day.key, sid: day.sid, rid: plan.routine.id, name: day.name, date: today(), start: null, sets: {}, open: 0 }; saveDraft(); }
   const planned = day.items.reduce((a, b) => a + b.sets, 0);
   const doneN = day.items.reduce((a, it) => a + (draft.sets[it.ex] || []).filter(x => x?.done).length, 0);
   return `<section class="head"><div><a href="#treino" class="backlink">← Força</a><h1>${esc(day.name)}</h1></div><a class="chip" href="#ver-${day.idx}">Ver treino</a></section>
-  <div class="card sprog" id="sprog"><div class="row between"><b class="mono">${doneN} de ${planned} séries</b><span class="mono" id="sessClock">⏱ ${mmss((Date.now() - draft.start) / 1000)}</span></div>
+  <div class="card sprog" id="sprog"><div class="row between"><b class="mono">${doneN} de ${planned} séries</b><span class="mono" id="sessClock">${clockTxt()}</span></div>
     <div class="kbar"><div style="width:${planned ? Math.round(doneN / planned * 100) : 0}%"></div></div>
     <small class="muted">Aqueça 5–10 min e faça 1–2 séries leves no primeiro composto. Potência primeiro, sempre descansado.</small></div>
   ${day.items.map((it, xi) => {
@@ -1128,7 +1130,7 @@ const prevSame = (w) => { for (let i = S.logs.workouts.length - 1; i >= 0; i--) 
 views.resumo = () => {
   if (!draft) { location.hash = '#treino'; return ''; }
   const w = { ...draft, sets: cleanSets(draft.sets) }, st = workoutStats(w), pv = prevSame(w), ps = pv ? workoutStats(pv) : null;
-  const dur = Math.round((Date.now() - draft.start) / 60000);
+  const dur = Math.round(elapsed() / 60);
   const cmp = (a, b, u = '') => b == null ? '' : ` <small class="${a > b ? 'up' : a < b ? 'down' : 'muted'}">${a > b ? '+' : ''}${fmt(a - b, 0)}${u} vs última</small>`;
   return `<section class="head"><h1>Resumo</h1></section>
   <div class="card glow"><h3>${esc(draft.name)}</h3>
@@ -1160,12 +1162,12 @@ function restTick() {
     <div class="rb-row"><div class="grow"><small>${doneNow ? 'Descanso acabou' : 'Descanso'}${REST.label ? ' · ' + esc(REST.label) : ''}</small><b class="mono">${doneNow ? 'Bora!' : mmss(Math.ceil(REST.left))}</b></div>
     ${doneNow ? '<button data-act="restSkip">OK</button>' : `<button data-act="restAdj" data-d="-15" aria-label="Menos 15 segundos">−15</button><button data-act="restAdj" data-d="15" aria-label="Mais 15 segundos">+15</button>
     <button data-act="restPause" aria-label="${REST.paused ? 'Continuar' : 'Pausar'}">${REST.paused ? '▶' : '❚❚'}</button><button data-act="restReset" aria-label="Reiniciar">↺</button><button data-act="restSkip">Pular</button>`}</div>`;
-  const clk = $('#sessClock'); if (clk && draft) clk.textContent = '⏱ ' + mmss((Date.now() - draft.start) / 1000);
+  const clk = $('#sessClock'); if (clk && draft) clk.textContent = clockTxt();
   if (doneNow && REST.iv && !REST.rang) { REST.rang = true; bell(1); }
   if (!doneNow) REST.rang = false;
 }
 // relógio da sessão mesmo sem descanso rolando
-setInterval(() => { const c = $('#sessClock'); if (c && draft) c.textContent = '⏱ ' + mmss((Date.now() - draft.start) / 1000); }, 1000);
+setInterval(() => { const c = $('#sessClock'); if (c && draft) c.textContent = clockTxt(); }, 1000);
 
 // ---------------- Timer ----------------
 const TM = { phase: 'idle', round: 0, end: 0, left: 0, paused: false, iv: null, warned: false, combo: '', nextCall: 0 };
@@ -1867,7 +1869,7 @@ document.addEventListener('click', async e => {
   if (a === 'saveWorkout') {
     if (!draft) return; const sets = cleanSets(draft.sets), n = Object.values(sets).flat().filter(x => x.reps).length; if (!n) return;
     const note = ($('#wNote')?.value || '').trim().slice(0, 300);
-    S.logs.workouts.push({ id: newId(), idx: draft.idx, key: draft.key, sid: draft.sid, rid: draft.rid, name: draft.name, date: draft.date, start: draft.start, dur: Math.round((Date.now() - draft.start) / 1000), sets, ...(note ? { note } : {}) });
+    S.logs.workouts.push({ id: newId(), idx: draft.idx, key: draft.key, sid: draft.sid, rid: draft.rid, name: draft.name, date: draft.date, start: draft.start || Date.now(), dur: Math.round(elapsed()), sets, ...(note ? { note } : {}) });
     draft = null; saveDraft(); restStop(); save(); toast(`Treino salvo: ${n} séries`); location.hash = '#treino';
   }
   if (a === 'discardWorkout') {
@@ -1885,7 +1887,7 @@ document.addEventListener('click', async e => {
     if (kgI && kgI.value) v.kg = num(kgI.value);
     if (rI && rI.value) v.reps = num(rI.value);
     if (!v.reps) { toast('Digite as repetições feitas'); rI?.focus(); return; }
-    v.done = true; saveDraft();
+    v.done = true; if (!draft.start) draft.start = Date.now(); saveDraft();
     const doneAll = arr.filter(x => x?.done).length >= it.sets;
     const day = activePlan().days.find(d => d.sid === draft.sid);
     if (doneAll && +el.dataset.i < day.items.length - 1) { draft.open = +el.dataset.i + 1; saveDraft(); }
