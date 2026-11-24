@@ -32,7 +32,8 @@ function activePlan() {
   const r = activeRoutine(), p = S.profile, startLvl = p.experience === 'iniciante' ? 0 : 1, gp = goalParams(p);
   // ciclo: volume sobe semana a semana (dentro do tempo da sessão) e a cada 4–5 semanas vem uma semana leve
   const ci = cycleNow(), rd = readiness(S.logs.workouts, today()), tg = weeklyTargets(p, ci, rd), auto = p.autoVol !== false;
-  const fit = auto ? fitVolume(r.sessions, p, tg, ci, { trim: r.auto, custom: !r.auto, goal: gp.g }) : null;
+  const freq = r.auto ? r.sessions.length : Math.max(1, Math.round(+r.freq) || r.sessions.length), mult = r.sessions.length ? freq / r.sessions.length : 1;
+  const fit = auto ? fitVolume(r.sessions, p, tg, ci, { trim: r.auto, custom: !r.auto, goal: gp.g, mult }) : null;
   const sessions = fit ? fit.days : r.sessions;
   const days = sessions.map((s, i) => ({ key: s.key || s.id, sid: s.id, idx: i, name: s.name, min: sessionMin(s.items), items: s.items.map((it, j) => {
     const e = EXERCISES[it.ex], lvl = e.vars ? Math.min(e.vars.length - 1, S.prog[it.ex] ?? startLvl) : null;
@@ -41,8 +42,8 @@ function activePlan() {
     return { ...it, base, lvl, name: (e.vars ? e.vars[lvl] : e.n) + (bl ? ` (${bl})` : ''), bodyCare: bc, rir: e.t === 'power' ? null : ci.deload && auto ? '3–4' : e.t === 'comp' ? gp.rir : (gp.lv === 'iniciante' ? '2–3' : '1–2'), restS: it.rest, rest: fmtRest(it.rest), care: careOf(p, it.ex) };
   }) }));
   const vol = Object.fromEntries(Object.keys(MUSCLES).map(m => [m, 0]));
-  for (const d of days) for (const it of d.items) for (const [m, f] of Object.entries(EXERCISES[it.ex].m)) vol[m] += it.sets * f;
-  return { routine: r, split: r.auto ? r.splitName : r.name, days, vol, home: p.env === 'casa', none: r.auto ? r.none : !days.length,
+  for (const d of days) for (const it of d.items) for (const [m, f] of Object.entries(EXERCISES[it.ex].m)) vol[m] += it.sets * f * mult;
+  return { routine: r, freq, split: r.auto ? r.splitName : r.name, days, vol, home: p.env === 'casa', none: r.auto ? r.none : !days.length,
     auto, gp, ci, rd, bk: blockNow(), tg: fit?.tg || tg, limited: fit?.limited || [], uncovered: fit?.uncovered || [], dropped: fit?.dropped || [], swapped: r.swapped || [] };
 }
 // ---------- Condições de saúde ----------
@@ -851,6 +852,7 @@ document.addEventListener('change', e => {
       if (f === 'rest') it.rest = Math.max(0, Math.min(600, v)); });
   }
   if (t.dataset?.rtname) { const n = t.value.trim().slice(0, 40); if (n) editRoutine(r => { const s = r.sessions.find(x => x.id === t.dataset.rtname); if (s) s.name = n; }); }
+  if (t.id === 'rtFreq') { const n = Math.max(1, Math.min(7, +t.value || 1)); editRoutine(r => { r.freq = n; }); return; }
   if (t.id === 'rtName') { const n = t.value.trim().slice(0, 40); if (n) editRoutine(r => { r.name = n; }); }
 });
 document.addEventListener('input', e => {
@@ -972,7 +974,7 @@ views.treino = () => {
   <div class="card rcard" id="t-rotina">
     <div class="row between"><small class="cat">Minha rotina</small><span class="rbadge">Ativa</span></div>
     <h2>${esc(r.auto ? plan.split : r.name)}</h2>
-    <p class="small muted">${plan.days.length} ${plan.days.length === 1 ? 'sessão' : 'sessões'} por semana${r.auto ? ' · recomendada pelo seu perfil, se ajusta sozinha' : r.split !== 'custom' ? ' · ' + esc(SPLIT_DEFS[r.split].n) : ''}${plan.home ? ' · em casa' : ''}</p>
+    <p class="small muted">${plan.freq} ${plan.freq === 1 ? 'treino' : 'treinos'} por semana${plan.freq > plan.days.length ? ` · ${esc(plan.days.map(d => d.name.split(' ').pop()).join(' e '))} alternando` : ''}${r.auto ? ' · recomendada pelo seu perfil, se ajusta sozinha' : r.split !== 'custom' ? ' · ' + esc(SPLIT_DEFS[r.split].n) : ''}${plan.home ? ' · em casa' : ''}</p>
     ${cycleBox(plan)}
     ${plan.days.length ? `<ul class="rsess">${plan.days.map((d, i) => { const last = lastDoneOf(d.sid), mus = musclesOf(d.items).slice(0, 3); return `<li class="${i === nx ? 'next' : ''}">
       <span class="rday">DIA ${i + 1}</span>
@@ -1022,19 +1024,21 @@ function doneVolume() {
   return v;
 }
 function weekCard(plan) {
-  const ws = weekStart(), we = addDay(ws, 6), wk = S.logs.workouts.filter(w => w.date >= ws && w.date <= we);
-  const doneSids = new Set(wk.map(w => w.sid)), done = plan.days.filter(d => doneSids.has(d.sid)).length;
+  const ws = weekStart(), we = addDay(ws, 6), wk = S.logs.workouts.filter(w => w.date >= ws && w.date <= we).sort(byWhen);
+  const freq = plan.freq || plan.days.length, n = plan.days.length, done = Math.min(wk.length, freq);
   const liftedToday = wk.some(w => w.date === today());
-  // próxima = primeira da ordem que ainda não foi feita; uma sessão por dia
-  const nextI = plan.days.findIndex(d => !doneSids.has(d.sid));
-  const left = plan.days.length - done, daysLeft = Math.round((new Date(we + 'T12:00') - new Date(today() + 'T12:00')) / 864e5) + (liftedToday ? 0 : 1);
-  const tag = (d, i) => { if (doneSids.has(d.sid)) { const w = wk.filter(x => x.sid === d.sid).pop(); return w.date === today() ? 'feita hoje' : 'feita ' + fmtDay(w.date).split(' ')[0]; }
-    return i === nextI ? (liftedToday ? 'próxima · amanhã ou depois' : 'próxima · pode ser hoje') : 'depois'; };
-  const strip = Array.from({ length: 7 }, (_, i) => { const k = addDay(ws, i), n = wk.filter(w => w.date === k).length; return `<span class="wd ${n ? 'on' : ''} ${k === today() ? 'now' : ''}"><small>${'STQQSSD'[i]}</small><i>${n ? '●' : ''}</i></span>`; }).join('');
-  const note = !left ? 'Semana fechada. Agora é recuperar.' : left > daysLeft ? `Faltam ${left} sessões e ${daysLeft} ${daysLeft === 1 ? 'dia' : 'dias'} na semana: tudo bem pular, não junte duas no mesmo dia.` : 'Uma sessão por dia, na ordem, com descanso entre elas. Não tem dia fixo.';
-  return `<div class="card" id="t-semana"><div class="row between"><h3>Esta semana</h3><b class="mono">${done}/${plan.days.length}</b></div>
+  // vagas da semana: as feitas (na ordem) e depois as próximas sessões da rotina em sequência (A, B, A, B…)
+  const nx = nextSessionIdx(plan), slots = [];
+  for (let i = 0; i < freq; i++) {
+    if (i < done) { const w = wk[i]; slots.push({ name: w.name || 'Treino', ok: true, tag: w.date === today() ? 'feito hoje' : 'feito ' + fmtDay(w.date).split(' ')[0] }); }
+    else { const d = plan.days[(nx + i - done) % Math.max(1, n)]; if (d) slots.push({ name: d.name, ok: false, next: i === done, tag: i === done ? (liftedToday ? 'próximo · amanhã ou depois' : 'próximo · pode ser hoje') : 'depois' }); }
+  }
+  const left = freq - done, daysLeft = Math.round((new Date(we + 'T12:00') - new Date(today() + 'T12:00')) / 864e5) + (liftedToday ? 0 : 1);
+  const strip = Array.from({ length: 7 }, (_, i) => { const k = addDay(ws, i), c = wk.filter(w => w.date === k).length; return `<span class="wd ${c ? 'on' : ''} ${k === today() ? 'now' : ''}"><small>${'STQQSSD'[i]}</small><i>${c ? '●' : ''}</i></span>`; }).join('');
+  const note = !left ? 'Semana fechada. Agora é recuperar.' : left > daysLeft ? `Faltam ${left} treinos e ${daysLeft} ${daysLeft === 1 ? 'dia' : 'dias'} na semana: tudo bem pular, não junte dois no mesmo dia.` : `Um treino por dia, ${freq > n ? 'alternando as sessões' : 'na ordem'}. Você escolhe os dias.`;
+  return `<div class="card" id="t-semana"><div class="row between"><h3>Esta semana</h3><b class="mono">${done}/${freq}</b></div>
     <div class="wstrip">${strip}</div>
-    ${plan.days.length ? `<ul class="wlist">${plan.days.map((d, i) => `<li class="${doneSids.has(d.sid) ? 'ok' : i === nextI ? 'nx' : ''}"><span>${doneSids.has(d.sid) ? '✓' : '○'}</span>${esc(d.name)}<small>${esc(tag(d, i))}</small></li>`).join('')}</ul>` : ''}
+    ${slots.length ? `<ul class="wlist">${slots.map(x => `<li class="${x.ok ? 'ok' : x.next ? 'nx' : ''}"><span>${x.ok ? '✓' : '○'}</span>${esc(x.name)}<small>${esc(x.tag)}</small></li>`).join('')}</ul>` : ''}
     <small class="muted">${esc(note)}</small></div>`;
 }
 let volMode = 'done';
@@ -1146,7 +1150,9 @@ views.rotina = () => {
       ${rtSwap === key ? `<div class="subs"><small class="muted">Substituir por (o histórico do anterior continua salvo):</small><div class="chips">${alternatives(S.profile, it).slice(0, 12).map(a => `<button class="chipbtn ${a.ok ? '' : 'bad'}" data-act="rtSwap" data-k="${key}" data-ex="${a.id}">${esc(EXERCISES[a.id].n)}${a.ok ? '' : ' · precisa de equipamento'}</button>`).join('') || '<span class="small muted">Sem alternativas.</span>'}</div></div>` : ''}</li>`; };
   return `<section class="head"><div><a href="#treino" class="backlink">← Força</a><h1>Editar rotina</h1></div></section>
   ${r.auto ? '<p class="note small">Essa é a rotina recomendada pelo perfil. Ao mudar qualquer coisa, ela vira sua e para de se ajustar sozinha.</p>' : ''}
-  <div class="card"><label>Nome da rotina<input id="rtName" value="${esc(r.auto ? 'Minha rotina' : r.name)}" maxlength="40"></label></div>
+  <div class="card"><label>Nome da rotina<input id="rtName" value="${esc(r.auto ? 'Minha rotina' : r.name)}" maxlength="40"></label>
+    <label>Treinos por semana <select id="rtFreq">${[1, 2, 3, 4, 5, 6, 7].map(n => `<option value="${n}" ${n === (r.auto ? r.sessions.length : (+r.freq || r.sessions.length)) ? 'selected' : ''}>${n}x${n > r.sessions.length && r.sessions.length ? ' (sessões alternando)' : ''}</option>`).join('')}</select></label>
+    <small class="muted">Pode ser mais que o número de sessões: com A e B em 4 dias, você faz A, B, A, B. Escolha os dias você mesmo; o app só pede um por dia.</small></div>
   ${r.sessions.map((s, si) => `<div class="card rsession" id="rs-${s.id}" data-si="${si}">
     <div class="row between"><input class="rsname" data-rtname="${s.id}" value="${esc(s.name)}" maxlength="40" aria-label="Nome da sessão ${si + 1}"><span class="rday">DIA ${si + 1}</span></div>
     <ul class="list ritems">${s.items.map((it, i) => itemRow(s, it, i)).join('') || '<li class="muted small">Sem exercícios ainda.</li>'}</ul>

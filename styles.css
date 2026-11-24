@@ -127,7 +127,7 @@ input:focus,select:focus,textarea:focus{box-shadow:3px 3px 0 var(--acc)}
 .equip legend{font-weight:900;font-size:12.5px;padding:0 6px}
 .check{flex-direction:row!important;align-items:center}
 .check input{position:absolute;opacity:0;width:0;height:0}
-.check span{border:2px solid var(--ink);padding:6px 10px;font-size:13px;background:var(--sheet);cursor:pointer;color:var(--ink)}
+.check span{display:inline-block;line-height:1.35;max-width:100%;border:2px solid var(--ink);padding:6px 10px;font-size:13px;background:var(--sheet);cursor:pointer;color:var(--ink)}
 .check input:checked+span{background:var(--ink);color:var(--sheet)}
 .check input:focus-visible+span{box-shadow:3px 3px 0 var(--acc)}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:2.5px solid var(--ink);background:var(--sheet);color:var(--ink);font:900 14px var(--font);

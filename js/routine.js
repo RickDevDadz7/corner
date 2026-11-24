@@ -7,7 +7,7 @@ import { avoidSet, goalParams, repsFor, restFor, usable } from './periodize.js';
 import { caps, bodyOk } from './health.js';
 
 export const SPLIT_DEFS = {
-  fb: { n: 'Full Body', d: 'Corpo inteiro em toda sessão. Cada músculo 2 a 3 vezes por semana com poucos dias. Combina bem com esporte.', opts: { 1: ['A'], 2: ['A', 'B'], 3: ['A', 'B', 'C'] } },
+  fb: { n: 'Full Body', d: 'Corpo inteiro em toda sessão. Cada músculo 2 a 3 vezes por semana com poucos dias. Combina bem com esporte. De 4x pra cima, os treinos alternam (A, B, A, B…).', opts: { 1: ['A'], 2: ['A', 'B'], 3: ['A', 'B', 'C'], 4: ['A', 'B'], 5: ['A', 'B', 'C'], 6: ['A', 'B', 'C'] } },
   ul: { n: 'Superior / Inferior', d: 'Alterna parte de cima e parte de baixo. Com 4 sessões, cada músculo treina 2 vezes por semana.', opts: { 2: ['U1', 'L1'], 4: ['U1', 'L1', 'U2', 'L2'] } },
   mix: { n: 'Sup/Inf + PPL', d: 'Superior, Inferior, Empurrar, Puxar e Pernas: 5 sessões, cada músculo cerca de 2 vezes.', opts: { 5: ['U1', 'L1', 'PU', 'PL', 'LG'] } },
   ppl: { n: 'Empurrar / Puxar / Pernas', d: 'Empurrar = peito, ombros e tríceps. Puxar = costas e bíceps. Pernas. Com 3 dias cada músculo treina 1 vez; com 6, 2 vezes.', opts: { 3: ['PU', 'PL', 'LG'], 6: ['PU', 'PL', 'LG', 'PU', 'PL', 'LG'] } },
@@ -48,7 +48,8 @@ export function genRoutine(p, split, days, name) {
     seen[k] = (seen[k] || 0) + 1; if (keys.filter(x => x === k).length > 1) s.name += ` ${seen[k]}`;
     return s;
   });
-  return { id: 'r' + Math.random().toString(36).slice(2, 9), name: name || `${def.n}${keys.length > 1 ? ` ${keys.length}x` : ''}`, split, t: Date.now(), sessions };
+  const freq = split === 'custom' ? 1 : Math.max(keys.length, +days || keys.length);
+  return { id: 'r' + Math.random().toString(36).slice(2, 9), name: name || `${def.n}${freq > 1 ? ` ${freq}x` : ''}`, split, t: Date.now(), freq, sessions };
 }
 
 // recomendação explicável a partir do perfil
@@ -74,7 +75,8 @@ export function cleanRoutine(r) {
       return { ex: it.ex, slot: typeof it.slot === 'string' ? it.slot.slice(0, 20) : undefined, sets: INT(it.sets, 1, 10, 3), lo, hi, rest: INT(it.rest, 0, 600, restOf(EXERCISES[it.ex])) };
     })
   }));
-  return { id: r.id, name: String(r.name || 'Minha rotina').slice(0, 40), split: SPLIT_DEFS[r.split] ? r.split : 'custom', t: Number(r.t) || 0, sessions };
+  // freq = treinos por semana; pode ser maior que o número de sessões (A e B alternando em 4 dias)
+  return { id: r.id, name: String(r.name || 'Minha rotina').slice(0, 40), split: SPLIT_DEFS[r.split] ? r.split : 'custom', t: Number(r.t) || 0, freq: INT(r.freq, 1, 7, Math.max(1, sessions.length)), sessions };
 }
 
 // alternativas compatíveis: mesma vaga primeiro, depois mesmo músculo principal; marca o que precisa de equipamento que a pessoa não tem

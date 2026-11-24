@@ -208,7 +208,8 @@ export function fitVolume(days, p, tgIn, ci, opt = {}) {
   const adj = it => ['comp', 'iso'].includes(EXERCISES[it.ex].t);
   const isMain = it => MAIN_SLOTS.has(it.slot) || (!it.slot && EXERCISES[it.ex].t === 'comp' && !!EXERCISES[it.ex].inc);
   const maxS = it => EXERCISES[it.ex].t === 'comp' ? 5 : 4;
-  const vol = () => { const v = Object.fromEntries(FOCUS_MUSCLES.map(m => [m, 0])); for (const d of out) for (const it of d.items) for (const [m, f] of Object.entries(EXERCISES[it.ex].m)) if (m in v) v[m] += it.sets * f; return v; };
+  const mult = opt.mult || 1; // sessões repetidas na semana (A/B em 4 dias = cada uma 2x)
+  const vol = () => { const v = Object.fromEntries(FOCUS_MUSCLES.map(m => [m, 0])); for (const d of out) for (const it of d.items) for (const [m, f] of Object.entries(EXERCISES[it.ex].m)) if (m in v) v[m] += it.sets * f * mult; return v; };
   const direct = m => out.some(d => d.items.some(it => adj(it) && (EXERCISES[it.ex].m[m] || 0) >= 1));
   if (ci.deload) {
     for (const d of out) for (const it of d.items) { const t = EXERCISES[it.ex].t; it.sets = t === 'power' ? Math.min(it.sets, 2) : Math.max(1, Math.round(it.sets * 0.5)); }
