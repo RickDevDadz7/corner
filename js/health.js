@@ -13,7 +13,7 @@ const JUMPS = ['jump', 'broad', 'skater', 'pogo', 'plyopush', 'medslam'];
 const SUPINE = ['bp', 'incbp', 'dbfp', 'fly', 'skull', 'dbpullover', 'legraiseb', 'hollow', 'sgb', 'slide', 'ht'];
 const FLEX_LOADED = ['crunchcable', 'russian', 'legraiseb', 'hlr', 'abwheel'];
 
-export const COND_GROUPS = { meta: 'Metabolismo', cardio: 'Coração e pressão', osso: 'Ossos e articulações', dig: 'Digestão', outro: 'Outras' };
+export const COND_GROUPS = { meta: 'Metabolismo', cardio: 'Coração e pressão', osso: 'Ossos e articulações', coluna: 'Coluna', dig: 'Digestão', outro: 'Outras' };
 export const CONDITIONS = {
   diabetes1: { n: 'Diabetes tipo 1', g: 'meta', restr: ['acucar'],
     diet: ['Conte o carboidrato de cada refeição pra acertar a insulina; o app mostra os gramas de cada item.', 'Prefira carboidrato com fibra (feijão, aveia, fruta inteira) e distribua ao longo do dia.'],
@@ -48,6 +48,15 @@ export const CONDITIONS = {
   fibromialgia: { n: 'Fibromialgia', g: 'osso', conservative: true, rir: '3–4',
     diet: ['Sem dieta específica comprovada: foque em comida de verdade e sono regular.'],
     train: ['Comece leve e suba devagar: exercício é um dos tratamentos com melhor evidência, mas exagero piora a dor por dias.'] },
+  escoliose: { n: 'Escoliose (coluna curvada pro lado)', g: 'coluna',
+    diet: [],
+    train: ['Força e core ajudam na dor e na postura. Treino não "endireita" a coluna, mas exercício específico pode frear a curva e melhorar a função.', 'Desenhe sua coluna no perfil: o app diz o lado da curva e monta os complementares.'] },
+  cifose: { n: 'Cifose (costas arredondadas)', g: 'coluna',
+    diet: [],
+    train: ['Pelo menos uma série de puxar pra cada série de empurrar: costas fortes seguram os ombros pra trás.', 'Mobilidade da parte alta das costas e alongamento do peitoral, de preferência todo dia.', 'Cifose rígida ou com dor (ex.: Scheuermann): acompanhe com fisioterapeuta.'] },
+  lordose: { n: 'Hiperlordose (lombar muito curvada)', g: 'coluna', care: ['hipext', 'superman', 'gm', 'ohp'],
+    diet: [],
+    train: ['Antes de agachar ou levantar peso, ative glúteo e abdômen (ponte, dead bug).', 'Peso acima da cabeça: costelas "pra baixo" e glúteo contraído, sem arquear a lombar.', 'Alongue o flexor do quadril, que costuma estar encurtado.'] },
   celiaco: { n: 'Doença celíaca', g: 'dig', restr: ['celiaca'],
     diet: ['Zero glúten, inclusive traços: confira "contém glúten" no rótulo e cuidado com contaminação (mesma tábua, mesma fritura).', 'Aveia só se for certificada sem glúten.'],
     train: ['Treino normal. Com anemia ou baixa absorção no começo do tratamento, vá com calma.'] },
@@ -108,7 +117,9 @@ export const NEEDS = {
   legraiseb: N(0, 1, 0, 1), sideplank: N(1, 1, 0, 1), birddog: N(2, 2, 0, 1), russian: N(0, 0, 0, 1), woodchop: N(1, 0), superman: N(0, 0, 0, 1),
   broad: N(0, 2, 1), skater: N(0, 2, 1), medslam: N(2, 2, 1),
   wcdip: N(2, 0), sbpress: N(1, 0), sitstand: N(0, 2), wallpush: N(2, 0, 1), suitcase: N(1, 2, 1),
-  fsq: N(2, 2, 1), gm: N(2, 2, 1), sled: N(2, 2, 1), rope: N(1, 0), mbo: N(2, 0), bandohp: N(1, 0), seatcrunch: N(1, 0)
+  fsq: N(2, 2, 1), gm: N(2, 2, 1), sled: N(2, 2, 1), rope: N(1, 0), mbo: N(2, 0), bandohp: N(1, 0), seatcrunch: N(1, 0),
+  deadbug: N(0, 0, 0, 1), curlup: N(0, 0, 0, 1), thrrot: N(1, 2, 0, 1), catcamel: N(2, 2, 0, 1), wallangel: N(1, 0), thext: N(0, 0, 0, 1),
+  doorpec: N(1, 0), hipflex: N(0, 2, 0, 1), tke: N(0, 1, 1), wallsit: N(0, 2, 1), latwalk: N(0, 2, 1), balance: N(0, 1, 1), wristfe: N(1, 0)
 };
 // dá pra fazer com o corpo que a pessoa tem?
 export function bodyOk(ex, p, c = caps(p)) {

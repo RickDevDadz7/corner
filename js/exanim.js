@@ -598,6 +598,62 @@ function flatAnimate(el, d, onStep) {
   PAT.copen = { flat: [{ p: cDn, d: 600, step: 0 }, { p: cUp, d: 800, step: 0 }, { p: cUp, d: 1200, step: 1 }, { p: cDn, d: 800, step: 1 }], bench: [0.92, 1.45, 0.4], steps: PAT.copen.steps, frames: [] };
 }
 
+// ==================== Complementares: coluna, postura e reabilitação (v3.27) ====================
+{ // Dead bug: de costas, braços pro teto e pernas em 90°; estica braço e perna opostos
+  const tb = { ...SUP, p: [0, 0.11, 0], lean: -90, fL: [0.36, 0.5, -0.1], fR: [0.36, 0.5, 0.1], kL: [0, 1, 0], kR: [0, 1, 0], tL: [1, 0.3, 0], tR: [1, 0.3, 0], wL: [-0.48, 0.64, -0.2], wR: [-0.48, 0.64, 0.2], eL: [0, 0, -1], eR: [0, 0, 1] };
+  const a1 = P(tb, { wR: [-1.05, 0.16, 0.2], fL: [0.86, 0.14, -0.1], tL: [1, 0, 0] }), a2 = P(tb, { wL: [-1.05, 0.16, -0.2], fR: [0.86, 0.14, 0.1], tR: [1, 0, 0] });
+  def('deadbug', { ox: 20, zoom: 0.92, frames: [F(tb, 400, 0), F(a1, 1100, 0), F(tb, 900, 0), F(a2, 1100, 1), F(tb, 900, 1)], steps: ['Lombar colada no chão: estica um braço pra trás e a perna oposta, devagar', 'Volta e troca. Se a lombar sair do chão, encurta o movimento'] }); }
+{ // Curl-up de McGill: só cabeça e ombros saem do chão
+  const dn = { ...SUP, p: [0, 0.1, 0], lean: -92, fL: [0.42, 0, -0.1], fR: [0.86, 0.05, 0.08], kL: [0, 1, 0], kR: [0, 1, 0], tR: [1, 0.4, 0], wL: [-0.08, 0.04, -0.1], wR: [-0.08, 0.04, 0.1], eL: [0, 0, -1], eR: [0, 0, 1] };
+  const up = P(dn, { lean: -78 });
+  def('curlup', { ox: 20, frames: [F(dn, 500, 0), F(up, 700, 0), F(up, 1600, 1), F(dn, 800, 1)], steps: ['Uma perna dobrada, mãos embaixo da lombar: tira só cabeça e ombros do chão', 'Segura 8–10 s respirando. A lombar não se mexe'],
+    props: () => [{ k: 'badge', text: 'Só cabeça e|ombros sobem' }] }); }
+{ // Rotação torácica em 4 apoios
+  const r0 = P(QUAD, { wL: undefined, hL: [-0.1, 0.3, 0.12], eL: [-0.6, 0, 1], tw: -8 }), r1 = P(r0, { tw: 55, eL: [-1, 0.2, 0.4] });
+  def('thrrot', { cam: 20, tilt: 34, ox: 10, frames: [F(r0, 500, 0), F(r1, 1000, 0), F(r1, 500, 1), F(r0, 900, 1)], steps: ['De quatro, mão atrás da cabeça: gira o cotovelo pro teto e acompanha com o olhar', 'Volta devagar. Quem gira é a parte alta das costas; o quadril fica parado'], props: () => [{ k: 'badge', text: 'Cotovelo|pro teto' }] }); }
+{ // Gato-camelo
+  const cat = P(QUAD, { p: [-0.02, 0.58, 0], lean: 98 }), cow = P(QUAD, { p: [-0.02, 0.48, 0], lean: 80 });
+  def('catcamel', { ox: 10, frames: [F(QUAD, 400, 0), F(cat, 1100, 0), F(cat, 400, 0), F(cow, 1300, 1), F(cow, 400, 1), F(QUAD, 900, 1)], steps: ['De quatro: arredonda as costas pro teto, cabeça desce', 'Depois afunda o peito e olha pra frente. Devagar, sem forçar'],
+    props: () => [{ k: 'badge', text: 'Arredonda ↕|afunda' }] }); }
+{ // Anjo na parede (vista de frente)
+  const w = P(STD, { lean: 0, hL: [-0.04, 0.3, 0.42], hR: [-0.04, 0.3, -0.42], eL: [0, -1, 1], eR: [0, -1, -1] }), y = P(w, { hL: [-0.04, 0.82, 0.3], hR: [-0.04, 0.82, -0.3], eL: [0, 0, 1], eR: [0, 0, -1] });
+  def('wallangel', { cam: 78, frames: [F(w, 400, 0), F(y, 1100, 0), F(y, 300, 1), F(w, 1100, 1)], steps: ['Costas, cabeça e braços na parede: sobe os braços deslizando', 'Desce até os cotovelos ficarem abaixo do ombro, sem descolar nada'],
+    props: () => [{ k: 'line', a: [-0.2, 0, -0.7], b: [-0.2, 0, 0.7], w: 3, c: 'pr', layer: 'back' }, { k: 'badge', text: 'Encostado|na parede' }] }); }
+{ // Extensão torácica no rolo
+  const base = { ...SUP, p: [0, 0.13, 0], fL: [0.45, 0, -0.14], fR: [0.45, 0, 0.14], kL: [0.2, 1, -0.2], kR: [0.2, 1, 0.2], tL: [1, 0, 0], tR: [1, 0, 0], hL: [0.02, 0.34, 0.12], hR: [0.02, 0.34, -0.12], eL: [0.5, 0.3, 1], eR: [0.5, 0.3, -1] };
+  const c0 = P(base, { lean: -62 }), c1 = P(base, { lean: -100 });
+  def('thext', { ox: 25, frames: [F(c0, 500, 0), F(c1, 1200, 0), F(c1, 600, 1), F(c0, 1000, 1)], steps: ['Rolo embaixo das escápulas, mãos atrás da cabeça: estende a parte alta das costas sobre ele', 'Volta. Mude o rolo alguns centímetros e repita. A lombar fica no chão'],
+    props: () => [{ k: 'ball', p: [-0.3, 0.1, 0], r: 0.09, cls: 'dbb' }] }); }
+{ // Alongamento de peitoral na porta
+  const a = P(STD, { p: [-0.12, 0.9, 0], fL: [0.12, 0, -0.13], fR: [-0.32, 0.03, 0.13], tR: [1, -0.4, 0], wR: [-0.05, 1.5, 0.56], eR: [0, -1, 0.3] }), b = P(a, { p: [0.08, 0.89, 0], fL: [0.32, 0, -0.13], lean: 6 });
+  def('doorpec', { cam: 55, frames: [F(a, 500, 0), F(b, 1100, 0), F(b, 1500, 1), F(a, 900, 1)], steps: ['Antebraço no batente, cotovelo na altura do ombro: dá um passo à frente', 'Segura 30–45 s sentindo o peito alongar. Troca de lado'],
+    props: () => [{ k: 'line', a: [-0.05, 0, 0.62], b: [-0.05, 2.0, 0.62], w: 7, c: 'prb', layer: 'back' }] }); }
+{ // Alongamento do flexor do quadril (meio ajoelhado)
+  const a = { p: [-0.02, 0.56, 0], py: 0, cy: 0, lean: -2, fL: [0.46, 0, -0.13], fR: [-0.42, 0.04, 0.13], kL: [1, 0.3, 0], kR: [0, -1, 0], tL: [1, 0, 0], tR: [-1, -0.2, 0], hL: [0.1, -0.42, 0.26], hR: [0.1, -0.42, -0.26] };
+  const b = P(a, { p: [0.12, 0.53, 0], lean: -5 });
+  def('hipflex', { cam: 25, frames: [F(a, 500, 0), F(b, 1100, 0), F(b, 1500, 1), F(a, 900, 1)], steps: ['Meio ajoelhado: aperta o glúteo de trás e leva o quadril à frente', 'Segura 30–45 s sem arquear a lombar. Sente na frente do quadril de trás'] }); }
+{ // Extensão terminal do joelho com elástico
+  const a = P(STD, { p: [-0.06, 0.86, 0], fL: [0.05, 0, -0.13], fR: [0.05, 0, 0.13], kL: [1, 0, -0.1], kR: [1, 0, 0.1], lean: 6 }), b = P(a, { p: [0, 0.9, 0], lean: 2 });
+  def('tke', { cam: 30, frames: [F(a, 400, 0), F(b, 700, 0), F(b, 600, 1), F(a, 800, 1)], steps: ['Elástico atrás do joelho preso à frente: estica o joelho até o fim', 'Segura 1 s apertando a coxa e volta devagar'],
+    props: J => [{ k: 'band', a: J.knR, b: [0.95, 0.45, 0.13] }] }); }
+{ // Isometria na parede
+  const a = { p: [-0.12, 0.5, 0], py: 0, cy: 0, lean: 0, fL: [0.32, 0, -0.13], fR: [0.32, 0, 0.13], kL: [1, 0.2, -0.1], kR: [1, 0.2, 0.1], tL: [1, 0, -0.1], tR: [1, 0, 0.1], hL: [0.25, -0.35, 0.2], hR: [0.25, -0.35, -0.2] };
+  const b = P(a, { p: [-0.12, 0.62, 0] });
+  def('wallsit', { frames: [F(b, 500, 0), F(a, 900, 0), F(a, 2200, 1), F(b, 700, 1)], steps: ['Costas na parede, desce até os joelhos ficarem entre 60° e 90°', 'Segura 30–45 s. Dor até 3 de 10 é aceitável'],
+    props: () => [{ k: 'line', a: [-0.27, 0, 0], b: [-0.27, 1.9, 0], w: 8, c: 'prb', layer: 'back' }] }); }
+{ // Caminhada lateral com elástico (vista de frente)
+  const a = P(ATH, { p: [-0.03, 0.8, 0], fL: [0.05, 0, -0.2], fR: [0.05, 0, 0.2], hL: [0.25, -0.3, 0.12], hR: [0.25, -0.3, -0.12] });
+  const b = P(a, { p: [-0.03, 0.8, 0.12], fR: [0.05, 0, 0.44] }), c = P(a, { p: [-0.03, 0.8, 0.24], fL: [0.05, 0, 0.04], fR: [0.05, 0, 0.44] });
+  def('latwalk', { cam: 80, ox: 25, zoom: 0.92, frames: [F(a, 400, 0), F(b, 600, 0), F(c, 600, 0), F(c, 300, 1)], steps: ['Elástico acima do joelho, meio agachado: passo de lado', 'A outra perna acompanha sem deixar o elástico frouxo. Joelho não entra'],
+    props: J => [{ k: 'band', a: J.knL, b: J.knR }] }); }
+{ // Equilíbrio em uma perna
+  const a = P(STD, { fL: [-0.06, 0.32, -0.1], kL: [1, 0.2, -0.2], tL: [1, -0.6, 0], hL: [0.05, -0.4, 0.35], hR: [0.05, -0.4, -0.35] }), b = P(a, { p: [0.01, 0.9, 0.01], hL: [0.08, -0.36, 0.4] });
+  def('balance', { cam: 45, frames: [F(a, 1200, 0), F(b, 1200, 0), F(a, 1200, 1)], steps: ['Em uma perna, joelho de apoio levemente dobrado', 'Segura 30–45 s. Ficou fácil? Olhos fechados ou almofada'] }); }
+{ // Flexão e extensão de punho
+  const a = P(SEAT, { lean: 22, wR: [0.62, 0.58, 0.12], eR: [0, -1, 0], wL: [0.5, 0.52, -0.13] }), b = P(a, { wR: [0.64, 0.66, 0.12] });
+  def('wristfe', { cam: 30, tilt: 8, frames: [F(a, 400, 0), F(b, 700, 0), F(b, 200, 1), F(a, 1300, 1)], steps: ['Antebraço apoiado na coxa, só o punho sobe', 'Desce em 3 s. Depois repete com a palma pra baixo'],
+    props: J => [{ k: 'db', p: J.haR, d: [0, 0, 1] }, { k: 'badge', palm: 'in', text: 'Palma pra cima,|depois pra baixo' }] }); }
+
 // exercício → demonstração (sombra explosiva usa o cruzado da aba de luta)
 const ALIAS = { plyopush: 'plyopush' };
 export function hasDemo(ex) { return ex === 'shadowx' || !!PAT[ALIAS[ex] || ex]; }

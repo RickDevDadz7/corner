@@ -8,8 +8,9 @@ import { startScan, lookupBarcode } from './scan.js';
 import { SPLIT_DEFS, genRoutine, recommend, cleanRoutine, alternatives, library, musclesOf, fmtRest, repsOf, restOf } from './routine.js';
 import { pickDay, pickMeal, mealKeys, solveDay, dayTargets, measure, shoppingList, shopQty, swapPick, foodByName, SLOTS, candidates, sameCarb } from './menu.js';
 import * as sync from './sync.js';
-import { TGOALS, INJURIES, FOCUS_MUSCLES, tgoalOf, injuriesOf, focusOf, careOf, goalParams, cycleInfo, blockInfo, readiness, weeklyTargets, planFor, fitVolume, sessionMin, stagnant, swapOptions } from './periodize.js';
+import { TGOALS, INJURIES, FOCUS_MUSCLES, usable, tgoalOf, injuriesOf, focusOf, careOf, goalParams, cycleInfo, blockInfo, readiness, weeklyTargets, planFor, fitVolume, sessionMin, stagnant, swapOptions } from './periodize.js';
 import { CONDITIONS, COND_GROUPS, BODY, condsOf, condFlag, condRestr, bodyOf, caps, bodyLabel, bodyCare, bodyNA, bodyFig } from './health.js';
+import { VERT, VY, VR, SAG0, spineOf, spineEmpty, dragSpine, spineSummary, complements, spineTips } from './spine.js';
 const buildPlan = p => plan_(p, S.prog);
 // trocas feitas pela pessoa (exercício estagnado) na rotina recomendada: {de: para}
 const swapsOf = () => { const sw = routinesState().swap; return sw && typeof sw === 'object' ? Object.fromEntries(Object.entries(sw).filter(([a, b]) => EXERCISES[a] && EXERCISES[b])) : {}; };
@@ -934,16 +935,118 @@ function healthBox(p) {
   return `<details class="tfine hbox" id="hbox" ${on ? 'open' : ''}><summary>Saúde e corpo <small>${on ? esc([...cs.map(k => CONDITIONS[k].n.split(' (')[0].split(' /')[0]), ...bd.map(k => BODY[k])].slice(0, 3).join(', ')) + (cs.length + bd.length > 3 ? '…' : '') : 'condições, adaptações'}</small></summary>
     <small class="muted">Marque o que vale pra você: o app adapta treino e dieta. Restrições ligadas (ex.: celíaca → sem glúten) são marcadas sozinhas e dá pra desmarcar.</small>
     ${Object.entries(COND_GROUPS).map(([g, gn]) => `<fieldset class="equip"><legend>${esc(gn)}</legend>${Object.entries(CONDITIONS).filter(([, c]) => c.g === g).map(([k, c]) => `<label class="check"><input type="checkbox" name="cond" value="${k}" ${cs.includes(k) ? 'checked' : ''}><span>${esc(c.n)}</span></label>`).join('')}</fieldset>`).join('')}
+    <p class="spinelnk" ${cs.some(k => SPINE_CONDS.includes(k)) ? '' : 'hidden'}><button type="button" class="btn small block" data-act="spineGo">${spineEmpty(spineOf(p)) ? 'Desenhar' : 'Ajustar'} minha coluna →</button><small class="muted">Salva o perfil e abre o desenho editável das vértebras.</small></p>
     <fieldset class="equip"><legend>Corpo</legend>${Object.entries(BODY).map(([k, v]) => `<label class="check"><input type="checkbox" name="body" value="${k}" ${bd.includes(k) ? 'checked' : ''}><span>${esc(v)}</span></label>`).join('')}
       <small class="muted">O app troca o que não dá pra fazer por versões de um braço, de uma perna ou sentado.</small></fieldset>
     <label class="check"><input type="checkbox" name="bodyFig" ${p.bodyFig === false ? '' : 'checked'}><span>Mostrar os bonecos com o meu corpo</span></label>
     <label class="check consent"><input type="checkbox" name="healthOk" ${p.healthOk ? 'checked' : ''}><span>Autorizo o app a guardar essas informações de saúde pra personalizar meu plano (dá pra apagar quando quiser).</span></label>
   </details>`;
 }
+// ---------- Coluna: desenho editável (escoliose de costas; cifose e lordose de lado) ----------
+const SPINE_CONDS = ['escoliose', 'cifose', 'lordose'];
+let spEdit = null, spView = 'back', spUndo = [], spSel = -1, spConsent = false;
+const spStart = () => { if (!spEdit) { spEdit = spineOf(S.profile); spUndo = []; spSel = -1; } return spEdit; };
+function spineInner(s, view, sel) {
+  const cx = 150, pts = VY.map((y, i) => [view === 'back' ? cx + s.x[i] : cx + SAG0[i] * 1.4 - s.z[i], y]);
+  const line = a => a.map(p => p.map(v => v.toFixed(1)).join(',')).join(' ');
+  const smooth = a => { let d = `M${a[0][0].toFixed(1)} ${a[0][1]}`; for (let i = 1; i < a.length - 1; i++) d += ` Q${a[i][0].toFixed(1)} ${a[i][1]} ${((a[i][0] + a[i + 1][0]) / 2).toFixed(1)} ${(a[i][1] + a[i + 1][1]) / 2}`; return d + ` L${a[a.length - 1][0].toFixed(1)} ${a[a.length - 1][1]}`; };
+  let body = '';
+  if (view === 'back') {
+    const shL = s.sh === 'E' ? 12 : 0, shR = s.sh === 'D' ? 12 : 0, hpL = s.hip === 'E' ? -10 : 0, hpR = s.hip === 'D' ? -10 : 0, top = pts[0], c7 = pts[6], ys = VY[8];
+    // de costas: a esquerda da pessoa fica à esquerda da tela
+    body = `<ellipse cx="${top[0]}" cy="${top[1] - 32}" rx="25" ry="29" class="sp-hd"/>
+      <path d="M${top[0] - 15} ${top[1] - 6} L${c7[0] - 17} ${c7[1]} L${cx - 88} ${ys + shL} L${cx - 96} ${ys + 18 + shL} L${cx - 98} ${VY[21]}" class="sp-body"/>
+      <path d="M${top[0] + 15} ${top[1] - 6} L${c7[0] + 17} ${c7[1]} L${cx + 88} ${ys + shR} L${cx + 96} ${ys + 18 + shR} L${cx + 98} ${VY[21]}" class="sp-body"/>
+      <path d="M${cx - 78} ${ys + 26 + shL} Q${cx - 64} ${VY[19]} ${cx - 76} ${VY[23] + 18 + hpL}" class="sp-body"/>
+      <path d="M${cx + 78} ${ys + 26 + shR} Q${cx + 64} ${VY[19]} ${cx + 76} ${VY[23] + 18 + hpR}" class="sp-body"/>
+      <path d="M${cx - 76} ${VY[23] + 18 + hpL} L${cx + 76} ${VY[23] + 18 + hpR}" class="sp-hip"/>
+      <line x1="${cx}" y1="${VY[0] - 6}" x2="${cx}" y2="${VY[23] + 14}" class="sp-ref"/>
+      <text x="8" y="16" class="sp-tip">ESQUERDA</text><text x="292" y="16" text-anchor="end" class="sp-tip">DIREITA</text>`;
+  } else {
+    const ref = VY.map((y, i) => [cx + SAG0[i] * 1.4, y]), back = pts.map(([x, y], i) => [x - (i < 7 ? 16 : i < 19 ? 26 : 22), y]);
+    body = `<circle cx="${pts[0][0] + 18}" cy="${pts[0][1] - 30}" r="26" class="sp-hd"/><path d="M${pts[0][0] + 42} ${pts[0][1] - 32} l9 5 l-8 3" class="sp-body"/>
+      <path d="${smooth([[back[0][0] + 4, back[0][1] - 8], ...back, [back[23][0] - 16, back[23][1] + 22], [cx - 4, VY[23] + 46]])}" class="sp-body"/>
+      <path d="M${pts[6][0] + 22} ${VY[6]} Q${cx + 70} ${VY[10]} ${cx + 62} ${VY[16]} Q${cx + 56} ${VY[21]} ${cx + 52} ${VY[23] + 30}" class="sp-body"/>
+      <path d="${smooth(ref)}" class="sp-ref"/>
+      <text x="8" y="16" class="sp-tip">COSTAS</text><text x="292" y="16" text-anchor="end" class="sp-tip">FRENTE</text>`;
+  }
+  const reg = [['Cervical', 0, 6], ['Torácica', 7, 18], ['Lombar', 19, 23]].map(([n, a, b]) => `<path d="M24 ${VY[a] - 4} h-6 V${VY[b] + 4} h6" class="sp-brk"/><text x="12" y="${(VY[a] + VY[b]) / 2}" class="sp-reg" transform="rotate(-90 12 ${(VY[a] + VY[b]) / 2})" text-anchor="middle">${n}</text>`).join('');
+  const vs = pts.map(([x, y], i) => `<circle cx="${x.toFixed(1)}" cy="${y}" r="${VR(i)}" class="sp-v ${i === sel ? 'on' : ''}"/>`).join('');
+  const lab = [0, 6, 7, 18, 19, 23].filter(i => i !== sel).map(i => `<text x="${(pts[i][0] + 14).toFixed(1)}" y="${VY[i] + 3}" class="sp-lab">${VERT[i]}</text>`).join('');
+  const sl = sel >= 0 ? `<text x="${(pts[sel][0] + 15).toFixed(1)}" y="${VY[sel] + 4}" class="sp-lab on">${VERT[sel]}</text>` : '';
+  return `${body}${reg}<path d="${smooth(pts)}" class="sp-line"/>${vs}${lab}${sl}`;
+}
+function spineRead(s) {
+  const lines = spineSummary(s);
+  return `<small class="cat">O que o desenho mostra</small>
+    ${lines.length ? `<ul class="small spread">${lines.map(l => `<li>${esc(l)}</li>`).join('')}</ul>` : '<p class="small muted">Coluna sem desvio no desenho.</p>'}
+    <p class="small muted">Estimativa visual pra montar seus exercícios. Não substitui raio-X nem avaliação. Se você tem o ângulo de Cobb do exame, coloque abaixo: ele vale mais que o desenho.</p>`;
+}
+views.coluna = () => {
+  const s = spStart(), back = spView === 'back', seg = (act, cur, opts) => `<div class="segs small">${opts.map(([v, n]) => `<button type="button" data-act="${act}" data-v="${v}" class="${cur === v ? 'on' : ''}">${n}</button>`).join('')}</div>`;
+  return `<section class="head"><h1>Minha coluna</h1><a class="chip" href="#treino">Força</a></section>
+  <div class="card spinecard">
+    ${seg('spView', spView, [['back', 'De costas · escoliose'], ['side', 'De lado · cifose e lordose']])}
+    <p class="small muted">${back ? 'Arraste uma vértebra pro lado até o desenho ficar parecido com a sua coluna vista de costas. As vizinhas acompanham.' : 'A linha tracejada é a curva normal. Arraste pra trás (mais arredondado) ou pra frente (mais curvado pra dentro) onde a sua for diferente.'}</p>
+    <svg viewBox="0 0 300 ${VY[23] + 60}" class="spfig" id="spFig" role="img" aria-label="Desenho editável da coluna">${spineInner(s, spView, spSel)}</svg>
+    <div class="row gap"><button class="btn small ghost" data-act="spUndo" ${spUndo.length ? '' : 'disabled'}>↶ Desfazer</button><button class="btn small ghost" data-act="spReset">Zerar ${back ? 'este lado' : 'esta vista'}</button></div>
+    ${back ? `<div class="spopts"><small>Ombro mais baixo</small>${seg('spSh', s.sh, [['', 'Nenhum'], ['E', 'Esquerdo'], ['D', 'Direito']])}
+      <small>Quadril mais alto</small>${seg('spHip', s.hip, [['', 'Nenhum'], ['E', 'Esquerdo'], ['D', 'Direito']])}
+      <label class="small">Ângulo de Cobb do exame <small>(opcional)</small><input id="spCobb" inputmode="numeric" placeholder="ex.: 22" value="${s.cobb || ''}"></label></div>` : ''}
+  </div>
+  <div class="card" id="spRead">${spineRead(s)}</div>
+  ${S.profile.healthOk ? '' : `<label class="check consent"><input type="checkbox" id="spOk" ${spConsent ? 'checked' : ''}><span>Autorizo o app a guardar essa informação de saúde pra personalizar meu plano (dá pra apagar quando quiser).</span></label>`}
+  <button class="btn primary block" data-act="spineSave">Salvar minha coluna</button>
+  <p class="small muted pad">O app usa o desenho pra escolher os exercícios complementares (lado, região e tipo de curva).</p>`;
+};
+function bindSpine() {
+  const svg = $('#spFig'); if (!svg) return;
+  let drag = null;
+  const pt = e => { const r = svg.getBoundingClientRect(), vb = svg.viewBox.baseVal; return [(e.clientX - r.left) * vb.width / r.width, (e.clientY - r.top) * vb.height / r.height]; };
+  const key = () => spView === 'back' ? 'x' : 'z';
+  const paint = () => { svg.innerHTML = spineInner(spEdit, spView, spSel); };
+  svg.addEventListener('pointerdown', e => {
+    const [x, y] = pt(e); let best = -1, bd = 1e9;
+    VY.forEach((vy, i) => { const d = Math.abs(vy - y); if (d < bd) { bd = d; best = i; } });
+    if (bd > 22) return;
+    spSel = best; drag = { x, snap: [...spEdit[key()]], moved: false };
+    svg.setPointerCapture(e.pointerId); paint(); e.preventDefault();
+  });
+  svg.addEventListener('pointermove', e => {
+    if (!drag) return;
+    const [x] = pt(e), d = x - drag.x; if (Math.abs(d) < 0.5) return;
+    drag.x = x; drag.moved = true;
+    spEdit[key()] = dragSpine(spEdit[key()], spSel, spView === 'back' ? d : -d);
+    paint();
+  });
+  const end = () => {
+    if (!drag) return;
+    if (drag.moved) { spEdit[key()] = spEdit[key()].map(v => Math.round(v)); spUndo.push({ k: key(), a: drag.snap }); if (spUndo.length > 30) spUndo.shift(); $('#spRead').innerHTML = spineRead(spEdit); const u = $('[data-act=spUndo]'); if (u) u.disabled = false; }
+    drag = null; paint();
+  };
+  svg.addEventListener('pointerup', end); svg.addEventListener('pointercancel', end);
+  $('#spCobb')?.addEventListener('input', e => { const v = Math.round(num(e.target.value) || 0); spEdit.cobb = v >= 1 && v <= 120 ? v : 0; $('#spRead').innerHTML = spineRead(spEdit); });
+  $('#spOk')?.addEventListener('change', e => { spConsent = e.target.checked; });
+}
+// exercícios complementares (coluna + lesões) no cartão da Força
+function compCard(p) {
+  const conds = condsOf(p), inj = injuriesOf(p), list = complements(p, conds, inj).filter(i => EXERCISES[i.ex] && usable(i.ex, p)).slice(0, 7), tips = spineTips(p, conds);
+  const spineOn = conds.some(k => SPINE_CONDS.includes(k)), drawn = !spineEmpty(spineOf(p));
+  if (!list.length && !spineOn) return '';
+  return `<div class="card comp" id="t-comp"><small class="cat">Complementares${spineOn ? ' · coluna' : ''}${inj.length ? ' · lesões' : ''}</small>
+    <h3>~${Math.max(5, Math.round(list.length * 1.8))} min, 3 a 5 vezes por semana</h3>
+    <p class="small muted">No fim do treino ou em casa. Dor até 3 de 10 que passa em 24 h é aceitável; mais que isso, pare e procure um fisioterapeuta.</p>
+    ${spineOn && !drawn ? '<p class="care small">Desenhe sua coluna pra o app saber o lado e a região da curva.</p>' : ''}
+    <ul class="clist">${list.map(i => `<li><div class="grow"><b>${esc(EXERCISES[i.ex].n)}</b><span class="cdose small">${esc(i.dose)}</span><small>${esc(i.tag)} · ${esc(i.why)}</small></div>${hasDemo(i.ex) ? `<a class="btn small ghost" href="#demo-${i.ex}">Ver</a>` : ''}</li>`).join('')}</ul>
+    ${tips.map(t => `<p class="small note">${esc(t)}</p>`).join('')}
+    ${spineOn ? `<a class="btn small block" href="#coluna">${drawn ? 'Ajustar' : 'Desenhar'} minha coluna</a>` : ''}
+    <p class="small muted">Exercícios complementares de força e mobilidade. Não substituem fisioterapeuta.</p></div>`;
+}
 function bindHealthBox(form) {
   const box = form.querySelector('#hbox'); if (!box) return;
   box.addEventListener('change', e => {
     const t = e.target; if (t.name !== 'cond') return;
+    const lnk = box.querySelector('.spinelnk'); if (lnk) lnk.hidden = ![...box.querySelectorAll('input[name=cond]:checked')].some(x => SPINE_CONDS.includes(x.value));
     const rd = (() => { try { return JSON.parse(form.restrData.value); } catch (x) { return { perm: [], temp: [] }; } })();
     const keys = [...box.querySelectorAll('input[name=cond]:checked')].map(x => x.value), linked = CONDITIONS[t.value]?.restr || [];
     if (!linked.length) return;
@@ -1017,6 +1120,7 @@ views.treino = () => {
     <div class="row gap"><a class="btn small block" href="#rotina">Editar rotina</a></div>
   </div>
 
+  ${compCard(S.profile)}
   ${r.auto && extras.length ? `<p class="note small">Inclui exercícios específicos pra ${esc(extras.join(' e '))} (pegada, adutor, panturrilha, pescoço…).</p>` : ''}
   ${weekCard(plan)}
   ${volumeCard(plan)}
@@ -1542,7 +1646,7 @@ views.esporte = () => {
   ${SP.ev.map(e => evCard(ev(e))).join('')}`;
 };
 
-let anim = null, techCat = '';
+let anim = null, techCat = '', spineNext = false;
 const techList = () => TECHNIQUES.filter(t => t.sport.includes(curSport()));
 // Tabela de numeração dos socos (o número fica só aqui; as animações usam só o nome)
 const KICK_NAMES = { muaythai: ['teep', 'chute', 'chutebaixo', 'chuteesq', 'joelhada', 'cotovelada'], mma: ['chute', 'chutebaixo', 'double', 'sprawl'] };
@@ -1602,7 +1706,7 @@ function coachContext() {
 REGRAS: Baseie-se em evidência científica. Use as cartas de evidência abaixo como base principal e cite-as pelo título e autor/ano. Se algo não estiver bem estabelecido na literatura, diga que a evidência é limitada. Nunca invente estudos. Não faça diagnósticos médicos; para dor persistente, sintomas após pancada na cabeça, condições de saúde ou cortes de peso agressivos, recomende um profissional. Respostas curtas e práticas (leitura no celular).
 PERFIL: ${p.sex === 'f' ? 'mulher' : 'homem'}, ${p.age} anos, ${p.height} cm, ${latestWeight()} kg${p.bf ? `, ${p.bf}% gordura` : ''}. Objetivo: ${GOALS[p.goal]}. Experiência: ${p.experience}.${activeRestr().length ? ` RESTRIÇÕES (não sugerir nada com isso): ${(() => { const r = restrOfProfile(); return [r.perm.length ? 'para sempre: ' + r.perm.map(k => RESTR[k].n).join(', ') : '', tempOn(r) ? 'temporárias' + (r.until ? ` até ${r.until}` : '') + ': ' + r.temp.map(k => RESTR[k].n).join(', ') : ''].filter(Boolean).join('; '); })()}.` : ''}
 ESPORTES: ${Object.entries(sp).map(([id, s]) => `${SPORTS[id]?.n} ${s.days}x/semana, ${s.min} min, ${SPORTS[id]?.types[s.type]?.n || ''}, ${s.where}`).join('; ') || 'nenhum'}.
-FORÇA: ${p.liftDays}x/semana (${p.env === 'casa' ? 'em casa; equipamento: ' + ((p.equip || []).map(k => EQUIP[k]).join(', ') || 'só peso corporal/calistenia') : 'academia'}). ${Math.round(+p.liftMin) || 45} min/sessão. Objetivo do treino: ${TGOALS[tgoalOf(p)].n}.${injuriesOf(p).length ? ' Poupar: ' + injuriesOf(p).map(k => INJURIES[k].n).join(', ') + '.' : ''}${focusOf(p).length ? ' Prioridade: ' + focusOf(p).map(m => MUSCLES[m]).join(', ') + '.' : ''}${condsOf(p).length ? ' Condições de saúde: ' + condsOf(p).map(k => CONDITIONS[k].n).join(', ') + '.' : ''}${bodyOf(p).length ? ' Corpo: ' + bodyOf(p).map(k => BODY[k]).join(', ') + ' (adapte exercícios).' : ''}
+FORÇA: ${p.liftDays}x/semana (${p.env === 'casa' ? 'em casa; equipamento: ' + ((p.equip || []).map(k => EQUIP[k]).join(', ') || 'só peso corporal/calistenia') : 'academia'}). ${Math.round(+p.liftMin) || 45} min/sessão. Objetivo do treino: ${TGOALS[tgoalOf(p)].n}.${injuriesOf(p).length ? ' Poupar: ' + injuriesOf(p).map(k => INJURIES[k].n).join(', ') + '.' : ''}${focusOf(p).length ? ' Prioridade: ' + focusOf(p).map(m => MUSCLES[m]).join(', ') + '.' : ''}${condsOf(p).length ? ' Condições de saúde: ' + condsOf(p).map(k => CONDITIONS[k].n).join(', ') + '.' : ''}${spineSummary(spineOf(p)).length ? ' Coluna (desenho do usuário, estimativa): ' + spineSummary(spineOf(p)).join(' ') : ''}${bodyOf(p).length ? ' Corpo: ' + bodyOf(p).map(k => BODY[k]).join(', ') + ' (adapte exercícios).' : ''}
 METAS: ${t.kcal} kcal, P ${t.protein} g, C ${t.carbs} g, G ${t.fat} g, água ${t.water} ml. Gasto estimado ${Math.round(t.tdee)} kcal (${t.source}).
 HOJE: consumido ${Math.round(dayFood().k)} kcal, P ${Math.round(dayFood().p)} g.
 CICLO: ${plan.auto ? `ciclo ${plan.ci.cycle}, semana ${plan.ci.week} de ${plan.ci.total}${plan.ci.deload ? ' (semana leve)' : ''}${plan.rd.hold ? ', volume segurado (falhas/dor)' : ''}` : 'progressão automática desligada'}.
@@ -1760,7 +1864,7 @@ function render() {
   const ms = mySports();
   const spLabel = ms.length === 1 ? SPORTS[ms[0]].n : 'Esporte';
   const tabs = [['hoje', 'Hoje'], ['nutri', 'Nutrição'], ['treino', 'Força'], ['esporte', spLabel], ['coach', 'Coach']];
-  $('#nav').innerHTML = tabs.map(([id, label]) => `<a href="#${id}" class="${(v === id || ((v === 'sessao' || v === 'rotinas' || v === 'rotina' || v === 'ver' || v === 'resumo' || v === 'wk' || v === 'evo' || v === 'demo') && id === 'treino') || (v === 'cardapio' && id === 'nutri') || ((v === 'tecnica' || v === 'tecnicas') && id === 'esporte')) ? 'on' : ''}"><svg viewBox="0 0 24 24"><path d="${ICONS[id]}"/></svg><span>${esc(label)}</span></a>`).join('');
+  $('#nav').innerHTML = tabs.map(([id, label]) => `<a href="#${id}" class="${(v === id || ((v === 'sessao' || v === 'rotinas' || v === 'rotina' || v === 'ver' || v === 'resumo' || v === 'wk' || v === 'evo' || v === 'demo' || v === 'coluna') && id === 'treino') || (v === 'cardapio' && id === 'nutri') || ((v === 'tecnica' || v === 'tecnicas') && id === 'esporte')) ? 'on' : ''}"><svg viewBox="0 0 24 24"><path d="${ICONS[id]}"/></svg><span>${esc(label)}</span></a>`).join('');
   bindAfter(v, arg);
   if (window.scrollY !== keepY) window.scrollTo(0, keepY);
   if (v === 'esporte') paintTimer();
@@ -1804,7 +1908,7 @@ function bindAfter(v, arg) {
         sex: g('sex'), age: num(g('age')), height: num(g('height')), weight: num(g('weight')), bf: num(g('bf')), neat: num(g('neat')), goal: g('goal'), rate: num(g('rate')), ceia: ['on', 'off'].includes(g('ceia')) ? g('ceia') : '',
         experience: g('experience'), liftDays: num(g('liftDays')) ?? 0, liftMin: Math.max(15, Math.min(180, num(g('liftMin')) || 40)), env: g('env'), equip: fd.getAll('equip'), sports,
         cond: fd.getAll('cond').filter(k => CONDITIONS[k]), body: fd.getAll('body').filter(k => BODY[k]), bodyFig: !!g('bodyFig'), healthOk: g('healthOk') ? (S.profile?.healthOk || today()) : '',
-        tgoal: TGOALS[g('tgoal')] ? g('tgoal') : '', inj: fd.getAll('inj').filter(k => INJURIES[k]), focus: fd.getAll('focus').filter(m => FOCUS_MUSCLES.includes(m)).slice(0, 3), autoVol: !!g('autoVol')
+        spine: S.profile?.spine, tgoal: TGOALS[g('tgoal')] ? g('tgoal') : '', inj: fd.getAll('inj').filter(k => INJURIES[k]), focus: fd.getAll('focus').filter(m => FOCUS_MUSCLES.includes(m)).slice(0, 3), autoVol: !!g('autoVol')
       };
       let rd = { perm: [], temp: [] }; try { rd = JSON.parse(g('restrData') || '{}'); } catch (e) { }
       const perm = [...new Set((rd.perm || []).filter(k => RESTR[k]))], temp = [...new Set((rd.temp || []).filter(k => RESTR[k] && !perm.includes(k)))];
@@ -1818,9 +1922,12 @@ function bindAfter(v, arg) {
       const first = !S.profile;
       S.profile = p;
       if (first && !S.logs.weights[today()]) { S.logs.weights[today()] = p.weight; S.meta.wt[today()] = Date.now(); } // só no primeiro cadastro: editar o perfil não vira pesagem
-      save(true); toast(first ? 'Plano pronto. Bora.' : 'Perfil atualizado'); location.hash = '#hoje'; rendered = ''; go();
+      save(true); toast(first ? 'Plano pronto. Bora.' : 'Perfil atualizado');
+      if (spineNext) { spineNext = false; spEdit = null; location.hash = '#coluna'; } else location.hash = '#hoje';
+      rendered = ''; go();
     });
   }
+  if (v === 'coluna') bindSpine();
   if (v === 'hoje') {
     $('#weighForm').addEventListener('submit', e => {
       e.preventDefault(); const kg = num(e.target.kg.value), d = curDay();
@@ -1981,6 +2088,16 @@ document.addEventListener('click', async e => {
   if (a === 'theme') { const dark = window.roninTheme?.isDark(); window.roninTheme?.set(dark ? 'light' : 'dark'); toast(dark ? 'Modo claro' : 'Modo escuro'); if (location.hash === '#perfil') render(); return; }
   if (a === 'themeSet') { window.roninTheme?.set(el.dataset.v); render(); return; }
   if (a === 'water') addWater(+el.dataset.v);
+  if (a === 'spineGo') { spineNext = true; $('#profileForm')?.requestSubmit(); spineNext = false; }
+  if (a === 'spView') { spView = el.dataset.v === 'side' ? 'side' : 'back'; spSel = -1; render(); }
+  if (a === 'spSh' || a === 'spHip') { const k = a === 'spSh' ? 'sh' : 'hip', v = ['E', 'D'].includes(el.dataset.v) ? el.dataset.v : ''; spEdit[k] = v; render(); }
+  if (a === 'spUndo') { const u = spUndo.pop(); if (u) spEdit[u.k] = u.a; render(); }
+  if (a === 'spReset') { const k = spView === 'back' ? 'x' : 'z'; spUndo.push({ k, a: [...spEdit[k]] }); spEdit[k] = spEdit[k].map(() => 0); if (spView === 'back') { spEdit.sh = ''; spEdit.hip = ''; spEdit.cobb = 0; } spSel = -1; render(); }
+  if (a === 'spineSave') {
+    if (!S.profile.healthOk && !spConsent) { toast('Marque a autorização pra guardar a informação de saúde.'); return; }
+    if (!S.profile.healthOk) S.profile.healthOk = today();
+    S.profile.spine = spineOf({ spine: spEdit }); spEdit = null; save(true); toast('Coluna salva: complementares atualizados'); location.hash = '#treino';
+  }
   if (a === 'clearWater') {
     // dois toques: o primeiro arma, o segundo (em até 4 s) apaga
     if (Date.now() - clearArm > 4000) { clearArm = Date.now(); el.textContent = 'Toque de novo pra apagar tudo'; el.classList.add('armed'); setTimeout(() => { if (el.isConnected) { el.textContent = 'Apagar todo o histórico'; el.classList.remove('armed'); } }, 4000); return; }

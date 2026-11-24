@@ -401,7 +401,21 @@ export const EXERCISES = {
   rope:     { n: 'Battle rope (corda naval)', m: { ombros: 0.5, core: 0.5 }, t: 'power', req: ['gym'], u: 's', r: [15, 30], cue: 'Base firme, ondas rápidas alternando os braços. Dá pra fazer sentado.' },
   mbo:      { n: 'Arremesso de medicine ball por cima da cabeça', m: { core: 0.5 }, t: 'power', req: ['medball'], r: [5, 8], cue: 'Bola atrás da cabeça, arremessa pra frente com o corpo todo, como um tiro de meta.' },
   bandohp:  { n: 'Desenvolvimento sentado com elástico', m: { ombros: 1, triceps: 0.5 }, t: 'comp', req: ['elastico'], r: [10, 20], band: true, cue: 'Elástico preso embaixo do assento, empurra acima da cabeça até esticar.' },
-  seatcrunch:{ n: 'Abdominal sentado com elástico', m: { core: 1 }, t: 'core', req: ['elastico'], r: [10, 20], band: true, cue: 'Elástico preso atrás no alto, segura no peito e enrola o tronco pra frente. Ótimo pra quem treina sentado.' }
+  seatcrunch:{ n: 'Abdominal sentado com elástico', m: { core: 1 }, t: 'core', req: ['elastico'], r: [10, 20], band: true, cue: 'Elástico preso atrás no alto, segura no peito e enrola o tronco pra frente. Ótimo pra quem treina sentado.' },
+  // complementares (coluna, postura e reabilitação de lesões): não entram sozinhos nas rotinas, só no cartão de complementares
+  deadbug:  { n: 'Dead bug', m: { core: 1 }, t: 'prehab', req: [], u: '/lado', r: [6, 10], vars: ['Dead bug só com as pernas', 'Dead bug', 'Dead bug segurando elástico'], cue: 'Deitado de costas, lombar colada no chão: estica braço e perna opostos devagar, sem a lombar subir.' },
+  curlup:   { n: 'Curl-up de McGill', m: { core: 1 }, t: 'prehab', req: [], r: [5, 8], cue: 'Uma perna dobrada, mãos embaixo da lombar: tira só a cabeça e os ombros do chão, segura 8–10 s. A lombar não se mexe.' },
+  thrrot:   { n: 'Rotação torácica em 4 apoios', m: {}, t: 'prehab', req: [], u: '/lado', r: [8, 10], cue: 'De quatro, mão atrás da cabeça: gira o cotovelo pro teto seguindo com o olhar. O quadril fica parado.' },
+  catcamel: { n: 'Gato-camelo', m: {}, t: 'prehab', req: [], r: [8, 12], cue: 'De quatro: arredonda as costas pro teto, depois afunda o peito e olha pra frente. Devagar, sem forçar.' },
+  wallangel:{ n: 'Anjo na parede', m: { ombros: 0.5 }, t: 'prehab', req: [], r: [8, 12], cue: 'Costas, cabeça e braços encostados na parede: sobe e desce os braços sem descolar nada.' },
+  thext:    { n: 'Extensão torácica no rolo', m: {}, t: 'prehab', req: [], r: [8, 12], cue: 'Rolo (ou toalha enrolada) na altura das escápulas, mãos atrás da cabeça: estende a parte alta das costas sobre o rolo. A lombar não arqueia.' },
+  doorpec:  { n: 'Alongamento de peitoral na porta', m: {}, t: 'prehab', req: [], u: 's', r: [30, 45], cue: 'Antebraço no batente com o cotovelo na altura do ombro: dá um passo à frente até sentir o peito alongar. Cada lado.' },
+  hipflex:  { n: 'Alongamento do flexor do quadril', m: {}, t: 'prehab', req: [], u: 's', r: [30, 45], cue: 'Meio ajoelhado: aperta o glúteo de trás e leva o quadril à frente sem arquear a lombar. Cada lado.' },
+  tke:      { n: 'Extensão terminal do joelho com elástico', m: { quad: 0.3 }, t: 'prehab', req: ['elastico'], u: '/perna', r: [12, 15], cue: 'Elástico atrás do joelho preso à frente: estica o joelho até o fim e segura 1 s.' },
+  wallsit:  { n: 'Isometria na parede (cadeirinha)', m: { quad: 0.5 }, t: 'prehab', req: [], u: 's', r: [30, 45], cue: 'Costas na parede, joelhos a 60–90°: segura. Dor até 3 de 10 é aceitável.' },
+  latwalk:  { n: 'Caminhada lateral com elástico', m: { glut: 0.5 }, t: 'prehab', req: ['elastico'], u: '/lado', r: [10, 15], cue: 'Miniband acima do joelho ou no tornozelo, meio agachado: passos de lado sem o joelho entrar.' },
+  balance:  { n: 'Equilíbrio em uma perna', m: {}, t: 'prehab', req: [], u: 's', r: [30, 45], vars: ['Equilíbrio com olhos abertos', 'Equilíbrio de olhos fechados', 'Equilíbrio em almofada'], cue: 'Em uma perna, joelho levemente dobrado. Perto de um apoio. Cada perna.' },
+  wristfe:  { n: 'Flexão e extensão de punho com halter', m: {}, t: 'prehab', req: ['halteres'], r: [12, 15], cue: 'Antebraço apoiado na coxa, halter leve: sobe o punho e desce devagar em 3 s. Palma pra cima e depois pra baixo.' },
 };
 
 // Cada "slot" é um padrão de movimento; o app escolhe o 1º exercício que você consegue fazer com seu equipamento
