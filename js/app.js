@@ -382,12 +382,13 @@ views.hoje = () => {
   const yest = dayKey(new Date(Date.now() - 864e5));
   const liftRecent = lastW && (lastW.date === today() || lastW.date === yest);
   const hasSport = mySports().length > 0;
-  const primary = lift && (!liftRecent || !hasSport) ? 'forca' : hasSport ? 'esporte' : lift ? 'forca' : null;
+  const liftToday = S.logs.workouts.some(w => w.date === today()); // força já feita hoje: a próxima sessão fica pra outro dia
+  const primary = liftToday ? (hasSport ? 'esporte' : null) : lift && (!liftRecent || !hasSport) ? 'forca' : hasSport ? 'esporte' : lift ? 'forca' : null;
   const liftEx = lift ? next.items.filter(i => EXERCISES[i.ex].t !== 'prehab') : [];
   const sportCard = { cat: SP.n, title: SP.combat ? 'Rounds de ' + SP.n.toLowerCase() : 'Corrida do dia', desc: SP.combat ? 'Rounds com tema, combinações faladas e foco nos seus pontos fracos.' : 'Rodagem, intervalado ou tiros, com o timer marcando cada bloco.', meta: `~${spMin} min`, href: '#esporte', cta: SP.combat ? 'Montar e começar' : 'Montar corrida' };
   const liftCard = lift ? { cat: 'Força · ' + plan.split, title: next.name, desc: liftEx.slice(0, 4).map(i => i.name).join(' · ') + (liftEx.length > 4 ? '…' : ''), meta: `${liftEx.length} exercícios · ~${S.profile.liftMin ?? 40} min`, href: '#sessao-' + nextIdx, cta: 'Começar treino' } : null;
   const P = primary === 'forca' ? liftCard : primary === 'esporte' ? sportCard : null;
-  const alt = primary === 'forca' && hasSport ? sportCard : primary === 'esporte' && liftCard ? liftCard : null;
+  const alt = primary === 'forca' && hasSport ? sportCard : primary === 'esporte' && liftCard && !liftToday ? liftCard : null;
   const tiles = [
     { id: 'h-treino', ico: ICO.treino, n: 'Treino', v: doneTrain ? `${doneTrain} feito${doneTrain > 1 ? 's' : ''}` : 'Pendente', ok: doneTrain > 0 },
     { id: 'h-nutri', ico: ICO.comida, n: 'Refeições', v: `${nMeals} de ${MEALS.length - 1}`, ok: f.k >= t.kcal * 0.9 },
@@ -432,6 +433,7 @@ views.hoje = () => {
       <p class="small muted">${esc(P.desc)}</p><p class="small tmeta mono">${esc(P.meta)}</p>
       <a class="btn primary block" href="${P.href}">${P.cta} →</a></div>
       ${alt ? `<a class="talt small" href="${alt.href}">Prefere outro? <b>${esc(alt.cat.split(' · ')[0])}: ${esc(alt.title)}</b> →</a>` : ''}`
+    : liftToday ? `<p class="small">Treino de força feito. ${lift ? `Próxima: <b>${esc(next.name)}</b>, amanhã ou depois.` : ''} Hoje é recuperar: comer bem, beber água e dormir.</p>`
     : `<p class="small">Você ainda não tem treino programado.</p><a class="btn primary block" href="#perfil">Montar meu plano →</a>`}
   </div>
   <div class="card" id="h-peso">
@@ -843,7 +845,7 @@ views.treino = () => {
   ${['forca-lesao', 'calistenia', 'soco', 'concorrente'].map(id => evCard(ev(id))).join('')}`;
   const vols = Object.entries(plan.vol).filter(([m]) => m !== 'pescoco');
   const extras = mySports().filter(id => SPORTS[id].sc.length).map(id => SPORTS[id].n);
-  const nx = nextSessionIdx(plan);
+  const liftedToday = S.logs.workouts.some(w => w.date === today()), nx = liftedToday ? -1 : nextSessionIdx(plan);
   return `<section class="head"><h1>Força</h1><a class="chip" href="#rotinas">Trocar rotina</a></section>
   ${draftBanner()}
   <div class="card rcard" id="t-rotina">
@@ -899,11 +901,18 @@ function doneVolume() {
 function weekCard(plan) {
   const ws = weekStart(), we = addDay(ws, 6), wk = S.logs.workouts.filter(w => w.date >= ws && w.date <= we);
   const doneSids = new Set(wk.map(w => w.sid)), done = plan.days.filter(d => doneSids.has(d.sid)).length;
+  const liftedToday = wk.some(w => w.date === today());
+  // próxima = primeira da ordem que ainda não foi feita; uma sessão por dia
+  const nextI = plan.days.findIndex(d => !doneSids.has(d.sid));
+  const left = plan.days.length - done, daysLeft = Math.round((new Date(we + 'T12:00') - new Date(today() + 'T12:00')) / 864e5) + (liftedToday ? 0 : 1);
+  const tag = (d, i) => { if (doneSids.has(d.sid)) { const w = wk.filter(x => x.sid === d.sid).pop(); return w.date === today() ? 'feita hoje' : 'feita ' + fmtDay(w.date).split(' ')[0]; }
+    return i === nextI ? (liftedToday ? 'próxima · amanhã ou depois' : 'próxima · pode ser hoje') : 'depois'; };
   const strip = Array.from({ length: 7 }, (_, i) => { const k = addDay(ws, i), n = wk.filter(w => w.date === k).length; return `<span class="wd ${n ? 'on' : ''} ${k === today() ? 'now' : ''}"><small>${'STQQSSD'[i]}</small><i>${n ? '●' : ''}</i></span>`; }).join('');
+  const note = !left ? 'Semana fechada. Agora é recuperar.' : left > daysLeft ? `Faltam ${left} sessões e ${daysLeft} ${daysLeft === 1 ? 'dia' : 'dias'} na semana: tudo bem pular, não junte duas no mesmo dia.` : 'Uma sessão por dia, na ordem, com descanso entre elas. Não tem dia fixo.';
   return `<div class="card" id="t-semana"><div class="row between"><h3>Esta semana</h3><b class="mono">${done}/${plan.days.length}</b></div>
     <div class="wstrip">${strip}</div>
-    ${plan.days.length ? `<ul class="wlist">${plan.days.map(d => `<li class="${doneSids.has(d.sid) ? 'ok' : ''}"><span>${doneSids.has(d.sid) ? '✓' : '○'}</span>${esc(d.name)}<small>${doneSids.has(d.sid) ? 'feita' : 'pendente'}</small></li>`).join('')}</ul>` : ''}
-    <small class="muted">Sem dia fixo: faça na ordem, quando der. A semana começa na segunda.</small></div>`;
+    ${plan.days.length ? `<ul class="wlist">${plan.days.map((d, i) => `<li class="${doneSids.has(d.sid) ? 'ok' : i === nextI ? 'nx' : ''}"><span>${doneSids.has(d.sid) ? '✓' : '○'}</span>${esc(d.name)}<small>${esc(tag(d, i))}</small></li>`).join('')}</ul>` : ''}
+    <small class="muted">${esc(note)}</small></div>`;
 }
 let volMode = 'done';
 function volumeCard(plan) {
