@@ -347,7 +347,6 @@ views.nutri = () => {
     <p class="kleft small"><b class="${over ? 'warn' : ''}">${over ? `${fmt(f.k - t.kcal, 0)} kcal acima da meta` : f.k ? `${fmt(left, 0)} kcal restantes` : `${fmt(t.kcal, 0)} kcal pra hoje`}</b><span class="muted mono">${fmt(pct, 0)}%</span></p>
     <div class="mgrid">${macroBar('Proteína', f.p, t.protein, 'var(--acc)')}${macroBar('Carboidrato', f.c, t.carbs, 'var(--cyan)')}${macroBar('Gordura', f.f, t.fat, 'var(--amber)')}</div>
     ${waterBar(w, t.water)}
-    <small class="muted">Atualiza sozinho quando você adiciona, muda ou remove um alimento.</small>
   </div>
   <div class="card" id="n-analise">
     <h3>Análise Nutricional</h3>
