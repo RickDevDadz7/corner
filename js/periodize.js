@@ -19,11 +19,11 @@ export const TGOALS = {
 };
 // lesões/dores: exercícios evitados (trocados automaticamente) e os que pedem cuidado
 export const INJURIES = {
-  ombro: { n: 'Ombro', avoid: ['ohp', 'dbohp', 'arnold', 'dip', 'chairdip', 'pike', 'plyopush', 'pullover', 'dbpullover', 'skull'], care: ['bp', 'incbp', 'dbi', 'dbfp', 'fly', 'lat', 'pullup', 'shadowx', 'mbc'] },
+  ombro: { n: 'Ombro', avoid: ['mbo', 'bandohp', 'ohp', 'dbohp', 'arnold', 'dip', 'chairdip', 'pike', 'plyopush', 'pullover', 'dbpullover', 'skull'], care: ['bp', 'incbp', 'dbi', 'dbfp', 'fly', 'lat', 'pullup', 'shadowx', 'mbc'] },
   cotovelo: { n: 'Cotovelo', avoid: ['skull', 'ohtri', 'dip', 'chairdip', 'diamond', 'preacher'], care: ['chin', 'tri', 'bbcurl', 'pullup'] },
   punho: { n: 'Punho', avoid: ['pushup', 'plyopush', 'diamond', 'pike', 'plankrot', 'abwheel', 'chairdip'], care: ['bp', 'incbp', 'bbcurl', 'skull'] },
-  lombar: { n: 'Lombar', avoid: ['dl', 'row', 'tbar', 'kbswing', 'russian', 'superman', 'medslam'], care: ['rdl', 'dbrdl', 'sq', 'ohp', 'hipext', 'singlerdl'] },
-  joelho: { n: 'Joelho', avoid: ['jump', 'broad', 'skater', 'pogo', 'afundo', 'walklunge', 'bul', 'ext'], care: ['sq', 'hack', 'lp', 'stepup', 'sumo', 'bwsq'] },
+  lombar: { n: 'Lombar', avoid: ['dl', 'gm', 'row', 'tbar', 'kbswing', 'russian', 'superman', 'medslam'], care: ['rdl', 'dbrdl', 'sq', 'ohp', 'hipext', 'singlerdl'] },
+  joelho: { n: 'Joelho', avoid: ['jump', 'broad', 'skater', 'pogo', 'afundo', 'walklunge', 'bul', 'ext', 'sled'], care: ['sq', 'hack', 'lp', 'stepup', 'sumo', 'bwsq'] },
   quadril: { n: 'Quadril / virilha', avoid: ['sumo', 'skater', 'copen', 'bul'], care: ['sq', 'afundo', 'walklunge', 'abd'] },
   tornozelo: { n: 'Tornozelo', avoid: ['jump', 'broad', 'skater', 'pogo'], care: ['calf', 'calfbw', 'afundo', 'stepup'] },
   pescoco: { n: 'Pescoço', avoid: ['neck', 'shrug'], care: ['ohp', 'hlr'] }
