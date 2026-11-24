@@ -512,16 +512,47 @@ export const WEAKNESSES = [
 ];
 
 // Restrições e alergias: o que cada uma evita, como reconhecer pelo nome (alimentos digitados à mão) e trocas possíveis
+// g: alergia (lista da Anvisa RDC 26/2015 + as que a UE exige a mais), intol (intolerância/condição), dieta (escolha ou dieta)
+const LEITE = /leite|iogurte|queijo|requeij[aã]o|manteiga|whey|creme de leite|sorvete|chocolate ao leite|pizza|p[aã]o de queijo|\bnata\b|coalhada|ricota|mussarela|parmes[aã]o|cream cheese|chantilly|doce de leite|leite condensado|case[ií]na|soro de leite/;
+const GLUTEN = /trigo|macarr[aã]o|(?<!sorvete de )massa|lasanha|espaguete|nhoque|p[aã]o(?! de queijo)|pizza|hamb[uú]rguer|sandu[ií]che|coxinha|pastel|esfiha|biscoito|bolacha|bolo|cerveja|aveia|granola|barra de cereal|torrada|cevada|centeio|malte|cuscuz marroquino|semolina|farinha(?! de (?:mandioca|milho|arroz))|empanad|milanesa|kibe|quibe/;
+const CARNE = /frango|carne|patinho|alcatra|picanha|bife|cox[aã]o|maminha|fraldinha|costela|cupim|lagarto|m[uú]sculo|ac[eé]m|f[ií]gado|porco|lombo|pernil|bacon|presunto|salsicha|lingui[cç]a|salame|mortadela|peito de peru|hamb[uú]rguer|coxinha|nuggets?|kibe|quibe|alm[oô]ndega|strogonoff|feijoada/;
+const PEIXE = /peixe|atum|til[aá]pia|sardinha|salm[aã]o|bacalhau|merluza|pescada|robalo|truta|anchova|sushi|sashimi/;
+const CRUST = /camar[aã]o|lagosta|caranguejo|siri|lagostim/;
+const MOLUSC = /lula|polvo|mexilh[aã]o|marisco|ostra|vieira|sururu|lambreta/;
 export const RESTR = {
-  alcool: { n: 'Álcool', re: /cerveja|vinho|vodka|cacha[cç]a|whisky|u[ií]sque|gin\b|drink|caipirinha|chopp?|espumante|licor|[aá]lcool/, swap: 'água com gás e limão, chá gelado sem açúcar, kombucha' },
-  acucar: { n: 'Açúcar refinado', re: /a[cç][uú]car|refri|chocolate|doce|bolo|biscoito recheado|sorvete|bala\b|brigadeiro|xarope|leite condensado|pudim|torta|nutella|barra de cereal|granola/, swap: 'frutas (banana, manga, uva), iogurte natural com fruta, pasta de amendoim sem açúcar' },
-  massa: { n: 'Massas (macarrão, pão, pizza)', re: /macarr[aã]o|(?<!sorvete de )massa|lasanha|espaguete|nhoque|p[aã]o(?! de queijo)|pizza|hamb[uú]rguer|sandu[ií]che|coxinha|pastel|esfiha|torrada|bolo|biscoito/, swap: 'arroz, batata-doce, batata, cuscuz de milho, mandioca, tapioca' },
-  gluten: { n: 'Glúten', re: /trigo|macarr[aã]o|massa|lasanha|p[aã]o(?! de queijo)|pizza|hamb[uú]rguer|sandu[ií]che|coxinha|pastel|biscoito|bolo|cerveja|aveia|granola|barra de cereal|torrada|cevada|centeio/, swap: 'arroz, batata, mandioca, tapioca, cuscuz de milho, pão de queijo' },
-  lactose: { n: 'Lactose', re: /leite|iogurte|queijo|requeij[aã]o|manteiga|whey|creme de leite|sorvete|chocolate ao leite|pizza|p[aã]o de queijo|nata\b/, swap: 'versões sem lactose, bebida vegetal, whey isolado (confira o rótulo)' },
-  carne: { n: 'Carnes e peixes', re: /frango|carne|patinho|alcatra|picanha|bife|atum|til[aá]pia|peixe|sardinha|salm[aã]o|porco|bacon|presunto|salsicha|lingui[cç]a|hamb[uú]rguer|coxinha|camar[aã]o/, swap: 'ovos, feijão, lentilha, grão-de-bico, tofu, iogurte' },
-  ovo: { n: 'Ovo', re: /\bovos?\b|omelete|maionese/, swap: 'frango, atum, iogurte, tofu' },
-  amendoim: { n: 'Amendoim', re: /amendoim|pa[cç]oca/, swap: 'sementes de girassol ou abóbora' },
-  castanhas: { n: 'Castanhas', re: /castanha|noz|nozes|am[eê]ndoa|avel[aã]|pistache|macad[aâ]mia/, swap: 'sementes de girassol ou abóbora' }
+  // alergias
+  leite: { g: 'alergia', n: 'Leite e derivados', re: LEITE, swap: 'bebidas vegetais (aveia, arroz, coco), queijos veganos; confira o rótulo' },
+  ovo: { g: 'alergia', n: 'Ovo', re: /\bovos?\b|omelete|maionese|gemada|merengue|suspiro|clara de ovo|albumina/, swap: 'frango, atum, tofu, iogurte; na receita, linhaça hidratada' },
+  gluten: { g: 'alergia', n: 'Glúten (trigo, centeio, cevada, aveia)', re: GLUTEN, swap: 'arroz, batata, mandioca, tapioca, cuscuz de milho, pão de queijo' },
+  amendoim: { g: 'alergia', n: 'Amendoim', re: /amendoim|pa[cç]oca|p[eé] de moleque/, swap: 'sementes de girassol ou abóbora' },
+  castanhas: { g: 'alergia', n: 'Castanhas e nozes', re: /castanha|\bnoz\b|nozes|am[eê]ndoa|avel[aã]|pistache|macad[aâ]mia|pec[aã]|pinoli|pinh[aã]o|nutella|praline/, swap: 'sementes de girassol ou abóbora' },
+  soja: { g: 'alergia', n: 'Soja', re: /\bsoja|tofu|shoyu|edamame|miss[oô]|prote[ií]na texturizada|lecitina de soja/, swap: 'grão-de-bico, lentilha, ervilha' },
+  peixe: { g: 'alergia', n: 'Peixes', re: PEIXE, swap: 'frango, ovos, carne magra' },
+  crustaceos: { g: 'alergia', n: 'Crustáceos (camarão, lagosta…)', re: CRUST, swap: 'frango, peixe (se tolerar), ovos' },
+  moluscos: { g: 'alergia', n: 'Moluscos (lula, polvo…)', re: MOLUSC, swap: 'frango, peixe (se tolerar), ovos' },
+  gergelim: { g: 'alergia', n: 'Gergelim', re: /gergelim|tahine|tahini|homus|hummus/, swap: 'sementes de girassol ou abóbora' },
+  mostarda: { g: 'alergia', n: 'Mostarda', re: /mostarda/, swap: 'temperos com ervas, limão' },
+  aipo: { g: 'alergia', n: 'Aipo (salsão)', re: /aipo|sals[aã]o/, swap: 'cebola, alho-poró' },
+  tremoco: { g: 'alergia', n: 'Tremoço', re: /tremo[cç]o/, swap: 'grão-de-bico, ervilha' },
+  sulfitos: { g: 'alergia', n: 'Sulfitos', re: /vinho|sulfito|metabissulfito|frutas? secas?|uva passa|damasco seco/, swap: 'frutas frescas' },
+  latex: { g: 'alergia', n: 'Látex (reação cruzada: banana, abacate, kiwi)', re: /banana|abacate|kiwi|castanha/, swap: 'maçã, pera, mamão, morango' },
+  // intolerâncias e condições
+  lactose: { g: 'intol', n: 'Lactose', re: LEITE, swap: 'versões sem lactose, bebida vegetal, whey isolado (confira o rótulo)' },
+  celiaca: { g: 'intol', n: 'Doença celíaca (glúten, até traços)', re: GLUTEN, swap: 'arroz, batata, mandioca, tapioca, cuscuz de milho; só produtos "sem glúten"' },
+  frutose: { g: 'intol', n: 'Frutose / FODMAP', re: /mel\b|maç[aã]|pera|manga|melancia|xarope|frutose|refri|suco|cebola|alho|feij[aã]o|gr[aã]o-de-bico|lentilha|trigo/, swap: 'morango, laranja, banana firme, arroz, batata, aveia' },
+  histamina: { g: 'intol', n: 'Histamina', re: /vinho|cerveja|queijo|salame|presunto|lingui[cç]a|atum|sardinha|tomate|espinafre|berinjela|abacate|chocolate|morango|fermentad|kombucha|chucrute|shoyu/, swap: 'carnes e peixes frescos, arroz, batata, frutas frescas exceto morango' },
+  // dieta e escolhas
+  alcool: { g: 'dieta', n: 'Álcool', re: /cerveja|vinho|vodka|cacha[cç]a|whisky|u[ií]sque|\bgin\b|drink|caipirinha|chopp?|espumante|licor|tequila|\brum\b|saqu[eê]|[aá]lcool/, swap: 'água com gás e limão, chá gelado sem açúcar, kombucha' },
+  acucar: { g: 'dieta', n: 'Açúcar refinado', re: /a[cç][uú]car|refri|chocolate|\bdoce|bolo|biscoito recheado|sorvete|\bbala\b|brigadeiro|xarope|leite condensado|pudim|torta|nutella|barra de cereal|granola|geleia|achocolatado|pa[cç]oca/, swap: 'frutas (banana, manga, uva), iogurte natural com fruta, pasta de amendoim sem açúcar' },
+  massa: { g: 'dieta', n: 'Massas (macarrão, pão, pizza)', re: /macarr[aã]o|(?<!sorvete de )massa|lasanha|espaguete|nhoque|p[aã]o(?! de queijo)|pizza|hamb[uú]rguer|sandu[ií]che|coxinha|pastel|esfiha|torrada|bolo|biscoito/, swap: 'arroz, batata-doce, batata, cuscuz de milho, mandioca, tapioca' },
+  frituras: { g: 'dieta', n: 'Frituras', re: /frit[oa]|empanad|milanesa|pastel|coxinha|salgadinho|nuggets?|batata palha|torresmo|chips/, swap: 'assado, grelhado, cozido ou na airfryer' },
+  ultra: { g: 'dieta', n: 'Ultraprocessados', re: /salgadinho|biscoito recheado|refri|salsicha|nuggets?|miojo|lamen instant|embutido|presunto|mortadela|salame|sorvete|achocolatado|empanado|congelado|refei[cç][aã]o pronta|bebida l[aá]ctea|barra de cereal/, swap: 'comida de verdade: arroz, feijão, ovos, carnes frescas, frutas' },
+  cafeina: { g: 'dieta', n: 'Cafeína', re: /caf[eé]|expresso|cappuccino|energ[eé]tico|pr[eé]-treino|ch[aá] (?:preto|verde|mate)|mate\b|guaran[aá]|coca|cola\b/, swap: 'chás de ervas (camomila, hortelã), café descafeinado' },
+  carneVermelha: { g: 'dieta', n: 'Carne vermelha', re: /carne|patinho|alcatra|picanha|bife|cox[aã]o|maminha|fraldinha|costela|cupim|lagarto|m[uú]sculo|ac[eé]m|f[ií]gado|porco|lombo|pernil|bacon|hamb[uú]rguer|kibe|quibe|alm[oô]ndega/, swap: 'frango, peixe, ovos, feijão' },
+  porco: { g: 'dieta', n: 'Carne de porco', re: /porco|lombo|pernil|bacon|presunto|salsicha|lingui[cç]a|salame|mortadela|torresmo|costelinha|feijoada/, swap: 'frango, carne bovina, peixe' },
+  carne: { g: 'dieta', n: 'Vegetariana (sem carnes e peixes)', re: new RegExp(`${CARNE.source}|${PEIXE.source}|${CRUST.source}|${MOLUSC.source}`), swap: 'ovos, feijão, lentilha, grão-de-bico, tofu, iogurte' },
+  vegano: { g: 'dieta', n: 'Vegana (nada de origem animal)', re: new RegExp(`${CARNE.source}|${PEIXE.source}|${CRUST.source}|${MOLUSC.source}|${LEITE.source}|\\bovos?\\b|omelete|maionese|\\bmel\\b`), swap: 'feijão, lentilha, grão-de-bico, tofu, bebidas vegetais' }
 };
+export const RESTR_GROUPS = { alergia: 'Alergias', intol: 'Intolerâncias', dieta: 'Dieta e escolhas' };
 const RNORM = s => String(s).toLowerCase();
 export const restrOf = name => Object.keys(RESTR).filter(k => RESTR[k].re.test(RNORM(name)));

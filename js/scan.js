@@ -46,13 +46,15 @@ export async function startScan(video, onCode) {
 }
 
 // alergênicos e categorias do Open Food Facts → restrições do app
-const ALLERG = { 'en:gluten': 'gluten', 'en:milk': 'lactose', 'en:eggs': 'ovo', 'en:peanuts': 'amendoim', 'en:nuts': 'castanhas' };
-const CATS = [[/alcoholic-beverages|beers|wines/, 'alcool'], [/^en:pastas?$|en:breads|en:pizzas|en:sandwich-breads/, 'massa'], [/en:meats|en:fishes|en:poultry/, 'carne']];
+const ALLERG = { 'en:gluten': ['gluten', 'celiaca'], 'en:milk': ['leite', 'lactose', 'vegano'], 'en:eggs': ['ovo', 'vegano'], 'en:peanuts': ['amendoim'], 'en:nuts': ['castanhas'],
+  'en:soybeans': ['soja'], 'en:fish': ['peixe', 'carne', 'vegano'], 'en:crustaceans': ['crustaceos', 'carne', 'vegano'], 'en:molluscs': ['moluscos', 'carne', 'vegano'],
+  'en:sesame-seeds': ['gergelim'], 'en:mustard': ['mostarda'], 'en:celery': ['aipo'], 'en:lupin': ['tremoco'], 'en:sulphur-dioxide-and-sulphites': ['sulfitos'] };
+const CATS = [[/alcoholic-beverages|beers|wines/, 'alcool'], [/^en:pastas?$|en:breads|en:pizzas|en:sandwich-breads/, 'massa'], [/en:meats|en:fishes|en:poultry|en:seafood/, 'carne'], [/en:meats|en:fishes|en:poultry|en:seafood|en:dairies|en:eggs|en:honeys/, 'vegano'], [/en:fried-foods/, 'frituras'], [/en:sodas|en:energy-drinks|en:coffees/, 'cafeina']];
 const num = v => { const n = Number(v); return Number.isFinite(n) && n >= 0 ? n : 0; };
 
 export async function lookupBarcode(code) {
   if (!/^\d{8,14}$/.test(code)) return { error: 'código inválido' };
-  const fields = 'code,product_name,product_name_pt,brands,quantity,serving_quantity,nutriments,ingredients_text_pt,ingredients_text,allergens_tags,categories_tags';
+  const fields = 'code,product_name,product_name_pt,brands,quantity,serving_quantity,nutriments,ingredients_text_pt,ingredients_text,allergens_tags,traces_tags,categories_tags,nova_group';
   let data;
   try {
     const res = await fetch(`https://world.openfoodfacts.org/api/v2/product/${code}.json?fields=${fields}`, { headers: { Accept: 'application/json' } });
@@ -71,9 +73,11 @@ export async function lookupBarcode(code) {
   const ml = /\bml\b|\blitro|\b\d+\s*l\b/i.test(String(p.quantity || ''));
   const ingr = String(p.ingredients_text_pt || p.ingredients_text || '').slice(0, 2000);
   const x = new Set();
-  for (const t of p.allergens_tags || []) if (ALLERG[t]) x.add(ALLERG[t]);
+  for (const t of p.allergens_tags || []) for (const k2 of ALLERG[t] || []) x.add(k2);
+  if ((p.traces_tags || []).includes('en:gluten')) x.add('celiaca'); // celíaco evita até traços
   for (const t of p.categories_tags || []) for (const [re, k2] of CATS) if (re.test(t)) x.add(k2);
-  for (const k2 of restrOf(ingr)) if (k2 !== 'massa') x.add(k2);
+  if (p.nova_group === 4) x.add('ultra');
+  for (const k2 of restrOf(ingr)) if (!['massa', 'latex', 'frutose', 'histamina'].includes(k2)) x.add(k2);
   for (const k2 of restrOf(name)) x.add(k2);
   return {
     code, n: brand && !name.toLowerCase().includes(brand.toLowerCase()) ? `${name} (${brand})` : name,

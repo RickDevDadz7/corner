@@ -1,4 +1,4 @@
-import { EVIDENCE, EXERCISES, FOODS, MUSCLES, EQUIP, PUNCHES, MEALS, RESTR, restrOf } from './data.js';
+import { EVIDENCE, EXERCISES, FOODS, MUSCLES, EQUIP, PUNCHES, MEALS, RESTR, RESTR_GROUPS, restrOf } from './data.js';
 import { NEAT, GOALS, targets, adaptiveTDEE, buildPlan as plan_, suggest, dayKey, fmt, sessionKcal, movingAvg, equipment, comboPool, comboSpeech, sportsOf, sportDays } from './calc.js';
 import { SPORTS, SPORT_IDS, combatSession, runSession } from './sports.js';
 import { TECHNIQUES, TIRED, CATS, animate, thumbSVG } from './techniques.js';
@@ -101,11 +101,17 @@ function foodTotals() { const out = {}; for (const [d, items] of Object.entries(
 function T() { return targets(S.profile, S.settings.adaptive ? adaptiveTDEE(S.logs.weights, foodTotals()) : null); }
 function dayFood(d = curDay()) { return (S.logs.food[d] || []).reduce((a, i) => ({ k: a.k + i.k, p: a.p + i.p, c: a.c + i.c, f: a.f + i.f, fb: a.fb + (i.fb || 0) }), { k: 0, p: 0, c: 0, f: 0, fb: 0 }); }
 // restrições alimentares ativas (perfil) e o que cada registro fere
-function activeRestr() { const r = S.profile?.restr; return r?.ids?.length && (!r.until || today() <= r.until) ? r.ids.filter(k => RESTR[k]) : []; }
+function restrOfProfile(p = S.profile) {
+  const r = p?.restr; if (!r) return { perm: [], temp: [], until: '', since: '' };
+  if (Array.isArray(r.ids)) return r.until ? { perm: [], temp: r.ids, until: r.until, since: r.since || '' } : { perm: r.ids, temp: [], until: '', since: r.since || '' };
+  return { perm: (r.perm || []).filter(k => RESTR[k]), temp: (r.temp || []).filter(k => RESTR[k]), until: r.until || '', since: r.since || '' };
+}
+const tempOn = r => r.temp.length && (!r.until || today() <= r.until);
+function activeRestr() { const r = restrOfProfile(); return [...new Set([...r.perm, ...(tempOn(r) ? r.temp : [])])]; }
 const hitsOf = v => { const a = activeRestr(); if (!a.length) return []; const it = typeof v === 'string' ? { n: v } : v || {}; const tags = new Set([...restrOf(it.n || ''), ...(Array.isArray(it.x) ? it.x : [])]); return a.filter(k => tags.has(k)); };
 const dayHits = d => (S.logs.food[d] || []).filter(i => hitsOf(i).length);
 function cleanStreak() {
-  const since = S.profile?.restr?.since || today(); let n = 0;
+  const since = restrOfProfile().since || today(); let n = 0;
   for (let i = 0; i < 400; i++) {
     const d = dayKey(new Date(Date.now() - i * 864e5)); if (d < since) break;
     const items = S.logs.food[d] || [];
@@ -265,12 +271,7 @@ views.onboarding = () => {
       <small class="muted">Sem nada marcado = só peso corporal (calistenia). O app escolhe os exercícios pelo que você tem.</small>
     </fieldset>
 
-    <h3 class="sec">Restrições e alergias</h3>
-    <p class="small muted">O app marca esses alimentos na busca, avisa antes de registrar e conta seus dias sem deslize.</p>
-    <fieldset class="equip restr">
-      ${Object.entries(RESTR).map(([k, r]) => `<label class="check"><input type="checkbox" name="restr" value="${k}" ${(p.restr?.ids || []).includes(k) ? 'checked' : ''}><span>Sem ${esc(r.n.charAt(0).toLowerCase() + r.n.slice(1))}</span></label>`).join('')}
-    </fieldset>
-    <label>Até quando? <small>(opcional, ex.: dieta de 6 meses)</small><input type="date" name="restrUntil" value="${esc(p.restr?.until || '')}"></label>
+    ${restrBox(restrOfProfile(p))}
     <button class="btn primary" type="submit">${S.profile ? 'Salvar' : 'Montar meu plano'}</button>
     <p class="muted small">Não substitui nutricionista ou médico se você tem alguma condição de saúde.</p>
   </form>`;
@@ -382,9 +383,9 @@ views.nutri = () => {
         <small>Das suas ${ad.weighIns} pesagens nos últimos 28 dias.</small></li>` : ''}
       <li><b>Fibras</b><span class="mono">${fmt(f.fb, 0)} / ${t.fiber} g</span>
         <small>Meta de 14 g a cada 1.000 kcal (recomendação do IOM/EUA). Vêm de feijão, aveia, frutas, verduras e integrais.</small></li>
-      ${activeRestr().length ? (() => { const h = dayHits(curDay()), st = cleanStreak(), r = p.restr, left = r.until ? Math.round((new Date(r.until) - new Date(today())) / 864e5) : null; return `<li class="${h.length ? 'alert' : ''}"><b>Restrições</b><span class="mono">${h.length ? `${h.length} ${h.length === 1 ? 'deslize' : 'deslizes'}` : items.length ? 'limpo ✓' : '—'}</span>
-        <small>Evitando: ${esc(activeRestr().map(k => RESTR[k].n).join(', '))}.${h.length ? ` Hoje: ${esc(h.map(i => i.n).join(', '))}.` : ''}${st ? ` ${st} ${st === 1 ? 'dia' : 'dias seguidos'} sem deslize.` : ''}${left != null ? ` Faltam ${left} ${left === 1 ? 'dia' : 'dias'} (até ${r.until.split('-').reverse().join('/')}).` : ''}</small>
-        <small><b>Trocas:</b> ${activeRestr().map(k => `${esc(RESTR[k].n.split(' (')[0].toLowerCase())} → ${esc(RESTR[k].swap)}`).join('; ')}.</small></li>`; })() : ''}
+      ${activeRestr().length ? (() => { const h = dayHits(curDay()), st = cleanStreak(), r = restrOfProfile(), tOn = tempOn(r), left = tOn && r.until ? Math.round((new Date(r.until) - new Date(today())) / 864e5) : null, nm = l => esc(l.map(k => RESTR[k].n.split(' (')[0]).join(', ')); return `<li class="${h.length ? 'alert' : ''}"><b>Restrições</b><span class="mono">${h.length ? `${h.length} ${h.length === 1 ? 'deslize' : 'deslizes'}` : items.length ? 'limpo ✓' : '—'}</span>
+        <small>${r.perm.length ? `Para sempre: ${nm(r.perm)}. ` : ''}${tOn ? `Temporárias: ${nm(r.temp)}.` : ''}${h.length ? ` Hoje: ${esc(h.map(i => i.n).join(', '))}.` : ''}${st ? ` ${st} ${st === 1 ? 'dia' : 'dias seguidos'} sem deslize.` : ''}${left != null ? ` Faltam ${left} ${left === 1 ? 'dia' : 'dias'} (até ${r.until.split('-').reverse().join('/')}).` : ''}</small>
+        <small><b>Trocas:</b> ${[...(tOn ? r.temp : []), ...r.perm].filter((k, i, a) => a.indexOf(k) === i).slice(0, 4).map(k => `${esc(RESTR[k].n.split(' (')[0].toLowerCase())} → ${esc(RESTR[k].swap)}`).join('; ')}.</small></li>`; })() : ''}
       ${t.notes.map(n => `<li class="alert"><b>Atenção</b><span></span><p class="small">${esc(n.msg)}</p><small>Base: ${esc(n.base)}</small></li>`).join('')}
     </ul>
     ${t.notes.length || dayHits(curDay()).length ? '' : '<p class="small muted">Nenhum alerta: seus dados não indicam nada fora da faixa.</p>'}
@@ -527,6 +528,39 @@ document.addEventListener('change', e => {
 document.addEventListener('click', e => { const i = e.target.closest?.('.dayPick'); if (i && i.showPicker) { try { i.showPicker(); } catch (er) { } } });
 document.addEventListener('visibilitychange', () => { if (document.hidden && scanStop) { try { scanStop(); } catch (e) { } scanStop = null; if ($('#scanbox')) { $('#scanView').hidden = true; scanMsg('Câmera pausada.'); $('#scanRes').innerHTML = `<button class="btn small block" data-act="scanRetry">Ligar a câmera de novo</button>`; } } });
 window.addEventListener('hashchange', closeScan);
+
+// perfil: restrições compactas. Escolhe o modo (para sempre / temporária) e toca nas que quer
+function restrSummary(r) {
+  const a = [r.perm.length ? `${r.perm.length} para sempre` : '', r.temp.length ? `${r.temp.length} ${r.temp.length === 1 ? 'temporária' : 'temporárias'}` : ''].filter(Boolean);
+  return a.length ? a.join(' · ') : 'nenhuma';
+}
+function restrBox(r) {
+  const st = k => r.perm.includes(k) ? 'perm' : r.temp.includes(k) ? 'temp' : '';
+  return `<details class="rbox" id="rbox"><summary><span><b>Restrições e alergias</b><small id="rsum">${esc(restrSummary(r))}</small></span></summary>
+    <div class="segs small rmode"><button type="button" class="on" data-m="perm">Para sempre</button><button type="button" data-m="temp">Temporária</button></div>
+    <small class="muted">Escolha o tipo e toque no que você evita. Toque de novo pra desmarcar.</small>
+    ${Object.entries(RESTR_GROUPS).map(([g, gn]) => `<div class="rgrp"><small class="cat">${gn}</small><div class="rchips">${Object.entries(RESTR).filter(([, x]) => x.g === g).map(([k, x]) => `<button type="button" class="rchip ${st(k)}" data-r="${k}" title="${esc(x.n)}">${esc(x.n.split(' (')[0])}</button>`).join('')}</div></div>`).join('')}
+    <label class="runtil" ${r.temp.length ? '' : 'hidden'}>Temporárias até <small>(opcional)</small><input type="date" name="restrUntil" value="${esc(r.until)}"></label>
+    <input type="hidden" name="restrData" value="${esc(JSON.stringify({ perm: r.perm, temp: r.temp }))}">
+    <small class="muted">Preto = para sempre · tracejado vermelho = temporária. Em alergia, confira sempre o rótulo.</small>
+  </details>`;
+}
+function bindRestrBox(form) {
+  const box = form.querySelector('#rbox'); if (!box) return;
+  let mode = 'perm';
+  const data = () => { try { return JSON.parse(form.restrData.value); } catch (e) { return { perm: [], temp: [] }; } };
+  box.addEventListener('click', e => {
+    const m = e.target.closest('.rmode button'); if (m) { mode = m.dataset.m; box.querySelectorAll('.rmode button').forEach(b => b.classList.toggle('on', b === m)); return; }
+    const c = e.target.closest('.rchip'); if (!c) return;
+    const d = data(), k = c.dataset.r, cur = d.perm.includes(k) ? 'perm' : d.temp.includes(k) ? 'temp' : '';
+    d.perm = d.perm.filter(x => x !== k); d.temp = d.temp.filter(x => x !== k);
+    const next = cur === mode ? '' : mode; if (next) d[next].push(k);
+    c.classList.toggle('perm', next === 'perm'); c.classList.toggle('temp', next === 'temp');
+    form.restrData.value = JSON.stringify(d);
+    box.querySelector('#rsum').textContent = restrSummary(d);
+    box.querySelector('.runtil').hidden = !d.temp.length;
+  });
+}
 
 function foodPickHTML(i) {
   const fd = FOODS[i];
@@ -830,7 +864,7 @@ function coachContext() {
   const weakAll = allWeak();
   return `Você é o RONIN, um coach de esportes de combate, corrida, força e nutrição esportiva que fala português do Brasil, de forma direta, informal e inteligente.
 REGRAS: Baseie-se em evidência científica. Use as cartas de evidência abaixo como base principal e cite-as pelo título e autor/ano. Se algo não estiver bem estabelecido na literatura, diga que a evidência é limitada. Nunca invente estudos. Não faça diagnósticos médicos; para dor persistente, sintomas após pancada na cabeça, condições de saúde ou cortes de peso agressivos, recomende um profissional. Respostas curtas e práticas (leitura no celular).
-PERFIL: ${p.sex === 'f' ? 'mulher' : 'homem'}, ${p.age} anos, ${p.height} cm, ${latestWeight()} kg${p.bf ? `, ${p.bf}% gordura` : ''}. Objetivo: ${GOALS[p.goal]}. Experiência: ${p.experience}.${activeRestr().length ? ` RESTRIÇÕES (não sugerir nada com isso): ${activeRestr().map(k => RESTR[k].n).join(', ')}${p.restr.until ? ` até ${p.restr.until}` : ''}.` : ''}
+PERFIL: ${p.sex === 'f' ? 'mulher' : 'homem'}, ${p.age} anos, ${p.height} cm, ${latestWeight()} kg${p.bf ? `, ${p.bf}% gordura` : ''}. Objetivo: ${GOALS[p.goal]}. Experiência: ${p.experience}.${activeRestr().length ? ` RESTRIÇÕES (não sugerir nada com isso): ${(() => { const r = restrOfProfile(); return [r.perm.length ? 'para sempre: ' + r.perm.map(k => RESTR[k].n).join(', ') : '', tempOn(r) ? 'temporárias' + (r.until ? ` até ${r.until}` : '') + ': ' + r.temp.map(k => RESTR[k].n).join(', ') : ''].filter(Boolean).join('; '); })()}.` : ''}
 ESPORTES: ${Object.entries(sp).map(([id, s]) => `${SPORTS[id]?.n} ${s.days}x/semana, ${s.min} min, ${SPORTS[id]?.types[s.type]?.n || ''}, ${s.where}`).join('; ') || 'nenhum'}.
 FORÇA: ${p.liftDays}x/semana (${p.env === 'casa' ? 'em casa; equipamento: ' + ((p.equip || []).map(k => EQUIP[k]).join(', ') || 'só peso corporal/calistenia') : 'academia'}).
 METAS: ${t.kcal} kcal, P ${t.protein} g, C ${t.carbs} g, G ${t.fat} g, água ${t.water} ml. Gasto estimado ${Math.round(t.tdee)} kcal (${t.source}).
@@ -1020,6 +1054,7 @@ function bindAfter(v, arg) {
     const eqVis = () => pf.querySelector('.equip').style.display = pf.env.value === 'casa' ? '' : 'none';
     pf.env.addEventListener('change', eqVis); eqVis();
     pf.querySelectorAll('.sport input[type=checkbox]').forEach(cb => cb.addEventListener('change', () => cb.closest('.sport').classList.toggle('on', cb.checked)));
+    bindRestrBox(pf);
     pf.addEventListener('submit', e => {
       e.preventDefault();
       const fd = new FormData(pf), g = k => fd.get(k);
@@ -1029,9 +1064,11 @@ function bindAfter(v, arg) {
         sex: g('sex'), age: num(g('age')), height: num(g('height')), weight: num(g('weight')), bf: num(g('bf')), neat: num(g('neat')), goal: g('goal'), rate: num(g('rate')),
         experience: g('experience'), liftDays: num(g('liftDays')) ?? 0, liftMin: num(g('liftMin')) || 40, env: g('env'), equip: fd.getAll('equip'), sports
       };
-      const rIds = fd.getAll('restr').filter(k => RESTR[k]), until = /^\d{4}-\d{2}-\d{2}$/.test(g('restrUntil') || '') ? g('restrUntil') : '';
-      const oldR = S.profile?.restr;
-      p.restr = rIds.length ? { ids: rIds, until, since: oldR?.ids?.length ? (oldR.since || today()) : today() } : null;
+      let rd = { perm: [], temp: [] }; try { rd = JSON.parse(g('restrData') || '{}'); } catch (e) { }
+      const perm = [...new Set((rd.perm || []).filter(k => RESTR[k]))], temp = [...new Set((rd.temp || []).filter(k => RESTR[k] && !perm.includes(k)))];
+      const until = temp.length && /^\d{4}-\d{2}-\d{2}$/.test(g('restrUntil') || '') ? g('restrUntil') : '';
+      const oldR = restrOfProfile();
+      p.restr = perm.length || temp.length ? { perm, temp, until, since: oldR.perm.length || oldR.temp.length ? (oldR.since || today()) : today() } : null;
       if (!p.age || !p.height || !p.weight || p.age < 14 || p.age > 90 || p.height < 120 || p.height > 230 || p.weight < 35 || p.weight > 250) { toast('Confira idade, altura e peso.'); return; }
       if (!Object.keys(sports).length && !p.liftDays) { toast('Marque pelo menos um esporte ou dias de força.'); return; }
       const first = !S.profile;

@@ -478,3 +478,22 @@ details>summary.small{font-weight:900;margin-top:8px;color:var(--acc)}
 .daynav .dayPick{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;border:0;padding:0;margin:0}
 .daynav .dayPick::-webkit-calendar-picker-indicator{position:absolute;inset:0;width:100%;height:100%;cursor:pointer}
 .daynav .dpick{min-width:150px;justify-content:center}.daynav .dpick span{min-width:0}
+/* restrições compactas no perfil */
+.rbox{border:2px solid var(--ink);background:var(--paper);padding:0}
+.rbox summary{list-style:none;cursor:pointer;padding:12px 14px;display:flex;align-items:center;justify-content:space-between}
+.rbox summary::-webkit-details-marker{display:none}
+.rbox summary span{display:flex;flex-direction:column;gap:2px}
+.rbox summary small{color:var(--muted);font-weight:700}
+.rbox summary::after{content:"+";font:900 22px var(--font);color:var(--acc)}
+.rbox[open] summary::after{content:"−"}
+.rbox[open]{padding-bottom:12px}
+.rbox>*:not(summary){margin:0 14px 8px}
+.rbox .rmode{display:flex}
+.rgrp .cat{display:inline-block;margin-bottom:6px}
+.rchips{display:flex;flex-wrap:wrap;gap:6px}
+.rchip{border:2px solid var(--ink);background:var(--sheet);color:var(--ink);padding:6px 10px;font:700 12.5px var(--font);cursor:pointer}
+.rchip.perm{background:var(--ink);color:var(--sheet);box-shadow:2px 2px 0 var(--acc)}
+.rchip.temp{border-style:dashed;border-color:var(--acc);color:var(--acc);background:#fff4f1}
+.rchip.temp::before{content:"⏳ ";font-size:11px}
+.runtil{display:block}
+.rbox>small{display:block}
