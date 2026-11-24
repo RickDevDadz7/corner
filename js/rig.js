@@ -59,7 +59,7 @@ export function solve(P) {
   const loc = v => add(chest, add(add(mul(Fa, v[0]), mul(Ua, v[1])), mul(La, v[2])));
   const locDir = v => add(add(mul(Fa, v[0]), mul(Ua, v[1])), mul(La, v[2]));
   for (const s of ['L', 'R']) {
-    const sh = J['sh' + s], h = loc(P['h' + s]);
+    const sh = J['sh' + s], h = P['w' + s] || loc(P['h' + s]); // w = mão em coordenadas do mundo (barra, banco, chão)
     const pole = locDir(P['e' + s] || [-0.25, -1, s === 'L' ? 0.55 : -0.55]);
     [J['el' + s], J['ha' + s]] = ik2(sh, h, B.ua, B.fa, pole);
     const hip = J['hip' + s], f = P['f' + s];
@@ -101,7 +101,7 @@ function proj(p) {
 }
 const W = { th: 17, sn: 13, ua: 13, fa: 11, foot: 9 };
 
-export function draw(J, { gloves = true, hi = [], trail = null, burst = null, cam = 30, ox = 0, act = [], tilt = 0, zoom = 1, target = null, path = null } = {}) {
+export function draw(J, { gloves = true, hi = [], trail = null, burst = null, cam = 30, ox = 0, act = [], tilt = 0, zoom = 1, target = null, path = null, props = null } = {}) {
   CAM = cam * D; TILT = tilt * D; ZOOM = zoom;
   const P = {}; for (const k in J) P[k] = proj(J[k]);
   const segs = [];
@@ -158,7 +158,39 @@ export function draw(J, { gloves = true, hi = [], trail = null, burst = null, ca
     fx += `<path d="${d}Z" class="bst"/>`;
     for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2; fx += `<line x1="${(c[0] + Math.cos(a) * r2 * 1.1).toFixed(1)}" y1="${(c[1] + Math.sin(a) * r2 * 1.1).toFixed(1)}" x2="${(c[0] + Math.cos(a) * r2 * 1.7).toFixed(1)}" y2="${(c[1] + Math.sin(a) * r2 * 1.7).toFixed(1)}" class="bsl"/>`; }
   }
+  // equipamentos (barra, halter, banco, elástico...): atrás ou na frente do corpo conforme a profundidade
+  let pBack = '', pFront = '';
+  if (props) for (const it of propSVG(props)) { if (it.layer === 'back' || (it.layer !== 'front' && it.z > zMid + 0.02)) pBack += it.svg; else pFront += it.svg; }
   return `<svg viewBox="${-ox} 0 230 200" class="fig" role="img" aria-hidden="true">
-    ${TILT ? '' : `<line x1="${6 - ox}" y1="${GY}" x2="${224 - ox}" y2="${GY}" class="gr"/>`}${shadow}${hl}
-    ${back}${gBack}${torso}${frontLegs}${trunks}${head}${front}${gFront}${tg}${fx}</svg>`;
+    ${TILT ? '' : `<line x1="${6 - ox - 120}" y1="${GY}" x2="${224 - ox + 120}" y2="${GY}" class="gr"/>`}${shadow}${hl}
+    ${pBack}${back}${gBack}${torso}${frontLegs}${trunks}${head}${front}${gFront}${pFront}${tg}${fx}</svg>`;
+}
+
+// ---------- equipamentos ----------
+const f1 = v => v.toFixed(1);
+function propSVG(list) {
+  const out = [], S = SCALE * ZOOM;
+  const ln = (a, b, w, c, layer) => { const p = proj(a), q = proj(b); out.push({ z: (p[2] + q[2]) / 2, layer, svg: `<line x1="${f1(p[0])}" y1="${f1(p[1])}" x2="${f1(q[0])}" y2="${f1(q[1])}" stroke-width="${w}" class="${c}" stroke-linecap="round"/>` }); };
+  const circ = (a, r, c, layer) => { const p = proj(a); out.push({ z: p[2], layer, svg: `<circle cx="${f1(p[0])}" cy="${f1(p[1])}" r="${f1(r)}" class="${c}"/>` }); };
+  for (const it of list) {
+    if (!it) continue;
+    if (it.k === 'line') ln(it.a, it.b, it.w || 6, it.c || 'pr', it.layer);
+    else if (it.k === 'band') ln(it.a, it.b, 3, 'bnd', it.layer || 'front');
+    else if (it.k === 'bar') { // barra olímpica: atravessa as mãos e passa das duas pontas
+      const d = [it.b[0] - it.a[0], it.b[1] - it.a[1], it.b[2] - it.a[2]], l = Math.hypot(...d) || 1, u = d.map(x => x / l), ext = it.ext ?? 0.28;
+      const A = it.a.map((v, i) => v - u[i] * ext), B = it.b.map((v, i) => v + u[i] * ext);
+      ln(A, B, 4.5, 'prb', it.layer || 'front');
+      if (it.plates !== false) for (const E of [A, B]) { const p = E.map((v, i) => v - u[i] * 0.06); circ(p, (it.r || 0.17) * S, 'plt'); circ(p, 3, 'pltc'); }
+    } else if (it.k === 'db') { // halter
+      const d = it.d || [0, 0, 1], h = 0.09, A = it.p.map((v, i) => v - d[i] * h), B = it.p.map((v, i) => v + d[i] * h);
+      ln(A, B, 4, 'prb', it.layer || 'front'); circ(A, 0.06 * S, 'dbb', it.layer || 'front'); circ(B, 0.06 * S, 'dbb', it.layer || 'front');
+    } else if (it.k === 'ball') circ(it.p, (it.r || 0.12) * S, 'mbl', it.layer || 'front');
+    else if (it.k === 'box') { // caixa/banco visto de lado: x1..x2, altura y, profundidade z1..z2
+      const z1 = it.z1 ?? -0.25, z2 = it.z2 ?? 0.25, y0 = it.y0 ?? 0;
+      const c = [[it.x1, y0, z2], [it.x2, y0, z2], [it.x2, it.y, z2], [it.x1, it.y, z2], [it.x1, it.y, z1], [it.x2, it.y, z1], [it.x2, y0, z1]].map(proj);
+      const pts = k => k.map(i => f1(c[i][0]) + ',' + f1(c[i][1])).join(' ');
+      out.push({ z: 9, layer: it.layer || 'back', svg: `<polygon points="${pts([0, 1, 2, 3])}" class="bxf"/><polygon points="${pts([3, 2, 5, 4])}" class="bxt"/><polygon points="${pts([1, 6, 5, 2])}" class="bxs"/>` });
+    }
+  }
+  return out;
 }

@@ -2,6 +2,7 @@ import { EVIDENCE, EXERCISES, FOODS, MUSCLES, EQUIP, PUNCHES, MEALS, RESTR, REST
 import { NEAT, GOALS, targets, adaptiveTDEE, buildPlan as plan_, suggest, dayKey, fmt, sessionKcal, movingAvg, equipment, comboPool, comboSpeech, sportsOf, sportDays } from './calc.js';
 import { SPORTS, SPORT_IDS, combatSession, runSession } from './sports.js';
 import { TECHNIQUES, TIRED, CATS, animate, thumbSVG } from './techniques.js';
+import { hasDemo, exThumb, exAnimate, demoSteps } from './exanim.js';
 import { cloud } from './cloud.js';
 import { startScan, lookupBarcode } from './scan.js';
 import { SPLIT_DEFS, genRoutine, recommend, cleanRoutine, alternatives, library, musclesOf, fmtRest, repsOf, restOf } from './routine.js';
@@ -966,6 +967,7 @@ views.evo = (ex) => {
   const pts = h.slice().reverse().map(x => x.best.sc), mx = Math.max(...pts, 1), mn = Math.min(...pts, mx);
   const spark = pts.length >= 2 ? `<svg class="spark" viewBox="0 0 100 32" preserveAspectRatio="none"><polyline points="${pts.map((v, i) => `${(i / (pts.length - 1) * 100).toFixed(1)},${(30 - (mx === mn ? 14 : (v - mn) / (mx - mn) * 28)).toFixed(1)}`).join(' ')}"/></svg>` : '';
   return `<section class="head"><div><a href="#treino" class="backlink">← Força</a><h1>${esc(e.n)}</h1></div></section>
+  ${demoBtn(ex)}
   <div class="card">${h.length ? `<small class="cat">Melhor marca</small><h2 class="mono">${esc(setLbl(top.best))}</h2>
     ${e.inc && e1rm(top.best) ? `<small class="muted">1RM estimado ≈ ${fmt(e1rm(top.best), 0)} kg (fórmula de Epley, estimativa)</small>` : ''}
     ${spark}${h.length < 2 ? '<p class="small muted">Só 1 registro. A evolução aparece a partir do segundo.</p>' : ''}` : '<p class="small muted">Nenhuma série registrada desse exercício.</p>'}</div>
@@ -1026,9 +1028,29 @@ views.ver = (idx) => {
   return `<section class="head"><div><a href="#treino" class="backlink">← Força</a><h1>${esc(d.name)}</h1></div></section>
   <p class="small muted pad">${d.items.length} exercícios · ${d.items.reduce((a, b) => a + b.sets, 0)} séries · ${esc(musclesOf(d.items).join(', '))}</p>
   ${d.items.map((it, i) => { const e = EXERCISES[it.ex]; return `<div class="card exv"><div class="row between"><h3>${i + 1}. ${esc(it.name)}</h3><span class="chip">${it.sets}×${repsOf(it)}${e.u && e.u !== 's' && e.u !== 'm' ? e.u : e.u === 's' ? ' s' : ''}</span></div>
-    <p class="small">${esc(e.cue)}</p>
+    <p class="small">${esc(e.cue)}</p>${demoBtn(it.ex)}
     <p class="small muted">Descanso ${esc(it.rest)}${it.rir ? ` · pare com ${it.rir} reps na reserva` : ''}${e.req.length ? ` · precisa: ${esc(e.req.map(k => EQUIP[k] || (k === 'gym' ? 'academia' : k)).join(', '))}` : ''}</p></div>`; }).join('')}
   ${d.items.length ? `<a class="btn primary block" href="#sessao-${idx}">Começar este treino</a>` : `<a class="btn block" href="#rotina">Adicionar exercícios</a>`}`;
+};
+
+// ---------- Demonstração do exercício (mesmo boneco dos golpes) ----------
+const demoBtn = (ex, label = 'Ver execução') => hasDemo(ex) ? `<a class="exdemo" href="#demo-${ex}" aria-label="${esc(label)}: ${esc(EXERCISES[ex].n)}"><span class="exthumb">${exThumb(ex)}</span><span>${esc(label)} ›</span></a>` : '';
+views.demo = (ex) => {
+  const e = EXERCISES[ex]; if (!e || !hasDemo(ex)) { location.hash = '#treino'; return ''; }
+  const prim = Object.entries(e.m || {}).filter(([, f]) => f >= 1).map(([m]) => MUSCLES[m]).filter(Boolean), sec = Object.entries(e.m || {}).filter(([, f]) => f < 1).map(([m]) => MUSCLES[m]).filter(Boolean);
+  const steps = demoSteps(ex) || [e.cue];
+  return `<section class="head"><div><button class="backlink linkbtn" data-act="goBack">← Voltar</button><h1>${esc(e.n)}</h1></div></section>
+  <div class="card panel techcard">
+    <div id="techFig" class="techfig"></div>
+    <div class="segs speed"><button data-act="techPause">❚❚ Pausar</button><button class="on" data-act="techSpeed" data-s="1">Normal</button><button data-act="techSpeed" data-s="2.5">Lento</button><button data-act="techSpeed" data-s="5">Bem lento</button></div>
+    ${ex === 'shadowx' ? '<p class="small muted">Mesmo movimento do cruzado da aba de luta, só que em séries curtas e 100% de velocidade.</p>' : ''}
+  </div>
+  <div class="card"><h3>Passo a passo</h3><ol class="steps" id="techSteps">${steps.map((t, i) => `<li data-i="${i}">${esc(t)}</li>`).join('')}</ol>
+    <p class="small"><b>Dica:</b> ${esc(e.cue)}</p></div>
+  <div class="card"><h3>O que trabalha</h3>
+    <p class="small">${prim.length ? `<b>Principal:</b> ${esc(prim.join(', '))}` : ''}${sec.length ? `<br><b>Ajuda:</b> ${esc(sec.join(', '))}` : ''}${!prim.length && !sec.length ? esc(e.t === 'power' ? 'Potência: corpo inteiro.' : 'Corpo inteiro.') : ''}</p>
+    <p class="small muted">${e.req.length ? 'Precisa de: ' + esc(e.req.map(k => EQUIP[k] || (k === 'gym' ? 'academia' : k)).join(', ')) : 'Sem equipamento.'}</p>
+    ${e.vars ? `<p class="small muted">Progressão: ${esc(e.vars.join(' → '))}</p>` : ''}</div>`;
 };
 
 // ---------- Execução do treino ----------
@@ -1083,6 +1105,7 @@ views.sessao = (idx) => {
     return `<div class="card ex" id="ex-${xi}"><div class="row between"><h3><span class="mono exn">${xi + 1}</span> ${esc(it.name)}</h3><button class="ibtn" data-act="exOpen" data-i="-1" aria-label="Recolher">▴</button></div>
       <div class="presc"><small class="cat">Prescrição</small><span><b>${it.sets} séries</b> · <b>${repsOf(it)}</b> ${unit}${e.u && !['s', 'm'].includes(e.u) ? ' ' + esc(e.u) : ''} · descanso <b>${esc(it.rest)}</b>${it.rir ? ` · pare com ${it.rir} na reserva` : ''}</span></div>
       <p class="small">${esc(e.cue)}${e.req.length ? ` <span class="muted">· ${esc(e.req.map(k => EQUIP[k] || (k === 'gym' ? 'academia' : k)).join(', '))}</span>` : ''}</p>
+      ${demoBtn(it.ex)}
       <div class="progbox"><small class="cat">Orientação de progressão</small>
         <p class="small">Faixa: <b>${repsOf(it)} ${unit}</b>. ${e.vars ? `Quando fizer ${it.hi}+ em todas as séries, avance pro próximo nível.` : e.inc ? `Quando fizer ${it.hi} em todas as séries, suba ${fmt(e.inc)} kg e volte pra ${it.lo}.` : e.t === 'power' ? 'Potência: qualidade acima de cansaço.' : `Quando fizer ${it.hi} em todas as séries, aumente a dificuldade.`}</p>
         <p class="small sug">${esc(sg.text)}</p>${lv}</div>
@@ -1539,7 +1562,7 @@ function render() {
   const ms = mySports();
   const spLabel = ms.length === 1 ? SPORTS[ms[0]].n : 'Esporte';
   const tabs = [['hoje', 'Hoje'], ['nutri', 'Nutrição'], ['treino', 'Força'], ['esporte', spLabel], ['coach', 'Coach']];
-  $('#nav').innerHTML = tabs.map(([id, label]) => `<a href="#${id}" class="${(v === id || ((v === 'sessao' || v === 'rotinas' || v === 'rotina' || v === 'ver' || v === 'resumo' || v === 'wk' || v === 'evo') && id === 'treino') || (v === 'cardapio' && id === 'nutri') || ((v === 'tecnica' || v === 'tecnicas') && id === 'esporte')) ? 'on' : ''}"><svg viewBox="0 0 24 24"><path d="${ICONS[id]}"/></svg><span>${esc(label)}</span></a>`).join('');
+  $('#nav').innerHTML = tabs.map(([id, label]) => `<a href="#${id}" class="${(v === id || ((v === 'sessao' || v === 'rotinas' || v === 'rotina' || v === 'ver' || v === 'resumo' || v === 'wk' || v === 'evo' || v === 'demo') && id === 'treino') || (v === 'cardapio' && id === 'nutri') || ((v === 'tecnica' || v === 'tecnicas') && id === 'esporte')) ? 'on' : ''}"><svg viewBox="0 0 24 24"><path d="${ICONS[id]}"/></svg><span>${esc(label)}</span></a>`).join('');
   bindAfter(v, arg);
   if (window.scrollY !== keepY) window.scrollTo(0, keepY);
   if (v === 'esporte') paintTimer();
@@ -1682,6 +1705,7 @@ function bindAfter(v, arg) {
       const n = Math.max(1, Math.round(num(i.value) || 1)); S.timer[i.dataset.tm] = n; S.timer.preset = 'custom'; save(); if (TM.phase === 'idle') paintTimer();
     }));
   }
+  if (v === 'demo' && hasDemo(arg)) anim = exAnimate($('#techFig'), arg, i => document.querySelectorAll('#techSteps li').forEach(li => li.classList.toggle('on', +li.dataset.i === i)));
   if (v === 'tecnica') {
     const t = TECHNIQUES.find(x => x.id === arg);
     if (t) anim = animate($('#techFig'), t, i => document.querySelectorAll('#techSteps li').forEach(li => li.classList.toggle('on', +li.dataset.i === i)));
@@ -1930,6 +1954,7 @@ document.addEventListener('click', async e => {
   if (a === 'techPause' && anim) { el.textContent = anim.toggle() ? '▶ Continuar' : '❚❚ Pausar'; }
   if (a === 'techSpeed' && anim) { anim.setSpeed(+el.dataset.s); el.parentNode.querySelectorAll('[data-act=techSpeed]').forEach(b => b.classList.toggle('on', b === el)); }
   if (a === 'techCat') { techCat = el.dataset.c; render(); }
+  if (a === 'goBack') { if (history.length > 1) history.back(); else location.hash = '#treino'; }
   if (a === 'ask') askCoach(el.dataset.q);
   if (a === 'clearChat') { S.chat = []; save(); render(); }
   if (a === 'saveKey') {

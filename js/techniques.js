@@ -294,7 +294,7 @@ export function animate(el, tech, onStep) {
     const since = now - burstT;
     if (burstT && since < 260 * speed) { if (a.fx) burstP = J[a.fx]; burst = burstP ? { p: burstP, s: 1.15 - since / (260 * speed) * 0.6 } : null; }
     const show = k > 0.5 ? b : a;
-    el.innerHTML = draw(J, { gloves: tech.gloves, hi: show.hi, trail: trail.length > 1 ? trail : null, burst, cam: tech.cam, ox: tech.ox, act: tech.act, tilt: tech.tilt, zoom: tech.zoom, target, path: path.length > 2 ? path : null });
+    el.innerHTML = draw(J, { gloves: tech.gloves, hi: show.hi, trail: trail.length > 1 ? trail : null, burst, cam: tech.cam, ox: tech.ox, act: tech.act, tilt: tech.tilt, zoom: tech.zoom, target, path: path.length > 2 ? path : null, props: tech.props ? tech.props(J) : null });
     if (show.step !== lastStep) { lastStep = show.step; onStep && onStep(show.step); }
     raf = requestAnimationFrame(frame);
   }
