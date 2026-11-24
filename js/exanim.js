@@ -654,6 +654,10 @@ function flatAnimate(el, d, onStep) {
   def('wristfe', { cam: 30, tilt: 8, frames: [F(a, 400, 0), F(b, 700, 0), F(b, 200, 1), F(a, 1300, 1)], steps: ['Antebraço apoiado na coxa, só o punho sobe', 'Desce em 3 s. Depois repete com a palma pra baixo'],
     props: J => [{ k: 'db', p: J.haR, d: [0, 0, 1] }, { k: 'badge', palm: 'in', text: 'Palma pra cima,|depois pra baixo' }] }); }
 
+{ // Retração do queixo: a cabeça desliza pra trás sem inclinar (vista de lado, aproximada)
+  const a = P(SEAT, { lean: 0, chin: -0.6, hL: [0.3, -0.38, 0.2], hR: [0.3, -0.38, -0.2] }), b = P(a, { chin: 1 });
+  def('chintuck', { cam: 4, tilt: 0, zoom: 1.25, ox: -10, frames: [F(a, 500, 0), F(b, 700, 0), F(b, 1400, 1), F(a, 800, 1)], steps: ['Olhando pra frente: leva o queixo pra trás em linha reta, como se fizesse papada', 'Segura 3–5 s e solta. Não olha pra baixo nem inclina a cabeça'],
+    props: J => [seatBox, { k: 'line', a: [J.chest[0] + 0.02, J.chest[1] + 0.08, -0.3], b: [J.chest[0] + 0.02, J.chest[1] + 0.6, -0.3], w: 2, c: 'mus' }, { k: 'badge', text: 'Queixo pra trás|em linha reta' }] }); }
 // exercício → demonstração (sombra explosiva usa o cruzado da aba de luta)
 const ALIAS = { plyopush: 'plyopush' };
 export function hasDemo(ex) { return ex === 'shadowx' || !!PAT[ALIAS[ex] || ex]; }

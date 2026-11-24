@@ -119,7 +119,7 @@ export const NEEDS = {
   wcdip: N(2, 0), sbpress: N(1, 0), sitstand: N(0, 2), wallpush: N(2, 0, 1), suitcase: N(1, 2, 1),
   fsq: N(2, 2, 1), gm: N(2, 2, 1), sled: N(2, 2, 1), rope: N(1, 0), mbo: N(2, 0), bandohp: N(1, 0), seatcrunch: N(1, 0),
   deadbug: N(0, 0, 0, 1), curlup: N(0, 0, 0, 1), thrrot: N(1, 2, 0, 1), catcamel: N(2, 2, 0, 1), wallangel: N(1, 0), thext: N(0, 0, 0, 1),
-  doorpec: N(1, 0), hipflex: N(0, 2, 0, 1), tke: N(0, 1, 1), wallsit: N(0, 2, 1), latwalk: N(0, 2, 1), balance: N(0, 1, 1), wristfe: N(1, 0)
+  doorpec: N(1, 0), hipflex: N(0, 2, 0, 1), tke: N(0, 1, 1), wallsit: N(0, 2, 1), latwalk: N(0, 2, 1), balance: N(0, 1, 1), wristfe: N(1, 0), chintuck: N(0, 0)
 };
 // dá pra fazer com o corpo que a pessoa tem?
 export function bodyOk(ex, p, c = caps(p)) {

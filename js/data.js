@@ -415,6 +415,7 @@ export const EXERCISES = {
   wallsit:  { n: 'Isometria na parede (cadeirinha)', m: { quad: 0.5 }, t: 'prehab', req: [], u: 's', r: [30, 45], cue: 'Costas na parede, joelhos a 60–90°: segura. Dor até 3 de 10 é aceitável.' },
   latwalk:  { n: 'Caminhada lateral com elástico', m: { glut: 0.5 }, t: 'prehab', req: ['elastico'], u: '/lado', r: [10, 15], cue: 'Miniband acima do joelho ou no tornozelo, meio agachado: passos de lado sem o joelho entrar.' },
   balance:  { n: 'Equilíbrio em uma perna', m: {}, t: 'prehab', req: [], u: 's', r: [30, 45], vars: ['Equilíbrio com olhos abertos', 'Equilíbrio de olhos fechados', 'Equilíbrio em almofada'], cue: 'Em uma perna, joelho levemente dobrado. Perto de um apoio. Cada perna.' },
+  chintuck: { n: 'Retração do queixo', m: {}, t: 'prehab', req: [], r: [8, 12], cue: 'Sentado ou em pé, olhando pra frente: leva o queixo pra trás em linha reta (faz "papada"), segura 3–5 s. Sem olhar pra baixo.' },
   wristfe:  { n: 'Flexão e extensão de punho com halter', m: {}, t: 'prehab', req: ['halteres'], r: [12, 15], cue: 'Antebraço apoiado na coxa, halter leve: sobe o punho e desce devagar em 3 s. Palma pra cima e depois pra baixo.' },
 };
 

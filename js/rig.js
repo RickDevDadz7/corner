@@ -36,7 +36,7 @@ function ik2(root, target, a, b, poleDir) {
 /* Pose:
    p: [x,y,z] pélvis · py: giro do quadril (°) · cy: giro do tronco (°) · lean: inclinação pra frente (°) · tw: rolar no eixo da coluna (°, deitado)
    hL/hR: mão em coords do tronco [frente, cima, lado(+ = esquerda)] · eL/eR: direção do cotovelo nas mesmas coords
-   fL/fR: pé no mundo [x,y,z] · kL/kR: direção do joelho no mundo · tL/tR: direção da ponta do pé no mundo */
+   chin: cabeça desliza pra trás (+) ou pra frente (−), sem inclinar · fL/fR: pé no mundo [x,y,z] · kL/kR: direção do joelho no mundo · tL/tR: direção da ponta do pé no mundo */
 export function solve(P) {
   const py = (P.py ?? -40) * D, cy = (P.cy ?? -45) * D, lean = (P.lean ?? 8) * D, tw = (P.tw ?? 0) * D;
   const pel = P.p || [0, 0.92, 0];
@@ -56,7 +56,7 @@ export function solve(P) {
   J.hipL = add(pel, mul(Lp, B.hip)); J.hipR = add(pel, mul(Lp, -B.hip));
   const shU = -0.03 + (P.shrug || 0) * 0.07; // shrug: ombros sobem (encolhimento)
   J.shL = add(add(chest, mul(L, B.sh)), mul(U, shU)); J.shR = add(add(chest, mul(L, -B.sh)), mul(U, shU));
-  J.neck = add(chest, mul(U, B.neck)); J.head = add(add(J.neck, mul(U, B.head)), mul(F, 0.02));
+  J.neck = add(chest, mul(U, B.neck)); J.head = add(add(J.neck, mul(U, B.head - Math.abs(P.chin || 0) * 0.015)), mul(F, 0.02 - (P.chin || 0) * 0.09)); // chin: + = queixo pra trás (retração), − = cabeça pra frente
   const loc = v => add(chest, add(add(mul(Fa, v[0]), mul(Ua, v[1])), mul(La, v[2])));
   const locDir = v => add(add(mul(Fa, v[0]), mul(Ua, v[1])), mul(La, v[2]));
   for (const s of ['L', 'R']) {

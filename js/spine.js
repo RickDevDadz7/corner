@@ -99,7 +99,7 @@ const REHAB = {
   joelho: [['wallsit', '4 × 30–45 s', 'Isometria reduz a dor do tendão patelar'], ['tke', D.rep15, 'Ativa o quadríceps sem forçar o joelho'], ['sgb', D.rep15, 'Glúteo forte alinha o joelho']],
   quadril: [['latwalk', D.side, 'Glúteo médio: estabiliza quadril e joelho'], ['sgb', D.rep15, 'Glúteo sem carga na virilha'], ['hipflex', D.stretch, 'Alivia o flexor do quadril']],
   tornozelo: [['balance', '3 × 30 s cada perna', 'Equilíbrio reduz nova torção'], ['calfbw', '3 × 15 (desce em 3 s)', 'Panturrilha e tendão de Aquiles']],
-  pescoco: [['neck', D.iso, 'Isometria fortalece sem mexer o pescoço'], ['wallangel', D.rep, 'Postura do ombro e da parte alta das costas']]
+  pescoco: [['chintuck', '2 × 10 (segura 3–5 s)', 'Fortalece os flexores profundos do pescoço'], ['neck', D.iso, 'Isometria fortalece sem mexer o pescoço'], ['wallangel', D.rep, 'Postura do ombro e da parte alta das costas']]
 };
 // p: perfil; conds: condições marcadas; inj: lesões marcadas
 export function complements(p, conds = [], inj = []) {
@@ -119,6 +119,7 @@ export function complements(p, conds = [], inj = []) {
     add('doorpec', D.stretch, 'Peitoral encurtado puxa os ombros pra frente', 'Cifose');
     add('ytw', D.rep, 'Fortalece quem segura a escápula pra trás', 'Cifose');
     add('wallangel', D.rep, 'Postura e mobilidade do ombro', 'Cifose');
+    add('chintuck', '2 × 10 (segura 3–5 s)', 'Na cifose a cabeça costuma ir pra frente', 'Cifose');
   }
   if (has('lordose') || S.has('lordose')) {
     add('hipflex', D.stretch, 'Flexor do quadril encurtado aumenta a curva da lombar', 'Lordose');
@@ -127,7 +128,7 @@ export function complements(p, conds = [], inj = []) {
     add('curlup', '3 × 6 (segura 8–10 s)', 'Abdômen sem dobrar a lombar', 'Lordose');
   }
   if (S.has('retLomb') || S.has('dorsoPlano')) { add('catcamel', D.rep, 'Devolve o movimento da coluna, segmento por segmento', 'Coluna reta'); add('birddog', D.side, 'Estabilidade da coluna', 'Coluna reta'); }
-  if (S.has('retCerv') || S.has('hiperCerv')) { add('neck', D.iso, 'Fortalece o pescoço sem movimento', 'Pescoço'); add('wallangel', D.rep, 'Postura da parte alta das costas', 'Pescoço'); }
+  if (S.has('retCerv') || S.has('hiperCerv')) { add('chintuck', '2 × 10 (segura 3–5 s)', 'Cabeça alinhada sobre os ombros', 'Pescoço'); add('neck', D.iso, 'Fortalece o pescoço sem movimento', 'Pescoço'); add('wallangel', D.rep, 'Postura da parte alta das costas', 'Pescoço'); }
   for (const k of inj) for (const [ex, dose, why] of REHAB[k] || []) add(ex, dose, why, 'Lesão');
   return out;
 }

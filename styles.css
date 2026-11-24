@@ -745,7 +745,7 @@ body.resting #app{padding-bottom:calc(176px + var(--safe-b))}
 .care.h2o{margin:10px 0 0}
 /* coluna editável (v3.27) */
 .spinecard .segs{margin-bottom:6px}
-.spfig{width:100%;max-width:420px;display:block;margin:6px auto 8px;touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab}
+.spfig{width:100%;max-width:420px;display:block;margin:6px auto 8px;touch-action:pan-y;user-select:none;-webkit-user-select:none}.spfig .sp-v{cursor:grab}
 .spfig .sp-hd,.spfig .sp-body{fill:none;stroke:var(--ink);stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
 .spfig .sp-hip{stroke:var(--muted);stroke-width:2;stroke-dasharray:5 4}
 .spfig .sp-ref{fill:none;stroke:var(--muted);stroke-width:1.5;stroke-dasharray:4 4;opacity:.7}

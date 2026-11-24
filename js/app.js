@@ -1,6 +1,6 @@
 import { EVIDENCE, EXERCISES, FOODS, MUSCLES, EQUIP, PUNCHES, MEALS, RESTR, RESTR_GROUPS, restrOf } from './data.js';
 import { NEAT, GOALS, targets, adaptiveTDEE, buildPlan as plan_, suggest, dayKey, fmt, sessionKcal, movingAvg, equipment, comboPool, comboSpeech, sportsOf, sportDays } from './calc.js';
-import { SPORTS, SPORT_IDS, combatSession, runSession } from './sports.js';
+import { SPORTS, SPORT_IDS, combatSession, runSession, paceTxt, paceKmh, parsePace } from './sports.js';
 import { TECHNIQUES, TIRED, CATS, animate, thumbSVG } from './techniques.js';
 import { hasDemo, exThumb, exAnimate, demoSteps } from './exanim.js';
 import { cloud } from './cloud.js';
@@ -8,7 +8,7 @@ import { startScan, lookupBarcode } from './scan.js';
 import { SPLIT_DEFS, genRoutine, recommend, cleanRoutine, alternatives, library, musclesOf, fmtRest, repsOf, restOf } from './routine.js';
 import { pickDay, pickMeal, mealKeys, solveDay, dayTargets, measure, shoppingList, shopQty, swapPick, foodByName, SLOTS, candidates, sameCarb } from './menu.js';
 import * as sync from './sync.js';
-import { TGOALS, INJURIES, FOCUS_MUSCLES, usable, tgoalOf, injuriesOf, focusOf, careOf, goalParams, cycleInfo, blockInfo, readiness, weeklyTargets, planFor, fitVolume, sessionMin, stagnant, swapOptions } from './periodize.js';
+import { TGOALS, INJURIES, FOCUS_MUSCLES, usable, avoidSet, tgoalOf, injuriesOf, focusOf, careOf, goalParams, cycleInfo, blockInfo, readiness, weeklyTargets, planFor, fitVolume, sessionMin, stagnant, swapOptions } from './periodize.js';
 import { CONDITIONS, COND_GROUPS, BODY, condsOf, condFlag, condRestr, bodyOf, caps, bodyLabel, bodyCare, bodyNA, bodyFig } from './health.js';
 import { VERT, VY, VR, SAG0, spineOf, spineEmpty, dragSpine, spineSummary, complements, spineTips } from './spine.js';
 const buildPlan = p => plan_(p, S.prog);
@@ -30,7 +30,15 @@ function activeRoutine() {
   return autoRoutine();
 }
 function activePlan() {
-  const r = activeRoutine(), p = S.profile, startLvl = p.experience === 'iniciante' ? 0 : 1, gp = goalParams(p);
+  const r0 = activeRoutine(), p = S.profile;
+  // rotina própria + dor/lesão marcada no perfil: troca na hora só o que piora; tirou a lesão, volta o original
+  const av = avoidSet(p), tmpSw = [];
+  const r = r0.auto ? r0 : { ...r0, sessions: r0.sessions.map(s => ({ ...s, items: s.items.map(it => {
+    if (!av.has(it.ex)) return it;
+    const alt = alternatives(p, it).find(a => a.ok && !s.items.some(x => x.ex === a.id)); if (!alt) return it;
+    tmpSw.push([it.ex, alt.id]); return { ...it, ex: alt.id, was: it.ex };
+  }) })) };
+  const startLvl = p.experience === 'iniciante' ? 0 : 1, gp = goalParams(p);
   // ciclo: volume sobe semana a semana (dentro do tempo da sessão) e a cada 4–5 semanas vem uma semana leve
   const ci = cycleNow(), rd = readiness(S.logs.workouts, today()), tg = weeklyTargets(p, ci, rd), auto = p.autoVol !== false;
   const freq = r.auto ? r.sessions.length : Math.max(1, Math.round(+r.freq) || r.sessions.length), mult = r.sessions.length ? freq / r.sessions.length : 1;
@@ -45,7 +53,7 @@ function activePlan() {
   const vol = Object.fromEntries(Object.keys(MUSCLES).map(m => [m, 0]));
   for (const d of days) for (const it of d.items) for (const [m, f] of Object.entries(EXERCISES[it.ex].m)) vol[m] += it.sets * f * mult;
   return { routine: r, freq, split: r.auto ? r.splitName : r.name, days, vol, home: p.env === 'casa', none: r.auto ? r.none : !days.length,
-    auto, gp, ci, rd, bk: blockNow(), tg: fit?.tg || tg, limited: fit?.limited || [], uncovered: fit?.uncovered || [], dropped: fit?.dropped || [], swapped: r.swapped || [] };
+    auto, gp, ci, rd, bk: blockNow(), tg: fit?.tg || tg, limited: fit?.limited || [], uncovered: fit?.uncovered || [], dropped: fit?.dropped || [], swapped: r.auto ? r.swapped || [] : tmpSw };
 }
 // ---------- Condições de saúde ----------
 const condNames = p => condsOf(p).map(k => CONDITIONS[k].n);
@@ -231,11 +239,9 @@ function toast(msg) {
 }
 function foodTotals() { const out = {}; for (const [d, items] of Object.entries(S.logs.food)) out[d] = items.reduce((a, i) => a + i.k, 0); return out; }
 function T() { return targets(S.profile, S.settings.adaptive ? adaptiveTDEE(S.logs.weights, foodTotals()) : null); }
-// ceia: só quando o perfil pede. Comer de 3 em 3 h não tem base; o que tem é dividir a proteína em 4+ refeições
+// ceia: automática pelo objetivo e metas (sem opção no perfil). Comer de 3 em 3 h não tem base; o que tem é dividir a proteína em 4+ refeições
 // de ~0,4–0,55 g/kg (Schoenfeld & Aragon 2018) e proteína antes de dormir ajudar a recuperação (Snijders 2015)
 function ceiaInfo(p = S.profile || {}) {
-  if (p.ceia === 'on') return { on: true, why: 'Ligada no seu perfil.' };
-  if (p.ceia === 'off') return { on: false, why: 'Desligada no seu perfil.' };
   if (!S.profile) return { on: false, why: '' };
   const t = T();
   if (p.goal === 'bulk') return { on: true, why: 'Objetivo de ganhar massa: uma refeição leve a mais facilita bater as calorias sem pratos enormes.' };
@@ -435,7 +441,6 @@ views.onboarding = () => {
     <label>% de gordura <small>(opcional, melhora a precisão)</small><input name="bf" inputmode="decimal" value="${esc(p.bf ?? '')}" placeholder="ex.: 15"></label>
     <label>Dia a dia fora do treino ${sel('neat', NEAT, p.neat || 1.3)}</label>
     <label>Objetivo ${sel('goal', GOALS, p.goal || 'recomp')}</label>
-    <label>Ceia (antes de dormir) ${sel('ceia', { '': 'Automático (pelo objetivo e metas)', on: 'Sempre', off: 'Nunca' }, p.ceia || '')}</label>
     <label class="cut-only">Ritmo de perda ${sel('rate', { 0.5: '0,5% do peso/semana (recomendado)', 0.75: '0,75%/semana', 1: '1%/semana (agressivo)' }, p.rate || 0.5)}</label>
     <label>Experiência de treino ${sel('experience', { iniciante: 'Iniciante (< 1 ano)', intermediario: 'Intermediário (1–3 anos)', avancado: 'Avançado (3+ anos)' }, p.experience || 'intermediario')}</label>
 
@@ -549,7 +554,7 @@ views.hoje = () => {
   </div>
   <div class="card ${viewDay ? '' : 'panel'}" id="h-treino">
     <small class="cat">${viewDay ? 'Treinos do dia' : 'Seu treino de hoje'}</small>
-    ${doneTrain ? `<ul class="done">${todayW.map(x => `<li>✓ <b>${esc(x.name)}</b> <span class="muted small">· força</span></li>`).join('')}${todayS.map(b => `<li>✓ <b>${esc(SPORTS[b.sport]?.n || '')}</b> <span class="muted small">· ${esc(SPORTS[b.sport]?.types[b.type]?.n || '')} · ${b.min} min · ~${fmt(b.kcal, 0)} kcal</span></li>`).join('')}</ul>` : viewDay ? `<p class="muted small">Nenhuma sessão registrada nesse dia.</p>` : ''}
+    ${doneTrain ? `<ul class="done">${todayW.map(x => `<li>✓ <b>${esc(x.name)}</b> <span class="muted small">· força</span></li>`).join('')}${todayS.map(b => `<li>✓ <b>${esc(SPORTS[b.sport]?.n || '')}</b> <span class="muted small">· ${esc(SPORTS[b.sport]?.types[b.type]?.n || '')} · ${b.min} min${b.km > 0 ? ` · ${fmt(b.km, 1)} km${b.min > 0 ? ` · ${paceTxt(b.min * 60 / b.km)}/km` : ''}` : ''} · ~${fmt(b.kcal, 0)} kcal</span></li>`).join('')}</ul>` : viewDay ? `<p class="muted small">Nenhuma sessão registrada nesse dia.</p>` : ''}
     ${viewDay ? '' : P ? `<div class="tmain"><small class="muted tcat">${doneTrain ? 'Quer mais? ' : ''}${esc(P.cat)}</small><h3>${esc(P.title)}</h3>
       <p class="small muted">${esc(P.desc)}</p><p class="small tmeta mono">${esc(P.meta)}</p>
       <a class="btn primary block" href="${P.href}">${P.cta} →</a></div>
@@ -1005,10 +1010,16 @@ function bindSpine() {
   const pt = e => { const r = svg.getBoundingClientRect(), vb = svg.viewBox.baseVal; return [(e.clientX - r.left) * vb.width / r.width, (e.clientY - r.top) * vb.height / r.height]; };
   const key = () => spView === 'back' ? 'x' : 'z';
   const paint = () => { svg.innerHTML = spineInner(spEdit, spView, spSel); };
-  svg.addEventListener('pointerdown', e => {
+  // só agarra quando o dedo está em cima de uma vértebra; no resto do desenho a tela rola normal
+  const hit = e => {
     const [x, y] = pt(e); let best = -1, bd = 1e9;
-    VY.forEach((vy, i) => { const d = Math.abs(vy - y); if (d < bd) { bd = d; best = i; } });
-    if (bd > 22) return;
+    VY.forEach((vy, i) => { const vx = spView === 'back' ? 150 + spEdit.x[i] : 150 + SAG0[i] * 1.4 - spEdit.z[i], d = Math.hypot((vx - x) * 0.8, vy - y); if (d < bd) { bd = d; best = i; } });
+    return bd <= Math.max(14, VR(best) + 8) ? best : -1;
+  };
+  svg.addEventListener('touchstart', e => { const t = e.touches[0]; if (e.touches.length === 1 && hit(t) >= 0) e.preventDefault(); }, { passive: false });
+  svg.addEventListener('pointerdown', e => {
+    const best = hit(e); if (best < 0) return;
+    const [x] = pt(e);
     spSel = best; drag = { x, snap: [...spEdit[key()]], moved: false };
     svg.setPointerCapture(e.pointerId); paint(); e.preventDefault();
   });
@@ -1106,6 +1117,7 @@ views.treino = () => {
   ${draftBanner()}
   ${clearanceCard()}
   ${blockBanner(plan)}
+  ${plan.swapped.length && injuriesOf(S.profile).length ? `<div class="card care small" id="t-pain"><b>Treino ajustado pela dor marcada no perfil (${esc(injuriesOf(S.profile).map(k => INJURIES[k].n.toLowerCase()).join(', '))}):</b> ${esc([...new Map(plan.swapped.map(x => [x.join(), x])).values()].map(([a, b]) => `${EXERCISES[a].n} → ${EXERCISES[b].n}`).join('; '))}. Quando melhorar, desmarque no perfil e o treino volta ao original.</div>` : ''}
   <div class="card rcard" id="t-rotina">
     <div class="row between"><small class="cat">Minha rotina</small><span class="rbadge">Ativa</span></div>
     <h2>${esc(r.auto ? plan.split : r.name)}</h2>
@@ -1610,7 +1622,11 @@ views.esporte = () => {
     <small class="cat">Gerador</small><h3>Treino de ${esc(SP.n.toLowerCase())} de hoje</h3>
     <form id="genForm" class="form">
       <div class="grid2">
-        <label>Duração${sel('minutes', { 20: '20 min', 30: '30 min', 45: '45 min', 60: '60 min' }, g.minutes)}</label>
+        ${id === 'corrida' ? `<label>Meta${sel('by', { min: 'Por tempo', km: 'Por distância' }, g.by === 'km' ? 'km' : 'min')}</label>` : ''}
+        ${id === 'corrida' && g.by === 'km' ? `<label>Distância (km)<input name="km" inputmode="decimal" value="${String(+g.km > 0 ? +g.km : 5).replace('.', ',')}"></label>
+        <label>Ritmo<input name="pace" inputmode="decimal" placeholder="${g.paceU === 'kmh' ? '10' : '6:00'}" value="${+g.pace > 0 ? (g.paceU === 'kmh' ? paceKmh(+g.pace).toFixed(1).replace('.', ',') : paceTxt(+g.pace)) : ''}"></label>
+        <label>Ritmo em${sel('paceU', { minkm: 'min por km', kmh: 'km/h' }, g.paceU === 'kmh' ? 'kmh' : 'minkm')}</label>`
+        : `<label>Duração${sel('minutes', { 20: '20 min', 30: '30 min', 45: '45 min', 60: '60 min' }, g.minutes)}</label>`}
         ${id === 'corrida' ? `<label>Tipo${sel('kind', { leve: 'Rodagem leve', intervalado: 'Intervalado', tiros: 'Tiros curtos', longo: 'Longão' }, g.kind)}</label>`
       : id === 'jiu' ? `<label>Parceiro${sel('partner', { '': 'Sozinho (drills)', 1: 'Com parceiro' }, g.partner ? 1 : '')}</label>`
         : `<label>Saco de pancada${sel('saco', { 1: 'Tenho', '': 'Só sombra' }, (g.saco ?? eqp.has('saco')) ? 1 : '')}</label>`}
@@ -1636,7 +1652,9 @@ views.esporte = () => {
 
   <form id="sessForm" class="card form"><h3>Registrar sessão manual</h3>
     <div class="grid2"><label>Tipo${sel('type', Object.fromEntries(Object.entries(SP.types).map(([k, v]) => [k, v.n])), sportsOf(S.profile)[id]?.type || SP.defaultType)}</label>
-    <label>Minutos<input name="min" inputmode="numeric" value="${sportsOf(S.profile)[id]?.min || 60}"></label></div>
+    <label>Minutos<input name="min" inputmode="numeric" value="${sportsOf(S.profile)[id]?.min || 60}"></label>
+    ${id === 'corrida' ? '<label>Distância (km) <small>opcional</small><input name="km" inputmode="decimal" placeholder="ex.: 5"></label>' : ''}</div>
+    ${id === 'corrida' ? '<p class="small muted">Com minutos e distância, o app calcula seu ritmo.</p>' : ''}
     <button class="btn small" type="submit">Salvar sessão</button></form>
 
   <div class="card"><h3>Semana modelo</h3>
@@ -1905,7 +1923,7 @@ function bindAfter(v, arg) {
       const sports = {};
       for (const id of SPORT_IDS) if (g('sp_' + id)) sports[id] = { days: num(g('sd_' + id)) || 1, min: num(g('sm_' + id)) || 60, type: g('st_' + id), where: g('sw_' + id) };
       const p = {
-        sex: g('sex'), age: num(g('age')), height: num(g('height')), weight: num(g('weight')), bf: num(g('bf')), neat: num(g('neat')), goal: g('goal'), rate: num(g('rate')), ceia: ['on', 'off'].includes(g('ceia')) ? g('ceia') : '',
+        sex: g('sex'), age: num(g('age')), height: num(g('height')), weight: num(g('weight')), bf: num(g('bf')), neat: num(g('neat')), goal: g('goal'), rate: num(g('rate')),
         experience: g('experience'), liftDays: num(g('liftDays')) ?? 0, liftMin: Math.max(15, Math.min(180, num(g('liftMin')) || 40)), env: g('env'), equip: fd.getAll('equip'), sports,
         cond: fd.getAll('cond').filter(k => CONDITIONS[k]), body: fd.getAll('body').filter(k => BODY[k]), bodyFig: !!g('bodyFig'), healthOk: g('healthOk') ? (S.profile?.healthOk || today()) : '',
         spine: S.profile?.spine, tgoal: TGOALS[g('tgoal')] ? g('tgoal') : '', inj: fd.getAll('inj').filter(k => INJURIES[k]), focus: fd.getAll('focus').filter(m => FOCUS_MUSCLES.includes(m)).slice(0, 3), autoVol: !!g('autoVol')
@@ -1998,16 +2016,27 @@ function bindAfter(v, arg) {
     $('#genForm').addEventListener('submit', e => {
       e.preventDefault(); const fd = Object.fromEntries(new FormData(e.target));
       const eq = equipment(S.profile);
+      if (id === 'corrida' && S.boxGen.by === 'km') {
+        const km = Math.round(num(fd.km) * 10) / 10, pace = parsePace(fd.pace, fd.paceU);
+        if (!(km >= 0.5 && km <= 60)) { toast('Distância entre 0,5 e 60 km'); return; }
+        if (!pace) { toast(fd.paceU === 'kmh' ? 'Ritmo entre 4 e 25 km/h' : 'Ritmo no formato 6:00 (min por km)'); return; }
+        S.boxGen = { ...S.boxGen, km, pace, paceU: fd.paceU === 'kmh' ? 'kmh' : 'minkm', kind: fd.kind }; save(true); genFor = id;
+        genSession = runSession({ kind: fd.kind, km, pace }).map(r => ({ ...r, sport: 'corrida' })); render(); return;
+      }
       S.boxGen = { ...S.boxGen, minutes: +fd.minutes, ...(fd.saco !== undefined ? { saco: !!fd.saco } : {}), ...(fd.partner !== undefined ? { partner: !!fd.partner } : {}), ...(fd.kind ? { kind: fd.kind } : {}) };
       save(true);
       genFor = id;
-      genSession = id === 'corrida' ? runSession({ minutes: +fd.minutes, kind: fd.kind }).map(r => ({ ...r, sport: 'corrida' }))
+      genSession = id === 'corrida' ? runSession({ minutes: +fd.minutes || 30, kind: fd.kind }).map(r => ({ ...r, sport: 'corrida' }))
         : combatSession(id, { minutes: +fd.minutes, saco: !!S.boxGen.saco, partner: !!S.boxGen.partner, corda: eq.has('corda'), barra: eq.has('barra'), weak: S.weak, level: level() });
       render();
     });
+    $('#genForm [name=by]')?.addEventListener('change', e => { S.boxGen = { ...S.boxGen, by: e.target.value === 'km' ? 'km' : 'min' }; save(true); render(); });
     $('#sessForm').addEventListener('submit', e => {
       e.preventDefault(); const fd = Object.fromEntries(new FormData(e.target)); const min = num(fd.min) || 0;
-      S.logs.sessions.push({ id: newId(), sport: id, date: today(), type: fd.type, min, kcal: sessionKcal(SPORTS[id].types[fd.type].met, latestWeight(), min) });
+      const km = id === 'corrida' ? Math.round(num(fd.km) * 100) / 100 : 0;
+      if (id === 'corrida' && km && !(km > 0 && km <= 300)) { toast('Distância inválida'); return; }
+      if (!min) { toast('Coloque os minutos'); return; }
+      S.logs.sessions.push({ id: newId(), sport: id, date: today(), type: fd.type, min, ...(km ? { km } : {}), kcal: sessionKcal(SPORTS[id].types[fd.type].met, latestWeight(), min) });
       save(); toast('Sessão salva'); render();
     });
     document.querySelectorAll('[data-tm]').forEach(i => i.addEventListener('change', () => {

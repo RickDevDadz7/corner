@@ -154,8 +154,23 @@ export const SPORTS = {
 export const SPORT_IDS = Object.keys(SPORTS);
 
 // Sessão de corrida: blocos com o mesmo timer (trabalho/descanso)
-export function runSession({ minutes = 30, kind = 'intervalado' }) {
+// ritmo em segundos por km ↔ texto "6:00" e km/h
+export const paceTxt = s => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`;
+export const paceKmh = s => 3600 / s;
+export function parsePace(v, unit = 'minkm') {
+  const t = String(v || '').trim().replace(',', '.');
+  if (unit === 'kmh') { const k = parseFloat(t); return k >= 4 && k <= 25 ? Math.round(3600 / k) : 0; }
+  const m = t.match(/^(\d{1,2})(?::(\d{1,2}))?$/); if (!m) return 0;
+  const s = +m[1] * 60 + (+m[2] || 0); return s >= 150 && s <= 900 ? s : 0;
+}
+// km + ritmo → treino: rodagem e longão viram a distância no ritmo; intervalado e tiros usam o tempo equivalente
+export function runSession({ minutes = 30, kind = 'intervalado', km = 0, pace = 0 }) {
   const B = (t, f, work, rest = 0) => ({ id: 'run', t, f, work, rest, calls: false });
+  if (km > 0 && pace > 0) {
+    const main = Math.round(km * pace), txt = `${String(km).replace('.', ',')} km a ${paceTxt(pace)}/km (${paceKmh(pace).toFixed(1).replace('.', ',')} km/h)`;
+    if (kind === 'leve' || kind === 'longo') return [B('Aquecimento', 'Caminhada rápida e trote bem leve.', 300), B(kind === 'longo' ? 'Longão' : 'Rodagem', `${txt}. ${kind === 'longo' ? 'Leve e constante; hidrate se passar de 60 min.' : 'Ritmo de conversa.'}`, main), B('Volta à calma', 'Trote leve e caminhada.', 300)];
+    minutes = Math.round(main / 60) + 10;
+  }
   if (kind === 'leve') return [B('Aquecimento', 'Caminhada rápida e trote bem leve.', 300), B('Rodagem leve', 'Ritmo de conversa: deu pra falar frases inteiras, tá certo.', Math.max(300, (minutes - 10) * 60)), B('Volta à calma', 'Trote leve e caminhada.', 300)];
   if (kind === 'longo') return [B('Aquecimento', 'Trote leve.', 300), B('Longão', 'Leve e constante. Hidrate se passar de 60 min.', Math.max(600, (minutes - 10) * 60)), B('Volta à calma', 'Caminhada.', 300)];
   if (kind === 'tiros') {
