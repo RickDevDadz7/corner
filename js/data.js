@@ -455,7 +455,7 @@ export const FOODS = [
 export const MEALS = [
   { id: 'cafe', n: 'Café da manhã', ico: '朝', h: [4, 10] },
   { id: 'almoco', n: 'Almoço', ico: '昼', h: [11, 14] },
-  { id: 'lanche', n: 'Lanche', ico: '間', h: [15, 17] },
+  { id: 'lanche', n: 'Lanche da tarde', ico: '間', h: [15, 17] },
   { id: 'jantar', n: 'Jantar', ico: '夜', h: [18, 21] },
   { id: 'extra', n: 'Beliscos e extras', ico: '他', h: [22, 3] }
 ];

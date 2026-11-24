@@ -87,19 +87,19 @@ export function targets(p, adaptive) {
     source = 'ajustado pelos seus dados';
   }
   const notes = [];
-  let kcal = tdee;
+  let kcal = tdee, adj = 0;
   const rate = p.rate || 0.5; // % do peso por semana
   if (p.goal === 'cut') {
     let deficit = (rate / 100) * p.weight * KCAL_PER_KG / 7;
     const cap = tdee * 0.25;
-    if (deficit > cap) { deficit = cap; notes.push('Déficit limitado a 25% do gasto pra proteger massa magra e rendimento no boxe.'); }
-    kcal = tdee - deficit;
+    if (deficit > cap) { deficit = cap; notes.push({ msg: 'Déficit limitado a 25% do gasto pra proteger massa magra e rendimento.', base: `O ritmo que você escolheu (${rate}% do peso/semana) pediria ${Math.round((rate / 100) * p.weight * KCAL_PER_KG / 7)} kcal de déficit; o teto é 25% de ${Math.round(tdee)} kcal.` }); }
+    kcal = tdee - deficit; adj = -deficit;
   } else if (p.goal === 'bulk') {
     const surplus = p.experience === 'iniciante' ? 0.12 : p.experience === 'avancado' ? 0.06 : 0.09;
-    kcal = tdee * (1 + surplus);
+    kcal = tdee * (1 + surplus); adj = tdee * surplus;
   }
   const floor = p.sex === 'f' ? 1300 : 1600;
-  if (kcal < floor) { kcal = floor; notes.push('Meta travada num piso mínimo. Abaixo disso, só com acompanhamento profissional.'); }
+  if (kcal < floor) { kcal = floor; notes.push({ msg: 'Meta travada num piso mínimo. Abaixo disso, só com acompanhamento profissional.', base: `Piso usado: ${floor} kcal (${p.sex === 'f' ? 'mulheres' : 'homens'}).` }); }
 
   const lbm = p.bf ? p.weight * (1 - p.bf / 100) : null;
   let protein;
@@ -109,7 +109,7 @@ export function targets(p, adaptive) {
   let carbs = (kcal - protein * 4 - fat * 9) / 4;
   if (carbs < 0) carbs = 0;
   if (carbs / p.weight < 3 && sportDays(p) >= 3) {
-    notes.push('Carboidrato abaixo de 3 g/kg com treino frequente: espere queda de rendimento no fim das sessões. Considere um déficit menor.');
+    notes.push({ msg: 'Carboidrato abaixo de 3 g/kg com treino frequente: espere queda de rendimento no fim das sessões. Considere um déficit menor.', base: `Sua meta dá ${(carbs / p.weight).toFixed(1).replace('.', ',')} g/kg de carbo e seu perfil tem ${sportDays(p)} treinos do esporte por semana.` });
   }
   const trainHours = ((p.liftDays || 0) * (p.liftMin || 60) + Object.values(sportsOf(p)).reduce((a, s) => a + (+s.days || 0) * (+s.min || 60), 0)) / 60 / 7;
   const water = 35 * p.weight + 500 * trainHours * 1.0;
@@ -117,7 +117,8 @@ export function targets(p, adaptive) {
   return {
     bmr: b.value, bmrMethod: b.method, neat: b.value * p.neat, ex, formula, tdee, source,
     kcal: Math.round(kcal), protein: Math.round(protein), fat: Math.round(fat), carbs: Math.round(carbs),
-    water: Math.round(water / 100) * 100, fiber: Math.round(kcal / 1000 * 14), weekChange, notes
+    water: Math.round(water / 100) * 100, fiber: Math.round(kcal / 1000 * 14), weekChange, notes,
+    adj, floored: notes.some(n => n.msg.startsWith('Meta travada')), lbm, trainHours, proteinRule: p.goal === 'cut' ? (lbm ? '2,6 g por kg de massa magra' : '2,2 g por kg') : '1,8 g por kg', fatByFloor: 0.8 * p.weight >= (kcal * 0.2) / 9
   };
 }
 
