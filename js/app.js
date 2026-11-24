@@ -845,7 +845,7 @@ views.treino = () => {
   ${['forca-lesao', 'calistenia', 'soco', 'concorrente'].map(id => evCard(ev(id))).join('')}`;
   const vols = Object.entries(plan.vol).filter(([m]) => m !== 'pescoco');
   const extras = mySports().filter(id => SPORTS[id].sc.length).map(id => SPORTS[id].n);
-  const liftedToday = S.logs.workouts.some(w => w.date === today()), nx = liftedToday ? -1 : nextSessionIdx(plan);
+  const todayW = S.logs.workouts.filter(w => w.date === today()).pop(), nx = todayW ? -1 : nextSessionIdx(plan);
   return `<section class="head"><h1>Força</h1><a class="chip" href="#rotinas">Trocar rotina</a></section>
   ${draftBanner()}
   <div class="card rcard" id="t-rotina">
@@ -855,7 +855,8 @@ views.treino = () => {
     ${plan.days.length ? `<ul class="rsess">${plan.days.map((d, i) => { const last = lastDoneOf(d.sid), mus = musclesOf(d.items).slice(0, 3); return `<li class="${i === nx ? 'next' : ''}">
       <span class="rday">DIA ${i + 1}</span>
       <div class="grow"><b>${esc(d.name)}</b><small>${esc(mus.join(', ') || 'sem exercícios')} · ${d.items.length} exerc. · ${last ? 'última: ' + last.split('-').reverse().slice(0, 2).join('/') : 'ainda não feita'}</small></div>
-      <a class="btn small ghost" href="#ver-${i}">Ver</a>${d.items.length ? `<a class="btn small ${i === nx ? 'primary' : ''}" href="#sessao-${i}">Começar</a>` : ''}</li>`; }).join('')}</ul>`
+      <a class="btn small ghost" href="#ver-${i}">Ver</a>${!d.items.length ? '' : todayW ? (todayW.sid === d.sid ? `<a class="btn small donebtn" href="#wk-${esc(todayW.id)}">✓ Hoje</a>` : '<span class="btn small off" aria-disabled="true">Amanhã</span>') : `<a class="btn small ${i === nx ? 'primary' : ''}" href="#sessao-${i}">Começar</a>`}</li>`; }).join('')}</ul>
+    ${todayW ? '<p class="small muted">Força de hoje feita. A próxima sessão libera amanhã: músculo cresce no descanso.</p>' : ''}`
       : '<p class="small">Essa rotina ainda não tem sessões.</p>'}
     <div class="row gap"><a class="btn small block" href="#rotina">Editar rotina</a></div>
   </div>
@@ -972,6 +973,10 @@ views.wk = (id) => {
 views.evo = (ex) => {
   const e = EXERCISES[ex]; if (!e) { location.hash = '#treino'; return ''; }
   const h = exHistory(ex).reverse();
+  // séries com 0 (não saiu) entram na taxa de conclusão e na média, mas não nos recordes
+  const allSets = S.logs.workouts.flatMap(w => Array.isArray(w.sets?.[ex]) ? w.sets[ex].filter(x => x && typeof x === 'object' && (+x.reps > 0 || (x.done && +x.reps === 0))) : []);
+  const fails = allSets.filter(x => +x.reps === 0).length, avgR = allSets.length ? allSets.reduce((a, x) => a + (+x.reps || 0), 0) / allSets.length : 0;
+  const failsOf = w => (Array.isArray(w.sets?.[ex]) ? w.sets[ex] : []).filter(x => x && x.done && +x.reps === 0).length;
   const top = h.reduce((a, x) => !a || x.best.sc > a.best.sc ? x : a, null);
   const pts = h.slice().reverse().map(x => x.best.sc), mx = Math.max(...pts, 1), mn = Math.min(...pts, mx);
   const spark = pts.length >= 2 ? `<svg class="spark" viewBox="0 0 100 32" preserveAspectRatio="none"><polyline points="${pts.map((v, i) => `${(i / (pts.length - 1) * 100).toFixed(1)},${(30 - (mx === mn ? 14 : (v - mn) / (mx - mn) * 28)).toFixed(1)}`).join(' ')}"/></svg>` : '';
@@ -979,8 +984,9 @@ views.evo = (ex) => {
   ${demoBtn(ex)}
   <div class="card">${h.length ? `<small class="cat">Melhor marca</small><h2 class="mono">${esc(setLbl(top.best))}</h2>
     ${e.inc && e1rm(top.best) ? `<small class="muted">1RM estimado ≈ ${fmt(e1rm(top.best), 0)} kg (fórmula de Epley, estimativa)</small>` : ''}
+    ${allSets.length ? `<p class="small">${allSets.length - fails} de ${allSets.length} séries completas${fails ? ` · ${fails} não ${fails === 1 ? 'saiu' : 'saíram'}` : ''} · média de ${fmt(avgR, 1)} ${e.u === 's' ? 's' : 'reps'} por série</p>` : ''}
     ${spark}${h.length < 2 ? '<p class="small muted">Só 1 registro. A evolução aparece a partir do segundo.</p>' : ''}` : '<p class="small muted">Nenhuma série registrada desse exercício.</p>'}</div>
-  ${h.length ? `<div class="card"><h3>Registros</h3><ul class="list hlist">${h.map(x => `<li><a href="#wk-${esc(x.w.id)}"><div class="grow"><b>${esc(fmtDay(x.w.date))}</b><small>${esc(x.arr.map(setLbl).join(', '))}</small></div>${x === top && h.length > 1 ? '<span class="prtag">melhor</span>' : ''}<span>›</span></a></li>`).join('')}</ul></div>` : ''}`;
+  ${h.length ? `<div class="card"><h3>Registros</h3><ul class="list hlist">${h.map(x => `<li><a href="#wk-${esc(x.w.id)}"><div class="grow"><b>${esc(fmtDay(x.w.date))}</b><small>${esc(x.arr.map(setLbl).join(', '))}${failsOf(x.w) ? ` · ${failsOf(x.w)} não saiu` : ''}</small></div>${x === top && h.length > 1 ? '<span class="prtag">melhor</span>' : ''}<span>›</span></a></li>`).join('')}</ul></div>` : ''}`;
 };
 
 // ---------- Divisões e rotinas ----------
@@ -1039,7 +1045,7 @@ views.ver = (idx) => {
   ${d.items.map((it, i) => { const e = EXERCISES[it.ex]; return `<div class="card exv"><div class="row between"><h3>${i + 1}. ${esc(it.name)}</h3><span class="chip">${it.sets}×${repsOf(it)}${e.u && e.u !== 's' && e.u !== 'm' ? e.u : e.u === 's' ? ' s' : ''}</span></div>
     <p class="small">${esc(e.cue)}</p>${demoBtn(it.ex)}
     <p class="small muted">Descanso ${esc(it.rest)}${it.rir ? ` · pare com ${it.rir} reps na reserva` : ''}${e.req.length ? ` · precisa: ${esc(e.req.map(k => EQUIP[k] || (k === 'gym' ? 'academia' : k)).join(', '))}` : ''}</p></div>`; }).join('')}
-  ${d.items.length ? `<a class="btn primary block" href="#sessao-${idx}">Começar este treino</a>` : `<a class="btn block" href="#rotina">Adicionar exercícios</a>`}`;
+  ${S.logs.workouts.some(w => w.date === today()) ? '<p class="small muted pad">Força de hoje já feita. Essa sessão libera amanhã.</p>' : d.items.length ? `<a class="btn primary block" href="#sessao-${idx}">Começar este treino</a>` : `<a class="btn block" href="#rotina">Adicionar exercícios</a>`}`;
 };
 
 // ---------- Demonstração do exercício (mesmo boneco dos golpes) ----------
@@ -1083,6 +1089,10 @@ views.sessao = (idx) => {
   const plan = activePlan();
   const day = plan.days[+idx] || plan.days[0];
   if (!day) { location.hash = '#treino'; return ''; }
+  const doneToday = S.logs.workouts.filter(w => w.date === today()).pop();
+  if (doneToday && !(draft && draft.sid === day.sid && draftHas())) return `<section class="head"><div><a href="#treino" class="backlink">← Força</a><h1>${esc(day.name)}</h1></div></section>
+    <div class="card panel"><h3>Força de hoje já foi feita</h3><p class="small">Você fez <b>${esc(doneToday.name || 'um treino')}</b> hoje. Uma sessão de força por dia: a próxima libera amanhã, com o músculo recuperado.</p>
+      <a class="btn primary block" href="#wk-${esc(doneToday.id)}">Ver o treino de hoje</a><a class="btn block" href="#treino">Voltar pra Força</a></div>`;
   if (draft && draft.sid !== day.sid && draftHas()) {
     const di = draftIdx();
     return `<section class="head"><div><a href="#treino" class="backlink">← Força</a><h1>${esc(day.name)}</h1></div></section>
@@ -1105,7 +1115,7 @@ views.sessao = (idx) => {
     if (!open) return `<div class="card ex mini ${dn >= it.sets ? 'complete' : ''}" id="ex-${xi}"><button class="exhead" data-act="exOpen" data-i="${xi}"><span class="mono exn">${xi + 1}</span><span class="grow"><b>${esc(it.name)}</b><small>${dn >= it.sets ? '✓ ' : ''}${dn} de ${it.sets} séries${dn ? ' · ' + esc(setsTxt(got)) : ''}</small></span><span>▾</span></button></div>`;
     const rows = Array.from({ length: Math.max(it.sets, got.length) }, (_, s) => {
       const v = got[s] || {}, extra = s >= it.sets;
-      return `<div class="set ${v.done ? 'done' : ''} ${extra ? 'extra' : ''}"><span class="mono">${s + 1}</span>
+      return `<div class="set ${v.done ? 'done' : ''} ${v.done && +v.reps === 0 ? 'fail' : ''} ${extra ? 'extra' : ''}"><span class="mono">${s + 1}</span>
         ${e.inc ? `<input data-set="${esc(it.ex)}|${s}|kg" inputmode="decimal" placeholder="${esc(sg.kg ?? (last ? Math.max(...last.sets.map(x => +x.kg || 0)) || 'kg' : 'kg'))}" value="${esc(v.kg ?? '')}" aria-label="Carga série ${s + 1}">` : `<span class="muted small">${e.band ? 'elástico' : e.t === 'power' ? 'explosivo' : 'peso corporal'}</span>`}
         <input data-set="${esc(it.ex)}|${s}|reps" inputmode="numeric" placeholder="${repsOf(it)}" value="${esc(v.reps ?? '')}" aria-label="${unit} série ${s + 1}">
         <button class="sdone" data-act="setDone" data-ex="${esc(it.ex)}" data-s="${s}" data-i="${xi}" aria-label="${v.done ? 'Desmarcar' : 'Concluir'} série ${s + 1}">${v.done ? '✓' : '○'}</button>

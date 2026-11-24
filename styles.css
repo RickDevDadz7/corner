@@ -668,3 +668,6 @@ body.resting #app{padding-bottom:calc(176px + var(--safe-b))}
 .exdemo>span:last-child{flex:1}
 .exdemo:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}
 .wlist li.nx small{color:var(--ink)}
+.btn.donebtn{background:var(--acc);border-color:var(--acc);color:var(--sheet);box-shadow:3px 3px 0 var(--ink)}
+.btn.off{opacity:.45;pointer-events:none;box-shadow:none;border-style:dashed}
+.set.fail input{background:#6f675b!important;text-decoration:line-through}.set.fail .sdone{background:#6f675b;border-color:#6f675b}

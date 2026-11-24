@@ -175,6 +175,16 @@ export function suggest(item, lastSets) {
   const done = lastSets.filter(s => s && s.reps != null);
   if (!done.length) return { text: 'Sem registro completo da última vez.' };
   const allTop = done.length >= item.sets && done.every(s => +s.reps >= item.hi);
+  // série registrada com 0 = não saiu: segura a progressão e, se foi metade ou mais, sugere aliviar
+  const fails = done.filter(s => +s.reps === 0).length;
+  if (fails) {
+    const kg0 = Math.max(0, ...done.map(s => +s.kg || 0)), many = fails * 2 >= done.length;
+    const lighter = e.inc && kg0 ? Math.max(e.inc, Math.round(kg0 * 0.9 / e.inc) * e.inc) : 0;
+    const base = `Da última vez ${fails === 1 ? '1 série não saiu' : fails + ' séries não saíram'}.`;
+    if (e.vars) return { text: `${base} Fique na mesma variação e tente completar todas.` };
+    if (many && lighter) return { kg: lighter, text: `${base} Baixe pra ${fmt(lighter)} kg e complete todas as séries antes de subir.` };
+    return { kg: kg0 || undefined, text: `${base} ${kg0 ? `Mantenha ${fmt(kg0)} kg` : 'Mantenha a dificuldade'} e tente completar todas antes de subir.` };
+  }
   if (e.vars) {
     if (allTop && item.lvl < e.vars.length - 1) return { up: true, text: `Bateu ${item.hi}+ em todas: hora de avançar pra "${e.vars[item.lvl + 1]}".` };
     if (allTop) return { text: 'Última variação dominada: adicione mochila com peso ou desça mais devagar (4 s).' };
