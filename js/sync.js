@@ -72,10 +72,13 @@ export function merge(local, remote) {
   for (const [k, v] of Object.entries(b.prog || {})) out.prog[k] = Math.max(v, out.prog[k] ?? -1);
   // peso: registro mais recente do dia
   const L = out.logs, RL = b.logs;
-  for (const [d, kg] of Object.entries(RL.weights || {})) {
+  for (const [d, raw] of Object.entries(RL.weights || {})) {
+    const kg = Number(raw); if (!/^\d{4}-\d{2}-\d{2}$/.test(d) || !Number.isFinite(kg) || kg < 30 || kg > 300) continue;
     const tb = b.meta?.wt?.[d] || 0, ta = a.meta?.wt?.[d] || 0;
+    if ((del['w:' + d] || 0) >= tb && del['w:' + d]) continue; // apagada depois dessa versão
     if (L.weights[d] == null || tb > ta) { L.weights[d] = kg; out.meta.wt[d] = Math.max(ta, tb); }
   }
+  for (const d of Object.keys(L.weights)) if (del['w:' + d] && del['w:' + d] >= (out.meta.wt[d] || 0)) { delete L.weights[d]; delete out.meta.wt[d]; }
   // listas por dia
   for (const key of ['food', 'water']) {
     const src = { ...(a.logs[key] || {}) };

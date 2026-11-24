@@ -147,6 +147,40 @@ function waterBar(v, goal) {
     <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:var(--cyan)"></div><span class="goal" style="left:${mk}%"></span></div></div>`;
 }
 // peso: só mostra tendência com dados suficientes; filtro de período e comparação com o registro anterior
+// peso: o dia mostra o valor salvo (com editar e apagar); salvar algo muito diferente do último pede confirmação
+let weighArm = null, whOpen = false, wEdit = null, wDelArm = null;
+const fmtDay = d => { const x = new Date(d + 'T12:00'); return `${x.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '')} ${d.slice(8)}/${d.slice(5, 7)}`; };
+// referência = mediana das últimas pesagens (um valor errado isolado não engana); sem histórico, o peso do perfil
+function prevWeight(d) {
+  const ks = Object.keys(S.logs.weights).filter(k => k !== d).sort((x, y) => Math.abs(new Date(x) - new Date(d)) - Math.abs(new Date(y) - new Date(d))).slice(0, 5);
+  const v = ks.map(k => S.logs.weights[k]).sort((x, y) => x - y);
+  return v.length ? v[Math.floor(v.length / 2)] : S.profile?.weight;
+}
+function weighHead() {
+  const d = curDay(), v = S.logs.weights[d];
+  const editing = v == null || wEdit === d;
+  return `<form id="weighForm" class="row between"><h3>Peso${viewDay ? ' do dia' : ''}</h3>
+    ${editing ? `<div class="row gap"><input name="kg" inputmode="decimal" placeholder="${fmt(v ?? latestWeight())} kg" value="${wEdit === d && v != null ? fmt(v) : ''}" style="width:96px" aria-label="Peso do dia"><button class="btn small" type="submit">Salvar</button>${wEdit === d ? '<button type="button" class="linkbtn" data-act="wCancel">cancelar</button>' : ''}</div>`
+      : `<div class="row gap wtoday"><b class="mono">${fmt(v)} kg</b><button type="button" class="btn small" data-act="wEdit" data-d="${d}">Corrigir</button></div>`}
+  </form>
+  ${weighArm ? `<p class="wwarn small">${fmt(weighArm.prev)} → <b>${fmt(weighArm.kg)} kg</b>? É bem diferente do anterior. Confira e toque em Salvar de novo.</p>` : ''}`;
+}
+function weightHistory() {
+  const ks = Object.keys(S.logs.weights).sort().reverse(); if (!ks.length) return '';
+  return `<details class="whist" ${whOpen ? 'open' : ''}><summary class="small">Histórico de pesagens (${ks.length})</summary><ul class="list">${ks.map((d, i) => {
+    const v = S.logs.weights[d], pv = S.logs.weights[ks[i + 1]], dl = pv != null ? v - pv : null;
+    const win = ks.slice(Math.max(0, i - 2), i + 3).map(k => S.logs.weights[k]).sort((x, y) => x - y), med = (win[Math.floor((win.length - 1) / 2)] + win[Math.ceil((win.length - 1) / 2)]) / 2;
+    const odd = win.length >= 3 && Math.abs(v - med) > 4; // foge da mediana dos dias em volta: provável erro de digitação
+    return wEdit === d && d !== curDay() ? `<li><span class="small grow">${esc(fmtDay(d))}</span><form class="wrow" data-d="${d}"><input name="kg" inputmode="decimal" value="${fmt(v)}" aria-label="Peso de ${esc(fmtDay(d))}"><button class="btn small" type="submit">OK</button></form><button class="linkbtn" data-act="wCancel">cancelar</button></li>`
+      : `<li class="${odd ? 'odd' : ''}"><span class="small grow">${esc(fmtDay(d))}${odd ? ' <em class="rtag">confira</em>' : ''}</span><b class="mono">${fmt(v)} kg</b><small class="mono wdl ${dl < 0 ? 'down' : dl > 0 ? 'up' : ''}">${dl == null ? '' : `${dl > 0 ? '+' : ''}${fmt(dl)}`}</small>
+        <button class="wbtn" data-act="wEdit" data-d="${d}" aria-label="Corrigir ${esc(fmtDay(d))}">✎</button><button class="x ${wDelArm === d ? 'armed' : ''}" data-act="wDel" data-d="${d}" aria-label="Apagar ${esc(fmtDay(d))}">${wDelArm === d ? 'apagar?' : '×'}</button></li>`;
+  }).join('')}</ul></details>`;
+}
+function setWeight(d, kg) {
+  S.logs.weights[d] = kg; S.meta.wt[d] = Date.now(); delete S.del['w:' + d];
+  weighArm = null; wEdit = null; save(); render();
+}
+
 const W_RANGES = { 7: '7 dias', 30: '30 dias', 365: '1 ano' };
 function weightChart() {
   const all = Object.keys(S.logs.weights).sort();
@@ -351,8 +385,9 @@ views.hoje = () => {
     : `<p class="small">Você ainda não tem treino programado.</p><a class="btn primary block" href="#perfil">Montar meu plano →</a>`}
   </div>
   <div class="card" id="h-peso">
-    <form id="weighForm" class="row between"><h3>Peso${viewDay ? ' do dia' : ''}</h3><div class="row gap"><input name="kg" inputmode="decimal" placeholder="${S.logs.weights[curDay()] != null ? fmt(S.logs.weights[curDay()]) : fmt(latestWeight())} kg" style="width:96px" aria-label="Peso do dia"><button class="btn small" type="submit">Salvar</button></div></form>
+    ${weighHead()}
     ${weightChart()}
+    ${weightHistory()}
   </div>
   <small class="cat pad">Ciência do dia</small>
   ${scienceCard(tip)}`;
@@ -1189,16 +1224,25 @@ function bindAfter(v, arg) {
       if (!Object.keys(sports).length && !p.liftDays) { toast('Marque pelo menos um esporte ou dias de força.'); return; }
       const first = !S.profile;
       S.profile = p;
-      if (!S.logs.weights[today()]) { S.logs.weights[today()] = p.weight; S.meta.wt[today()] = Date.now(); }
+      if (first && !S.logs.weights[today()]) { S.logs.weights[today()] = p.weight; S.meta.wt[today()] = Date.now(); } // só no primeiro cadastro: editar o perfil não vira pesagem
       save(true); toast(first ? 'Plano pronto. Bora.' : 'Perfil atualizado'); location.hash = '#hoje'; rendered = ''; go();
     });
   }
   if (v === 'hoje') {
     $('#weighForm').addEventListener('submit', e => {
-      e.preventDefault(); const kg = num(e.target.kg.value);
+      e.preventDefault(); const kg = num(e.target.kg.value), d = curDay();
       if (!kg || kg < 30 || kg > 300) { toast('Peso inválido'); return; }
-      S.logs.weights[curDay()] = kg; S.meta.wt[curDay()] = Date.now(); save(); render(); toast('Peso registrado');
+      const pv = prevWeight(d);
+      // erro de digitação (17 em vez de 71, 7,1…): mais de 5 kg de diferença pede um segundo Salvar
+      if (pv && Math.abs(kg - pv) > 5 && !(weighArm && weighArm.kg === kg && weighArm.d === d)) { weighArm = { kg, prev: pv, d }; render(); $('#weighForm input').value = fmt(kg); return; }
+      const had = S.logs.weights[d] != null; setWeight(d, kg); toast(had ? 'Peso corrigido' : 'Peso registrado');
     });
+    document.querySelectorAll('form.wrow').forEach(f => f.addEventListener('submit', e => {
+      e.preventDefault(); const kg = num(f.kg.value), d = f.dataset.d;
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(d) || !kg || kg < 30 || kg > 300) { toast('Peso inválido'); return; }
+      setWeight(d, kg); toast('Peso corrigido');
+    }));
+    $('.whist')?.addEventListener('toggle', e => { whOpen = e.target.open; });
     $('#waterForm').addEventListener('submit', e => { e.preventDefault(); const ml = Math.round(num(e.target.ml.value) || 0); if (!ml) return; addWater(ml); });
     $('.wlist')?.addEventListener('toggle', e => { wlOpen = e.target.open; });
     $('#h-sci')?.addEventListener('toggle', e => { if (e.target.open && S.ui.sci !== today()) { S.ui.sci = today(); save(true); const tl = document.querySelector('[data-to="h-sci"]'); if (tl) { tl.classList.add('ok'); tl.querySelector('small').textContent = '✓ Lida'; } } });
@@ -1346,6 +1390,13 @@ document.addEventListener('click', async e => {
     if (Date.now() - clearArm > 4000) { clearArm = Date.now(); el.textContent = 'Toque de novo pra apagar tudo'; el.classList.add('armed'); setTimeout(() => { if (el.isConnected) { el.textContent = 'Apagar todo o histórico'; el.classList.remove('armed'); } }, 4000); return; }
     clearArm = 0; const list = S.logs.water[curDay()] || []; for (const x of list) S.del[x.id] = Date.now();
     S.logs.water[curDay()] = []; wlOpen = false; save(); render(); toast('Histórico de água apagado');
+  }
+  if (a === 'wEdit') { wEdit = el.dataset.d; wDelArm = null; weighArm = null; render(); const i = wEdit === curDay() ? $('#weighForm input') : document.querySelector(`form.wrow[data-d="${wEdit}"] input`); i?.focus({ preventScroll: true }); i?.select(); }
+  if (a === 'wCancel') { wEdit = null; weighArm = null; render(); }
+  if (a === 'wDel') {
+    const d = el.dataset.d; if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return;
+    if (wDelArm !== d) { wDelArm = d; render(); setTimeout(() => { if (wDelArm === d) { wDelArm = null; render(); } }, 3500); return; }
+    delete S.logs.weights[d]; S.del['w:' + d] = Date.now(); delete S.meta.wt[d]; wDelArm = null; wEdit = null; save(); render(); toast('Pesagem apagada');
   }
   if (a === 'wRange') { S.ui.wRange = +el.dataset.r; save(true); render(); }
   if (a === 'jump') { const t = document.getElementById(el.dataset.to); if (t) { if (t.tagName === 'DETAILS') t.open = true; t.scrollIntoView({ behavior: 'smooth', block: 'start' }); } }

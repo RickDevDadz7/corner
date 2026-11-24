@@ -536,3 +536,16 @@ details>summary.small{font-weight:900;margin-top:8px;color:var(--acc)}
 .shoprow input{width:20px;height:20px;accent-color:var(--ink);flex:none;margin:0}
 .shop li{padding:7px 0}
 #c-desp summary,#c-lista summary{align-items:flex-start;text-align:left}
+/* peso: valor do dia, aviso e histórico */
+.wtoday b{font-size:20px}
+.wwarn{margin:6px 0 0;color:var(--acc);font-weight:700}
+.whist{margin-top:10px}
+.whist summary{cursor:pointer;font-weight:800}
+.whist li{gap:8px;align-items:center}
+.whist .wdl{width:44px;text-align:right}
+.whist .wdl.down{color:var(--acc)}
+.wbtn{border:0;background:none;font-size:17px;cursor:pointer;color:var(--ink);padding:0 4px}
+.whist .x.armed{font-size:12px;font-weight:900;text-transform:uppercase}
+.wrow{display:flex;gap:6px;align-items:center}
+.wrow input{width:80px}
+.whist li.odd b{color:var(--acc)}
