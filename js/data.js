@@ -452,6 +452,197 @@ export const FOODS = [
   { n: 'Cerveja (ml)', k: 41, p: 0.3, c: 3.3, f: 0, fb: 0, g: 350, cat: 'besteira' }
 ];
 
+
+// ~90 alimentos a mais (valores por 100 g, base TACO/USDA, aproximados) pra montar cardápios com variedade
+FOODS.push(
+  // bases e pães
+  { n: 'Macarrão integral cozido', k: 149, p: 6.0, c: 30.0, f: 1.7, fb: 3.9, g: 150, cat: 'base' },
+  { n: 'Mandioca cozida', k: 125, p: 0.6, c: 30.1, f: 0.3, fb: 1.6, g: 150, cat: 'base' },
+  { n: 'Inhame cozido', k: 97, p: 2.1, c: 23.2, f: 0.2, fb: 1.7, g: 150, cat: 'base' },
+  { n: 'Mandioquinha cozida', k: 80, p: 0.9, c: 18.9, f: 0.2, fb: 1.8, g: 150, cat: 'base' },
+  { n: 'Quinoa cozida', k: 120, p: 4.4, c: 21.3, f: 1.9, fb: 2.8, g: 120, cat: 'base' },
+  { n: 'Milho verde (lata, escorrido)', k: 98, p: 3.2, c: 17.1, f: 2.4, fb: 4.6, g: 60, cat: 'base' },
+  { n: 'Tapioca (1 disco ≈ 50 g de goma)', k: 240, p: 0, c: 60.0, f: 0, fb: 0.3, g: 50, cat: 'base' },
+  { n: 'Pão de forma tradicional (fatia ≈ 25 g)', k: 266, p: 7.6, c: 49.0, f: 3.3, fb: 2.7, g: 50, cat: 'base' },
+  { n: 'Biscoito de arroz (1 un ≈ 9 g)', k: 387, p: 8.2, c: 81.5, f: 2.8, fb: 4.2, g: 18, cat: 'lanche' },
+  // leguminosas
+  { n: 'Feijão preto cozido', k: 77, p: 4.5, c: 14.0, f: 0.5, fb: 8.4, g: 140, cat: 'base' },
+  { n: 'Lentilha cozida', k: 93, p: 6.3, c: 16.3, f: 0.5, fb: 7.9, g: 140, cat: 'base' },
+  { n: 'Grão-de-bico cozido', k: 164, p: 8.9, c: 27.4, f: 2.6, fb: 7.6, g: 100, cat: 'base' },
+  { n: 'Ervilha (lata, escorrida)', k: 74, p: 4.6, c: 13.4, f: 0.4, fb: 5.1, g: 80, cat: 'base' },
+  // proteínas
+  { n: 'Frango desfiado (peito cozido)', k: 163, p: 31.5, c: 0, f: 3.2, fb: 0, g: 100, cat: 'proteina' },
+  { n: 'Sobrecoxa de frango assada (sem pele)', k: 233, p: 29.2, c: 0, f: 12.0, fb: 0, g: 120, cat: 'proteina' },
+  { n: 'Carne moída (patinho) refogada', k: 212, p: 32.0, c: 0, f: 8.4, fb: 0, g: 100, cat: 'proteina' },
+  { n: 'Alcatra grelhada', k: 241, p: 31.9, c: 0, f: 11.6, fb: 0, g: 120, cat: 'proteina' },
+  { n: 'Contrafilé grelhado', k: 278, p: 32.4, c: 0, f: 15.5, fb: 0, g: 120, cat: 'proteina' },
+  { n: 'Fígado bovino grelhado', k: 225, p: 29.9, c: 4.2, f: 9.0, fb: 0, g: 100, cat: 'proteina' },
+  { n: 'Lombo de porco assado', k: 210, p: 35.7, c: 0, f: 6.4, fb: 0, g: 120, cat: 'proteina' },
+  { n: 'Bisteca de porco grelhada', k: 280, p: 28.9, c: 0, f: 17.4, fb: 0, g: 120, cat: 'proteina' },
+  { n: 'Salmão grelhado', k: 229, p: 23.9, c: 0, f: 14.0, fb: 0, g: 120, cat: 'proteina' },
+  { n: 'Merluza assada', k: 122, p: 26.6, c: 0, f: 0.9, fb: 0, g: 120, cat: 'proteina' },
+  { n: 'Sardinha em lata (óleo, escorrida)', k: 285, p: 15.9, c: 0, f: 24.0, fb: 0, g: 80, cat: 'proteina' },
+  { n: 'Camarão cozido', k: 90, p: 19.0, c: 0, f: 1.0, fb: 0, g: 100, cat: 'proteina' },
+  { n: 'Tofu firme', k: 144, p: 17.3, c: 2.8, f: 8.7, fb: 2.3, g: 120, cat: 'proteina' },
+  { n: 'Clara de ovo cozida', k: 59, p: 13.4, c: 0, f: 0.1, fb: 0, g: 60, cat: 'proteina' },
+  // laticínios e bebidas
+  { n: 'Leite desnatado (ml)', k: 35, p: 3.4, c: 4.9, f: 0.1, fb: 0, g: 200, cat: 'base' },
+  { n: 'Leite sem lactose semidesnatado (ml)', k: 46, p: 3.1, c: 4.8, f: 1.5, fb: 0, g: 200, cat: 'base' },
+  { n: 'Iogurte natural desnatado', k: 41, p: 3.8, c: 5.8, f: 0.3, fb: 0, g: 170, cat: 'base' },
+  { n: 'Queijo cottage', k: 98, p: 11.1, c: 3.4, f: 4.3, fb: 0, g: 50, cat: 'base' },
+  { n: 'Ricota', k: 140, p: 12.6, c: 3.8, f: 8.1, fb: 0, g: 40, cat: 'base' },
+  { n: 'Queijo mussarela', k: 330, p: 22.6, c: 3.0, f: 25.2, fb: 0, g: 30, cat: 'base' },
+  { n: 'Bebida vegetal de aveia (ml)', k: 44, p: 0.5, c: 7.0, f: 1.5, fb: 0.8, g: 200, cat: 'base' },
+  { n: 'Bebida vegetal de amêndoas sem açúcar (ml)', k: 15, p: 0.6, c: 0.3, f: 1.1, fb: 0.2, g: 200, cat: 'base' },
+  { n: 'Café sem açúcar (ml)', k: 2, p: 0.1, c: 0.3, f: 0, fb: 0, g: 100, cat: 'base' },
+  { n: 'Suco de laranja natural (ml)', k: 45, p: 0.7, c: 10.4, f: 0.1, fb: 0.4, g: 200, cat: 'fruta' },
+  { n: 'Água de coco (ml)', k: 22, p: 0, c: 5.3, f: 0, fb: 0.1, g: 300, cat: 'fruta' },
+  // verduras e legumes
+  { n: 'Alface', k: 11, p: 1.3, c: 1.7, f: 0.2, fb: 1.8, g: 40, cat: 'verdura' },
+  { n: 'Tomate', k: 15, p: 1.1, c: 3.1, f: 0.2, fb: 1.2, g: 80, cat: 'verdura' },
+  { n: 'Brócolis cozido', k: 25, p: 2.1, c: 4.4, f: 0.5, fb: 3.4, g: 80, cat: 'verdura' },
+  { n: 'Cenoura crua', k: 34, p: 1.3, c: 7.7, f: 0.2, fb: 3.2, g: 50, cat: 'verdura' },
+  { n: 'Cenoura cozida', k: 30, p: 0.8, c: 6.7, f: 0.2, fb: 2.6, g: 80, cat: 'verdura' },
+  { n: 'Abobrinha cozida', k: 15, p: 1.1, c: 3.0, f: 0.2, fb: 1.6, g: 80, cat: 'verdura' },
+  { n: 'Abóbora cabotiá cozida', k: 48, p: 1.4, c: 10.8, f: 0.7, fb: 2.5, g: 100, cat: 'verdura' },
+  { n: 'Chuchu cozido', k: 19, p: 0.4, c: 4.8, f: 0, fb: 1.0, g: 80, cat: 'verdura' },
+  { n: 'Couve refogada', k: 90, p: 1.7, c: 8.7, f: 6.6, fb: 5.7, g: 50, cat: 'verdura' },
+  { n: 'Espinafre refogado', k: 67, p: 2.7, c: 4.2, f: 5.4, fb: 2.5, g: 60, cat: 'verdura' },
+  { n: 'Pepino', k: 10, p: 0.9, c: 2.0, f: 0, fb: 1.1, g: 60, cat: 'verdura' },
+  { n: 'Beterraba cozida', k: 32, p: 1.3, c: 7.2, f: 0.1, fb: 1.9, g: 60, cat: 'verdura' },
+  { n: 'Repolho cru', k: 17, p: 0.9, c: 3.9, f: 0.1, fb: 1.9, g: 50, cat: 'verdura' },
+  { n: 'Vagem cozida', k: 25, p: 1.2, c: 5.3, f: 0.3, fb: 2.4, g: 80, cat: 'verdura' },
+  { n: 'Couve-flor cozida', k: 19, p: 1.2, c: 3.9, f: 0.3, fb: 2.1, g: 80, cat: 'verdura' },
+  // frutas
+  { n: 'Banana nanica', k: 92, p: 1.4, c: 23.8, f: 0.1, fb: 1.9, g: 100, cat: 'fruta' },
+  { n: 'Pera', k: 53, p: 0.6, c: 14.0, f: 0.1, fb: 3.0, g: 130, cat: 'fruta' },
+  { n: 'Kiwi', k: 51, p: 1.3, c: 11.5, f: 0.6, fb: 2.7, g: 75, cat: 'fruta' },
+  { n: 'Melão', k: 29, p: 0.7, c: 7.5, f: 0, fb: 0.3, g: 150, cat: 'fruta' },
+  { n: 'Goiaba', k: 54, p: 1.1, c: 13.0, f: 0.4, fb: 6.2, g: 150, cat: 'fruta' },
+  { n: 'Tangerina', k: 38, p: 0.8, c: 9.6, f: 0.1, fb: 0.9, g: 120, cat: 'fruta' },
+  { n: 'Maracujá (polpa)', k: 68, p: 2.0, c: 12.3, f: 2.1, fb: 1.1, g: 50, cat: 'fruta' },
+  { n: 'Açaí polpa sem açúcar', k: 58, p: 0.8, c: 6.2, f: 3.9, fb: 2.6, g: 100, cat: 'fruta' },
+  { n: 'Uva passa', k: 299, p: 2.5, c: 79.0, f: 0.5, fb: 3.7, g: 20, cat: 'fruta' },
+  // gorduras e sementes
+  { n: 'Castanha-do-pará', k: 643, p: 14.5, c: 15.1, f: 63.5, fb: 7.9, g: 10, cat: 'lanche' },
+  { n: 'Nozes', k: 620, p: 14.0, c: 18.4, f: 59.4, fb: 7.2, g: 20, cat: 'lanche' },
+  { n: 'Amêndoas', k: 581, p: 18.6, c: 29.5, f: 47.3, fb: 11.6, g: 20, cat: 'lanche' },
+  { n: 'Semente de chia', k: 486, p: 16.5, c: 42.0, f: 30.7, fb: 34.4, g: 10, cat: 'lanche' },
+  { n: 'Linhaça', k: 495, p: 14.1, c: 43.3, f: 32.3, fb: 33.5, g: 10, cat: 'lanche' },
+  { n: 'Mel', k: 309, p: 0.3, c: 84.0, f: 0, fb: 0, g: 15, cat: 'lanche' },
+  { n: 'Barra de proteína (varia por marca)', k: 350, p: 30.0, c: 35.0, f: 10.0, fb: 5.0, g: 45, cat: 'lanche' },
+  { n: 'Chocolate 70% cacau', k: 580, p: 7.8, c: 45.9, f: 42.6, fb: 10.9, g: 20, cat: 'besteira' },
+  // pratos prontos comuns
+  { n: 'Feijoada', k: 117, p: 8.7, c: 11.6, f: 6.5, fb: 5.1, g: 225, cat: 'base' },
+  { n: 'Strogonoff de frango', k: 157, p: 17.5, c: 2.6, f: 8.0, fb: 0.3, g: 200, cat: 'base' },
+  { n: 'Lasanha à bolonhesa', k: 140, p: 8.0, c: 14.0, f: 6.0, fb: 1.0, g: 250, cat: 'besteira' },
+  { n: 'Omelete simples (2 ovos)', k: 190, p: 13.0, c: 1.0, f: 15.0, fb: 0, g: 110, cat: 'base' }
+);
+
+// Papel de cada alimento no cardápio: r = proteína (prot), laticínio (lat), pão/base do café (pao), carboidrato do almoço (carb),
+// leguminosa (leg), verdura (veg), fruta, gordura (gord), azeite (oleo); ml = refeições onde cabe (c café, a almoço, l lanche, j jantar);
+// un = [g por unidade, singular, plural]; md = [medida caseira, g]; mn/mx = limites em g; cru = g comprados por g comido (arroz cozido → cru)
+const META = {
+  'Arroz branco cozido': { r: 'carb', ml: 'aj', md: ['col. sopa', 25], cru: 0.4, buyN: 'Arroz branco' },
+  'Arroz integral cozido': { r: 'carb', ml: 'aj', md: ['col. sopa', 25], cru: 0.4, buyN: 'Arroz integral' },
+  'Macarrão cozido': { r: 'carb', ml: 'aj', md: ['pegador', 50], cru: 0.45, buyN: 'Macarrão' },
+  'Macarrão integral cozido': { r: 'carb', ml: 'aj', md: ['pegador', 50], cru: 0.45, buyN: 'Macarrão integral' },
+  'Batata-doce cozida': { r: 'carb', ml: 'acjl', md: ['pedaço médio', 80], cru: 1.1, buyN: 'Batata-doce' },
+  'Batata inglesa cozida': { r: 'carb', ml: 'aj', md: ['unidade média', 120], cru: 1.1, buyN: 'Batata' },
+  'Mandioca cozida': { r: 'carb', ml: 'aj', md: ['pedaço', 80], cru: 1.15, buyN: 'Mandioca' },
+  'Inhame cozido': { r: 'carb', ml: 'acj', md: ['pedaço', 80], cru: 1.1, buyN: 'Inhame' },
+  'Mandioquinha cozida': { r: 'carb', ml: 'aj', md: ['unidade', 70], cru: 1.1, buyN: 'Mandioquinha' },
+  'Quinoa cozida': { r: 'carb', ml: 'aj', md: ['col. sopa', 20], cru: 0.35, buyN: 'Quinoa' },
+  'Cuscuz de milho cozido': { r: 'pao', ml: 'cajl', md: ['fatia', 100], cru: 0.45, buyN: 'Flocão de milho', mn: 80, mx: 250 },
+  'Tapioca (1 disco ≈ 50 g de goma)': { r: 'pao', ml: 'cl', un: [50, 'tapioca', 'tapiocas'], buyN: 'Goma de tapioca' },
+  'Pão francês (1 un ≈ 50 g)': { r: 'pao', ml: 'cl', un: [50, 'pão francês', 'pães franceses'] },
+  'Pão integral (fatia ≈ 25 g)': { r: 'pao', ml: 'cl', un: [25, 'fatia', 'fatias'], buyN: 'Pão integral (pacote ≈ 20 fatias)' },
+  'Pão de forma tradicional (fatia ≈ 25 g)': { r: 'pao', ml: 'cl', un: [25, 'fatia', 'fatias'], buyN: 'Pão de forma (pacote ≈ 20 fatias)' },
+  'Aveia em flocos': { r: 'pao', ml: 'cl', md: ['col. sopa', 10], mn: 20, mx: 60 },
+  'Biscoito de arroz (1 un ≈ 9 g)': { r: 'pao', ml: 'cl', un: [9, 'biscoito de arroz', 'biscoitos de arroz'] },
+  'Milho verde (lata, escorrido)': { r: 'veg', ml: 'aj', md: ['col. sopa', 20] },
+  'Feijão carioca cozido': { r: 'leg', ml: 'aj', md: ['concha', 140], cru: 0.42, buyN: 'Feijão carioca' },
+  'Feijão preto cozido': { r: 'leg', ml: 'aj', md: ['concha', 140], cru: 0.42, buyN: 'Feijão preto' },
+  'Lentilha cozida': { r: 'leg', ml: 'aj', md: ['concha', 140], cru: 0.4, buyN: 'Lentilha' },
+  'Grão-de-bico cozido': { r: 'leg', ml: 'aj', md: ['col. sopa', 25], cru: 0.45, buyN: 'Grão-de-bico' },
+  'Ervilha (lata, escorrida)': { r: 'leg', ml: 'aj', md: ['col. sopa', 20] },
+  'Peito de frango grelhado': { r: 'prot', ml: 'aj', md: ['filé', 100], cru: 1.35, buyN: 'Peito de frango' },
+  'Frango desfiado (peito cozido)': { r: 'prot', ml: 'cajl', md: ['col. sopa', 25], cru: 1.35, buyN: 'Peito de frango' },
+  'Sobrecoxa de frango assada (sem pele)': { r: 'prot', ml: 'aj', un: [90, 'sobrecoxa', 'sobrecoxas'], cru: 1.4, buyN: 'Sobrecoxa de frango' },
+  'Patinho grelhado': { r: 'prot', ml: 'aj', md: ['bife', 100], cru: 1.35, buyN: 'Patinho' },
+  'Carne moída (patinho) refogada': { r: 'prot', ml: 'aj', md: ['col. sopa', 25], cru: 1.35, buyN: 'Patinho moído' },
+  'Alcatra grelhada': { r: 'prot', ml: 'aj', md: ['bife', 100], cru: 1.35, buyN: 'Alcatra' },
+  'Contrafilé grelhado': { r: 'prot', ml: 'aj', md: ['bife', 100], cru: 1.35, buyN: 'Contrafilé' },
+  'Fígado bovino grelhado': { r: 'prot', ml: 'aj', md: ['bife', 100], cru: 1.3, buyN: 'Fígado bovino' },
+  'Lombo de porco assado': { r: 'prot', ml: 'aj', md: ['fatia', 60], cru: 1.4, buyN: 'Lombo de porco' },
+  'Bisteca de porco grelhada': { r: 'prot', ml: 'aj', un: [100, 'bisteca', 'bistecas'], cru: 1.35, buyN: 'Bisteca de porco' },
+  'Tilápia grelhada': { r: 'prot', ml: 'aj', md: ['filé', 100], cru: 1.3, buyN: 'Filé de tilápia' },
+  'Salmão grelhado': { r: 'prot', ml: 'aj', md: ['posta', 120], cru: 1.3, buyN: 'Salmão' },
+  'Merluza assada': { r: 'prot', ml: 'aj', md: ['filé', 100], cru: 1.3, buyN: 'Filé de merluza' },
+  'Atum em lata (água)': { r: 'prot', ml: 'ajl', un: [120, 'lata', 'latas'], buyN: 'Atum em lata (água)' },
+  'Sardinha em lata (óleo, escorrida)': { r: 'prot', ml: 'aj', un: [85, 'lata', 'latas'], mx: 85 },
+  'Camarão cozido': { r: 'prot', ml: 'aj', md: ['col. sopa', 25], cru: 1.3, buyN: 'Camarão limpo' },
+  'Tofu firme': { r: 'prot', ml: 'cajl', md: ['fatia', 40], buyN: 'Tofu' },
+  'Ovo cozido (1 un ≈ 50 g)': { r: 'prot', ml: 'cjl', un: [50, 'ovo cozido', 'ovos cozidos'], mx: 150, buyN: 'Ovos' },
+  'Ovo frito (1 un ≈ 50 g)': { r: 'prot', ml: 'c', un: [50, 'ovo frito', 'ovos fritos'], mx: 150, buyN: 'Ovos' },
+  'Omelete simples (2 ovos)': { r: 'prot', ml: 'cj', un: [110, 'omelete (2 ovos)', 'omeletes (2 ovos cada)'], mn: 110, mx: 220 },
+  'Clara de ovo cozida': { r: 'prot', ml: 'cl', un: [30, 'clara', 'claras'], buyN: 'Ovos (só as claras)' },
+  'Leite integral (ml)': { r: 'lat', ml: 'cl', md: ['copo', 200], mn: 150, mx: 300 },
+  'Leite desnatado (ml)': { r: 'lat', ml: 'cl', md: ['copo', 200], mn: 150, mx: 300 },
+  'Leite sem lactose semidesnatado (ml)': { r: 'lat', ml: 'cl', md: ['copo', 200], mn: 150, mx: 300 },
+  'Bebida vegetal de aveia (ml)': { r: 'lat', ml: 'cl', md: ['copo', 200], mn: 150, mx: 300 },
+  'Bebida vegetal de amêndoas sem açúcar (ml)': { r: 'lat', ml: 'cl', md: ['copo', 200], mn: 150, mx: 300 },
+  'Iogurte natural': { r: 'lat', ml: 'cl', un: [170, 'pote', 'potes'], mn: 170, mx: 340 },
+  'Iogurte natural desnatado': { r: 'lat', ml: 'cl', un: [170, 'pote', 'potes'], mn: 170, mx: 340 },
+  'Queijo minas frescal': { r: 'lat', ml: 'cl', md: ['fatia', 30], mn: 30, mx: 60 },
+  'Queijo cottage': { r: 'lat', ml: 'cl', md: ['col. sopa', 25], mn: 50, mx: 150 },
+  'Ricota': { r: 'lat', ml: 'cl', md: ['fatia', 40], mn: 40, mx: 100 },
+  'Whey protein (varia por marca)': { r: 'lat', ml: 'cl', md: ['scoop', 30], mn: 20, mx: 40 },
+  'Banana prata': { r: 'fruta', ml: 'cl', un: [70, 'banana prata', 'bananas prata'] },
+  'Banana nanica': { r: 'fruta', ml: 'cl', un: [100, 'banana nanica', 'bananas nanica'] },
+  'Maçã': { r: 'fruta', ml: 'cajl', un: [130, 'maçã', 'maçãs'] },
+  'Pera': { r: 'fruta', ml: 'cajl', un: [130, 'pera', 'peras'] },
+  'Mamão papaia': { r: 'fruta', ml: 'cl', md: ['meia papaia', 150] },
+  'Laranja': { r: 'fruta', ml: 'cajl', un: [150, 'laranja', 'laranjas'] },
+  'Tangerina': { r: 'fruta', ml: 'cajl', un: [120, 'tangerina', 'tangerinas'] },
+  'Morango': { r: 'fruta', ml: 'cl', md: ['xícara', 100] },
+  'Uva': { r: 'fruta', ml: 'cl', md: ['cacho pequeno', 100] },
+  'Abacaxi': { r: 'fruta', ml: 'cajl', md: ['fatia', 100] },
+  'Melancia': { r: 'fruta', ml: 'cajl', md: ['fatia', 200] },
+  'Melão': { r: 'fruta', ml: 'cajl', md: ['fatia', 150] },
+  'Manga': { r: 'fruta', ml: 'cl', md: ['meia manga', 150] },
+  'Kiwi': { r: 'fruta', ml: 'cl', un: [75, 'kiwi', 'kiwis'] },
+  'Goiaba': { r: 'fruta', ml: 'cajl', un: [150, 'goiaba', 'goiabas'] },
+  'Açaí polpa sem açúcar': { r: 'fruta', ml: 'cl', un: [100, 'polpa', 'polpas'] },
+  'Abacate': { r: 'gord', ml: 'cl', md: ['col. sopa', 30], mn: 30, mx: 100 },
+  'Pasta de amendoim': { r: 'gord', ml: 'cl', md: ['col. sopa', 15], mn: 10, mx: 30 },
+  'Castanha-de-caju': { r: 'gord', ml: 'cl', md: ['punhado', 20], mn: 10, mx: 30 },
+  'Castanha-do-pará': { r: 'gord', ml: 'cl', un: [5, 'castanha-do-pará', 'castanhas-do-pará'], mn: 5, mx: 20 },
+  'Nozes': { r: 'gord', ml: 'cl', md: ['punhado', 20], mn: 10, mx: 30 },
+  'Amêndoas': { r: 'gord', ml: 'cl', md: ['punhado', 20], mn: 10, mx: 30 },
+  'Amendoim torrado': { r: 'gord', ml: 'l', md: ['punhado', 20], mn: 10, mx: 30 },
+  'Semente de chia': { r: 'gord', ml: 'cl', md: ['col. sopa', 10], mn: 10, mx: 20 },
+  'Linhaça': { r: 'gord', ml: 'cl', md: ['col. sopa', 10], mn: 10, mx: 20 },
+  'Azeite de oliva': { r: 'oleo', ml: 'aj', md: ['col. sopa', 8], mn: 4, mx: 16 },
+  'Alface': { r: 'veg', ml: 'aj', md: ['prato raso', 40] },
+  'Tomate': { r: 'veg', ml: 'aj', un: [80, 'tomate', 'tomates'] },
+  'Salada (alface e tomate)': { r: 'veg', ml: 'aj', md: ['prato raso', 80], buyN: 'Alface e tomate (salada)' },
+  'Brócolis cozido': { r: 'veg', ml: 'aj', md: ['ramo', 40] },
+  'Cenoura crua': { r: 'veg', ml: 'aj', md: ['col. sopa ralada', 12] },
+  'Cenoura cozida': { r: 'veg', ml: 'aj', md: ['col. sopa', 25] },
+  'Abobrinha cozida': { r: 'veg', ml: 'aj', md: ['col. sopa', 25] },
+  'Abóbora cabotiá cozida': { r: 'veg', ml: 'aj', md: ['pedaço', 50] },
+  'Chuchu cozido': { r: 'veg', ml: 'aj', md: ['col. sopa', 25] },
+  'Couve refogada': { r: 'veg', ml: 'aj', md: ['col. sopa', 20] },
+  'Espinafre refogado': { r: 'veg', ml: 'aj', md: ['col. sopa', 25] },
+  'Pepino': { r: 'veg', ml: 'aj', md: ['rodelas (meio pepino)', 60] },
+  'Beterraba cozida': { r: 'veg', ml: 'aj', md: ['col. sopa', 20] },
+  'Repolho cru': { r: 'veg', ml: 'aj', md: ['col. sopa', 12] },
+  'Vagem cozida': { r: 'veg', ml: 'aj', md: ['col. sopa', 20] },
+  'Couve-flor cozida': { r: 'veg', ml: 'aj', md: ['ramo', 40] }
+};
+for (const fd of FOODS) { Object.assign(fd, META[fd.n] || {}); if (fd.r === 'prot') fd.cat = 'proteina'; if (fd.r === 'veg') fd.cat = 'verdura'; }
+
 export const MEALS = [
   { id: 'cafe', n: 'Café da manhã', ico: '朝', h: [4, 10] },
   { id: 'almoco', n: 'Almoço', ico: '昼', h: [11, 14] },
@@ -515,7 +706,7 @@ export const WEAKNESSES = [
 // g: alergia (lista da Anvisa RDC 26/2015 + as que a UE exige a mais), intol (intolerância/condição), dieta (escolha ou dieta)
 const LEITE = /leite|iogurte|queijo|requeij[aã]o|manteiga|whey|creme de leite|sorvete|chocolate ao leite|pizza|p[aã]o de queijo|\bnata\b|coalhada|ricota|mussarela|parmes[aã]o|cream cheese|chantilly|doce de leite|leite condensado|case[ií]na|soro de leite/;
 const GLUTEN = /trigo|macarr[aã]o|(?<!sorvete de )massa|lasanha|espaguete|nhoque|p[aã]o(?! de queijo)|pizza|hamb[uú]rguer|sandu[ií]che|coxinha|pastel|esfiha|biscoito|bolacha|bolo|cerveja|aveia|granola|barra de cereal|torrada|cevada|centeio|malte|cuscuz marroquino|semolina|farinha(?! de (?:mandioca|milho|arroz))|empanad|milanesa|kibe|quibe/;
-const CARNE = /frango|carne|patinho|alcatra|picanha|bife|cox[aã]o|maminha|fraldinha|costela|cupim|lagarto|m[uú]sculo|ac[eé]m|f[ií]gado|porco|lombo|pernil|bacon|presunto|salsicha|lingui[cç]a|salame|mortadela|peito de peru|hamb[uú]rguer|coxinha|nuggets?|kibe|quibe|alm[oô]ndega|strogonoff|feijoada/;
+const CARNE = /frango|carne|contrafil|fil[eé] mignon|cordeiro|\bpato\b|\bperu\b|chester|patinho|alcatra|picanha|bife|cox[aã]o|maminha|fraldinha|costela|cupim|lagarto|m[uú]sculo|ac[eé]m|f[ií]gado|porco|lombo|pernil|bacon|presunto|salsicha|lingui[cç]a|salame|mortadela|peito de peru|hamb[uú]rguer|coxinha|nuggets?|kibe|quibe|alm[oô]ndega|strogonoff|feijoada/;
 const PEIXE = /peixe|atum|til[aá]pia|sardinha|salm[aã]o|bacalhau|merluza|pescada|robalo|truta|anchova|sushi|sashimi/;
 const CRUST = /camar[aã]o|lagosta|caranguejo|siri|lagostim/;
 const MOLUSC = /lula|polvo|mexilh[aã]o|marisco|ostra|vieira|sururu|lambreta/;
@@ -548,11 +739,16 @@ export const RESTR = {
   frituras: { g: 'dieta', n: 'Frituras', re: /frit[oa]|empanad|milanesa|pastel|coxinha|salgadinho|nuggets?|batata palha|torresmo|chips/, swap: 'assado, grelhado, cozido ou na airfryer' },
   ultra: { g: 'dieta', n: 'Ultraprocessados', re: /salgadinho|biscoito recheado|refri|salsicha|nuggets?|miojo|lamen instant|embutido|presunto|mortadela|salame|sorvete|achocolatado|empanado|congelado|refei[cç][aã]o pronta|bebida l[aá]ctea|barra de cereal/, swap: 'comida de verdade: arroz, feijão, ovos, carnes frescas, frutas' },
   cafeina: { g: 'dieta', n: 'Cafeína', re: /caf[eé]|expresso|cappuccino|energ[eé]tico|pr[eé]-treino|ch[aá] (?:preto|verde|mate)|mate\b|guaran[aá]|coca|cola\b/, swap: 'chás de ervas (camomila, hortelã), café descafeinado' },
-  carneVermelha: { g: 'dieta', n: 'Carne vermelha', re: /carne|patinho|alcatra|picanha|bife|cox[aã]o|maminha|fraldinha|costela|cupim|lagarto|m[uú]sculo|ac[eé]m|f[ií]gado|porco|lombo|pernil|bacon|hamb[uú]rguer|kibe|quibe|alm[oô]ndega/, swap: 'frango, peixe, ovos, feijão' },
+  carneVermelha: { g: 'dieta', n: 'Carne vermelha', re: /carne|contrafil|fil[eé] mignon|cordeiro|patinho|alcatra|picanha|bife|cox[aã]o|maminha|fraldinha|costela|cupim|lagarto|m[uú]sculo|ac[eé]m|f[ií]gado|porco|lombo|pernil|bacon|hamb[uú]rguer|kibe|quibe|alm[oô]ndega/, swap: 'frango, peixe, ovos, feijão' },
   porco: { g: 'dieta', n: 'Carne de porco', re: /porco|lombo|pernil|bacon|presunto|salsicha|lingui[cç]a|salame|mortadela|torresmo|costelinha|feijoada/, swap: 'frango, carne bovina, peixe' },
   carne: { g: 'dieta', n: 'Vegetariana (sem carnes e peixes)', re: new RegExp(`${CARNE.source}|${PEIXE.source}|${CRUST.source}|${MOLUSC.source}`), swap: 'ovos, feijão, lentilha, grão-de-bico, tofu, iogurte' },
   vegano: { g: 'dieta', n: 'Vegana (nada de origem animal)', re: new RegExp(`${CARNE.source}|${PEIXE.source}|${CRUST.source}|${MOLUSC.source}|${LEITE.source}|\\bovos?\\b|omelete|maionese|\\bmel\\b`), swap: 'feijão, lentilha, grão-de-bico, tofu, bebidas vegetais' }
 };
 export const RESTR_GROUPS = { alergia: 'Alergias', intol: 'Intolerâncias', dieta: 'Dieta e escolhas' };
 const RNORM = s => String(s).toLowerCase();
-export const restrOf = name => Object.keys(RESTR).filter(k => RESTR[k].re.test(RNORM(name)));
+// "sem lactose", "sem açúcar", "sem glúten" e "zero" tiram a marcação correspondente
+export const restrOf = name => {
+  const t = RNORM(name), out = Object.keys(RESTR).filter(k => RESTR[k].re.test(t));
+  const drop = new Set([...(/sem lactose|zero lactose/.test(t) ? ['lactose'] : []), ...(/sem a[cç][uú]car|zero a[cç][uú]car|\bzero\b/.test(t) ? ['acucar'] : []), ...(/sem gl[uú]ten/.test(t) ? ['gluten', 'celiaca'] : [])]);
+  return out.filter(k => !drop.has(k));
+};

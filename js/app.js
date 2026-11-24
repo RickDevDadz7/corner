@@ -4,6 +4,7 @@ import { SPORTS, SPORT_IDS, combatSession, runSession } from './sports.js';
 import { TECHNIQUES, TIRED, CATS, animate, thumbSVG } from './techniques.js';
 import { cloud } from './cloud.js';
 import { startScan, lookupBarcode } from './scan.js';
+import { pickDay, solveDay, dayTargets, measure, shoppingList, shopQty, swapPick, foodByName, SLOTS } from './menu.js';
 import * as sync from './sync.js';
 const buildPlan = p => plan_(p, S.prog);
 
@@ -374,6 +375,7 @@ views.nutri = () => {
     <div class="mgrid">${macroBar('Proteína', f.p, t.protein, 'var(--acc)')}${macroBar('Carboidrato', f.c, t.carbs, 'var(--cyan)')}${macroBar('Gordura', f.f, t.fat, 'var(--amber)')}${macroBar('Fibras', f.fb, t.fiber, 'var(--ink2)')}</div>
     ${waterBar(w, t.water)}
   </div>
+  ${menuCard()}
   <div class="card" id="n-analise">
     <h3>Análise Nutricional</h3>
     <ul class="alist">
@@ -422,7 +424,121 @@ views.nutri = () => {
   ${MEALS.map(m => mealCard(m, items.filter(it => (it.m || 'extra') === m.id))).join('')}
   <p class="muted small pad">Valores aproximados (base TACO/USDA; besteiras = média de mercado). Confira o rótulo quando tiver.</p>`;
 };
-const FOOD_CATS = { '': 'Todos', base: 'Refeição', fruta: 'Frutas', lanche: 'Lanches', besteira: 'Besteiras' };
+// ---------------- Cardápio sugerido ----------------
+const MENU_MEALS = ['cafe', 'almoco', 'lanche', 'jantar'];
+const trainDaysWeek = () => (S.profile?.liftDays || 0) + sportDays(S.profile || {});
+const menuCtx = () => ({ ok: n => !hitsOf(n).length, pantry: S.ui.pantry || {}, strict: !!S.ui.pStrict, big: T().kcal > 2600 });
+const shortName = n => n.replace(/\s*\([^)]*(≈|ml|varia|lata, |sem pele)[^)]*\)/g, '').trim();
+function menuTrain(d = curDay()) {
+  const v = S.ui.mtrain?.[d]; if (typeof v === 'boolean') return v;
+  return S.logs.workouts.some(w => w.date === d) || S.logs.sessions.some(x => x.date === d) || trainDaysWeek() >= 4;
+}
+// lê o cardápio salvo (pode ter vindo da nuvem: só aceita o formato esperado) e troca o que deixou de valer
+function menuOf(d = curDay()) {
+  const m = S.ui.menu?.[d];
+  if (!m || typeof m !== 'object' || !m.meals || typeof m.meals !== 'object') return null;
+  if (typeof m.seed !== 'number') m.seed = 1;
+  const ctx = menuCtx();
+  for (const meal of Object.keys(m.meals)) if (!MENU_MEALS.includes(meal)) delete m.meals[meal];
+  for (const meal of MENU_MEALS) { // primeiro arruma o formato de todas as refeições
+    const mm = m.meals[meal]; if (!mm || typeof mm !== 'object') { m.meals[meal] = { pick: {}, done: false }; continue; }
+    if (!mm.pick || typeof mm.pick !== 'object' || Array.isArray(mm.pick)) mm.pick = {};
+    mm.done = mm.done === true;
+  }
+  for (const meal of MENU_MEALS) { // depois troca o que deixou de valer
+    const mm = m.meals[meal];
+    for (const [k, n] of Object.entries(mm.pick)) {
+      if (!SLOTS[meal].some(x => x.k === k) || typeof n !== 'string' || !foodByName(n) || !ctx.ok(n) || ctx.pantry[n] === 'nao') {
+        const alt = !mm.done && swapPick(m.meals, meal, k, ctx, m.seed || 1, 99); if (alt) mm.pick[k] = alt; else delete mm.pick[k];
+      }
+    }
+  }
+  return m;
+}
+function makeMenu(d, avoid = new Set()) {
+  S.ui.menu ||= {};
+  const seed = Math.floor(Math.random() * 1e9);
+  S.ui.menu[d] = { seed, sw: 0, meals: pickDay(menuCtx(), seed, avoid) };
+  // guarda só de uma semana atrás até uma semana à frente
+  const lo = dayKey(new Date(Date.now() - 8 * 864e5)), hi = dayKey(new Date(Date.now() + 9 * 864e5));
+  for (const k of Object.keys(S.ui.menu)) if (k < lo || k > hi) delete S.ui.menu[k];
+}
+function solvedMenu(d = curDay()) {
+  const plan = menuOf(d); if (!plan) return null;
+  const dt = dayTargets(T(), menuTrain(d), trainDaysWeek());
+  return { plan, dt, sol: solveDay(plan.meals, dt) };
+}
+function menuCard() {
+  const m = solvedMenu();
+  return `<a class="card link menucard" href="#cardapio" id="n-menu"><small class="cat">Cardápio do dia</small>
+    ${m ? `<h3>${fmt(m.sol.tot.k, 0)} kcal em 4 refeições</h3><p class="small muted">${MENU_MEALS.filter(x => m.plan.meals[x]?.done).length} de 4 registradas · ${menuTrain() ? 'dia de treino' : 'dia de descanso'}</p>`
+      : `<h3>Montar meu cardápio</h3><p class="small muted">Sugestão que fecha suas metas, respeita suas restrições e usa o que você tem em casa.</p>`}
+    <span class="go">Abrir →</span></a>`;
+}
+let pantryOpen = false, shopOpen = false;
+const PANTRY_ROLES = [['prot', 'Proteínas'], ['carb', 'Arroz, massas e tubérculos'], ['pao', 'Pães e café da manhã'], ['leg', 'Leguminosas'], ['lat', 'Leites, iogurtes e queijos'], ['veg', 'Verduras e legumes'], ['fruta', 'Frutas'], ['gord', 'Castanhas, sementes e pastas'], ['oleo', 'Óleos']];
+const P_NEXT = { '': 'tem', tem: 'comprar', comprar: 'nao', nao: '' };
+const pst = v => v === 'tem' || v === 'comprar' || v === 'nao' ? v : ''; // valor vindo da nuvem: só os três estados
+function pantrySummary() {
+  const v = Object.values(S.ui.pantry || {}), c = k => v.filter(x => x === k).length;
+  const a = [c('tem') && `${c('tem')} tenho`, c('comprar') && `${c('comprar')} vou comprar`, c('nao') && `${c('nao')} não gosto`].filter(Boolean);
+  return a.length ? a.join(' · ') : 'nada marcado';
+}
+function pantryBox() {
+  const P = S.ui.pantry || {};
+  return `<details class="card" id="c-desp" ${pantryOpen ? 'open' : ''}><summary><h3>Despensa e gostos</h3><small class="muted" id="pSum">${esc(pantrySummary())}</small></summary>
+    <p class="small muted">Toque pra marcar: <b>tenho</b> → <b class="pq">vou comprar</b> → <s>não gosto</s> → limpar. O cardápio prefere o que você tem e nunca usa o que você não gosta.</p>
+    <label class="switch"><input type="checkbox" data-act="pStrict" ${S.ui.pStrict ? 'checked' : ''}> Montar só com o que tenho ou vou comprar</label>
+    <input id="pSearch" placeholder="Buscar alimento" autocomplete="off">
+    ${PANTRY_ROLES.map(([r, lab]) => { const list = FOODS.filter(f => f.r === r && !hitsOf(f.n).length); return list.length ? `<div class="pgrp"><small class="cat">${lab}</small><div class="pchips">${list.map(f => `<button type="button" class="pchip ${pst(P[f.n])}" data-n="${esc(f.n)}">${esc(shortName(f.n))}</button>`).join('')}</div></div>` : ''; }).join('')}
+    <button class="btn small block" data-act="menuMake">Refazer o cardápio com a despensa</button>
+  </details>`;
+}
+function shopBox() {
+  const sh = S.ui.shop; if (!sh?.from || !/^\d{4}-\d{2}-\d{2}$/.test(sh.from)) return '';
+  const days = [...Array(7)].map((_, i) => { const d = new Date(sh.from + 'T12:00'); d.setDate(d.getDate() + i); return dayKey(d); });
+  const plans = days.map(d => { const m = solvedMenu(d); if (!m) return null; return { meals: Object.fromEntries(Object.entries(m.sol.meals).filter(([k]) => !m.plan.meals[k]?.done)) }; }).filter(Boolean);
+  if (!plans.length) return '';
+  const P = S.ui.pantry || {}, done = sh.done || {}, list = shoppingList(plans);
+  const have = list.filter(x => x.src.some(n => P[n] === 'tem')), buy = list.filter(x => !have.includes(x));
+  const groups = ['Hortifruti', 'Açougue e peixaria', 'Laticínios e ovos', 'Mercearia'];
+  const row = x => `<li class="${done[x.n] ? 'got' : ''}"><label class="shoprow"><input type="checkbox" data-shop="${esc(x.n)}" ${done[x.n] ? 'checked' : ''}><span>${esc(x.n)}</span></label><span class="mono small">${esc(shopQty(x))}</span></li>`;
+  return `<details class="card" id="c-lista" ${shopOpen ? 'open' : ''}><summary><h3>Lista de compras</h3><small class="muted">${plans.length} ${plans.length === 1 ? 'dia' : 'dias'} a partir de ${sh.from.split('-').reverse().slice(0, 2).join('/')} · ${buy.length} itens</small></summary>
+    <p class="small muted">Arroz, feijão, carnes e afins já vêm convertidos pro peso cru.</p>
+    ${groups.map(g => { const it = buy.filter(x => x.group === g); return it.length ? `<small class="cat">${g}</small><ul class="list shop">${it.map(row).join('')}</ul>` : ''; }).join('')}
+    ${have.length ? `<small class="cat">Você já tem (confira se dá)</small><ul class="list shop">${have.map(row).join('')}</ul>` : ''}
+    <button class="btn small block" data-act="shopShare">Copiar / compartilhar lista</button>
+  </details>`;
+}
+views.cardapio = () => {
+  const m = solvedMenu(), tr = menuTrain(), dt = m ? m.dt : dayTargets(T(), tr, trainDaysWeek()), td = trainDaysWeek();
+  const P = S.ui.pantry || {};
+  const mealHTML = meal => {
+    const x = m.sol.meals[meal], info = MEALS.find(z => z.id === meal), done = m.plan.meals[meal]?.done;
+    return `<div class="card cmeal ${done ? 'done' : ''}" id="cm-${meal}">
+      <div class="row between"><h3><span class="mico">${info.ico}</span> ${esc(info.n)}</h3><span class="mono small">${fmt(x.tot.k, 0)} kcal</span></div>
+      <ul class="list citems">${x.items.map(i => { const f = foodByName(i.n), h = hitsOf(i.n); return `<li><div class="grow"><b>${esc(shortName(i.n))}</b>${P[i.n] === 'tem' ? ' <em class="ptag">tenho</em>' : ''}${h.length ? ` <em class="rtag">⚠ ${esc(h.map(k => RESTR[k].n.split(' (')[0]).join(', '))}</em>` : ''}<small>${esc(measure(i.n, i.g))}${f?.un ? ` · ${fmt(i.g, 0)} g` : ''} · ${fmt(i.k, 0)} kcal</small></div>
+        ${done ? '' : `<button class="swap" data-act="menuSwap" data-m="${meal}" data-s="${esc(i.slot)}" aria-label="Trocar ${esc(shortName(i.n))}">↻</button>`}</li>`; }).join('') || '<li class="muted small">Sem opções pra essa refeição com suas restrições.</li>'}</ul>
+      <div class="msum"><span>Total</span><span class="mono">P ${fmt(x.tot.p, 0)}g</span><span class="mono">C ${fmt(x.tot.c, 0)}g</span><span class="mono">G ${fmt(x.tot.f, 0)}g</span><span class="mono">Fibra ${fmt(x.tot.fb, 0)}g</span></div>
+      ${done ? `<p class="small okline">✓ Registrado em ${esc(info.n)}</p>` : `<button class="btn small block" data-act="menuEat" data-m="${meal}">✓ Comi isso: registrar</button>`}
+    </div>`;
+  };
+  const pct = (a, b) => b ? Math.round(a / b * 100) : 0;
+  return `<section class="head"><div><a href="#nutri" class="backlink">← Nutrição</a><h1>Cardápio</h1></div></section>
+  ${dayNav()}
+  <div class="card glow" id="c-top">
+    ${td > 0 && td < 7 ? `<div class="segs small"><button class="${tr ? 'on' : ''}" data-act="menuTrain" data-v="1">Dia de treino</button><button class="${tr ? '' : 'on'}" data-act="menuTrain" data-v="0">Descanso</button></div>
+    <p class="small muted">${tr ? `Dia de treino: +${dt.shiftG} g de carboidrato pra render e recuperar.` : `Descanso: ${dt.shiftG} g de carboidrato. Na semana, a média fica na sua meta.`}</p>` : ''}
+    <div class="ctgt">${[['kcal', dt.kcal, m?.sol.tot.k, ''], ['Proteína', dt.p, m?.sol.tot.p, 'g'], ['Carbo', dt.c, m?.sol.tot.c, 'g'], ['Gordura', dt.f, m?.sol.tot.f, 'g']].map(([l, tg, v, u]) => `<div><small>${l}</small><b class="mono">${m ? fmt(v, 0) : '—'}</b><i>/ ${fmt(tg, 0)}${u}${m ? ` · ${pct(v, tg)}%` : ''}</i></div>`).join('')}</div>
+    ${m ? '' : `<button class="btn primary block" data-act="menuMake">Montar cardápio${viewDay ? ' desse dia' : ' de hoje'}</button>`}
+  </div>
+  ${m ? MENU_MEALS.map(mealHTML).join('') + `<div class="row gap cactions"><button class="btn small" data-act="menuMake">↻ Gerar outro</button><button class="btn small" data-act="menuWeek">Planejar 7 dias + lista</button></div>` : ''}
+  ${shopBox()}
+  ${pantryBox()}
+  <p class="muted small pad">Sugestão automática feita com as suas metas, restrições e despensa. Não substitui um nutricionista.</p>`;
+};
+
+const FOOD_CATS = { '': 'Todos', proteina: 'Proteínas', base: 'Refeição', verdura: 'Verduras', fruta: 'Frutas', lanche: 'Lanches', besteira: 'Besteiras' };
 let addMeal = null, foodCat = '';
 const mealShut = new Set(); // refeições que a pessoa recolheu (abertas por padrão)
 const defaultMeal = () => { const h = new Date().getHours(); return h >= 4 && h <= 10 ? 'cafe' : h <= 14 ? 'almoco' : h <= 17 ? 'lanche' : h <= 21 ? 'jantar' : 'extra'; };
@@ -1020,7 +1136,7 @@ function render() {
   const ms = mySports();
   const spLabel = ms.length === 1 ? SPORTS[ms[0]].n : 'Esporte';
   const tabs = [['hoje', 'Hoje'], ['nutri', 'Nutrição'], ['treino', 'Força'], ['esporte', spLabel], ['coach', 'Coach']];
-  $('#nav').innerHTML = tabs.map(([id, label]) => `<a href="#${id}" class="${(v === id || (v === 'sessao' && id === 'treino') || ((v === 'tecnica' || v === 'tecnicas') && id === 'esporte')) ? 'on' : ''}"><svg viewBox="0 0 24 24"><path d="${ICONS[id]}"/></svg><span>${esc(label)}</span></a>`).join('');
+  $('#nav').innerHTML = tabs.map(([id, label]) => `<a href="#${id}" class="${(v === id || (v === 'sessao' && id === 'treino') || (v === 'cardapio' && id === 'nutri') || ((v === 'tecnica' || v === 'tecnicas') && id === 'esporte')) ? 'on' : ''}"><svg viewBox="0 0 24 24"><path d="${ICONS[id]}"/></svg><span>${esc(label)}</span></a>`).join('');
   bindAfter(v, arg);
   if (window.scrollY !== keepY) window.scrollTo(0, keepY);
   if (v === 'esporte') paintTimer();
@@ -1086,6 +1202,26 @@ function bindAfter(v, arg) {
     $('#waterForm').addEventListener('submit', e => { e.preventDefault(); const ml = Math.round(num(e.target.ml.value) || 0); if (!ml) return; addWater(ml); });
     $('.wlist')?.addEventListener('toggle', e => { wlOpen = e.target.open; });
     $('#h-sci')?.addEventListener('toggle', e => { if (e.target.open && S.ui.sci !== today()) { S.ui.sci = today(); save(true); const tl = document.querySelector('[data-to="h-sci"]'); if (tl) { tl.classList.add('ok'); tl.querySelector('small').textContent = '✓ Lida'; } } });
+  }
+  if (v === 'cardapio') {
+    $('#c-desp')?.addEventListener('toggle', e => { pantryOpen = e.target.open; });
+    $('#c-lista')?.addEventListener('toggle', e => { shopOpen = e.target.open; });
+    $('#c-desp')?.addEventListener('click', e => {
+      const c = e.target.closest('.pchip'); if (!c) return;
+      const n = c.dataset.n; if (!foodByName(n)) return;
+      S.ui.pantry ||= {}; const nx = P_NEXT[S.ui.pantry[n] || ''];
+      if (nx) S.ui.pantry[n] = nx; else delete S.ui.pantry[n];
+      c.className = `pchip ${nx}`; $('#pSum').textContent = pantrySummary(); save(true);
+    });
+    $('#pSearch')?.addEventListener('input', e => {
+      const q = norm(e.target.value);
+      document.querySelectorAll('#c-desp .pchip').forEach(c => { c.hidden = !!q && !norm(c.textContent).includes(q); });
+      document.querySelectorAll('#c-desp .pgrp').forEach(g => { g.hidden = ![...g.querySelectorAll('.pchip')].some(c => !c.hidden); });
+    });
+    document.querySelectorAll('[data-shop]').forEach(i => i.addEventListener('change', () => {
+      S.ui.shop.done ||= {}; if (i.checked) S.ui.shop.done[i.dataset.shop] = true; else delete S.ui.shop.done[i.dataset.shop];
+      i.closest('li').classList.toggle('got', i.checked); save(true);
+    }));
   }
   if (v === 'nutri') {
     $('#n-como')?.addEventListener('toggle', e => { comoOpen = e.target.open; });
@@ -1219,6 +1355,41 @@ document.addEventListener('click', async e => {
   if (a === 'addMeal') { addMeal = el.dataset.m || null; if (addMeal) mealShut.delete(addMeal); foodCat = ''; render(); }
   if (a === 'mealToggle') { const m = el.dataset.m; if (mealShut.has(m)) mealShut.delete(m); else { mealShut.add(m); if (addMeal === m) addMeal = null; } render(); }
   if (a === 'syncWeight') { const lw = latestWeight(); if (lw && lw >= 35 && lw <= 250) { S.profile = { ...S.profile, weight: lw }; save(true); render(); toast(`Metas recalculadas com ${fmt(lw)} kg`); } }
+  if (a === 'menuMake') { makeMenu(curDay()); save(true); render(); toast('Cardápio montado'); }
+  if (a === 'menuTrain') { S.ui.mtrain ||= {}; S.ui.mtrain[curDay()] = el.dataset.v === '1'; save(true); render(); }
+  if (a === 'menuSwap') {
+    const plan = menuOf(); if (!plan) return;
+    plan.sw = (plan.sw || 0) + 1;
+    const n = swapPick(plan.meals, el.dataset.m, el.dataset.s, menuCtx(), plan.seed || 1, plan.sw);
+    if (n) { plan.meals[el.dataset.m].pick[el.dataset.s] = n; save(true); render(); } else toast('Sem outra opção pra esse item com suas restrições');
+  }
+  if (a === 'menuEat') {
+    const m = solvedMenu(), meal = el.dataset.m; if (!m || m.plan.meals[meal]?.done) return;
+    const list = (S.logs.food[curDay()] ||= []);
+    for (const i of m.sol.meals[meal].items) {
+      const f = foodByName(i.n); if (!f) continue;
+      list.push({ id: newId(), t: Date.now(), m: meal, n: f.n, g: i.g, u: /\(ml\)/.test(f.n) ? 'ml' : 'g', st: f.un ? f.un[0] : f.g <= 60 ? f.g : 10, k: i.k, p: i.p, c: i.c, f: i.f, fb: i.fb });
+    }
+    m.plan.meals[meal].done = true; save(); save(true); render(); toast(`${MEALS.find(z => z.id === meal).n} registrado`);
+  }
+  if (a === 'menuWeek') {
+    const start = curDay(); let prev = new Set();
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(start + 'T12:00'); d.setDate(d.getDate() + i); const k = dayKey(d);
+      const cur = menuOf(k);
+      if (!cur || !MENU_MEALS.some(x => cur.meals[x]?.done)) makeMenu(k, prev);
+      prev = new Set(Object.values(S.ui.menu[k].meals).flatMap(x => Object.values(x.pick || {})));
+    }
+    S.ui.shop = { from: start, done: {} }; shopOpen = true; save(true); render(); toast('7 dias planejados');
+    requestAnimationFrame(() => $('#c-lista')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  }
+  if (a === 'pStrict') { S.ui.pStrict = el.checked; save(true); }
+  if (a === 'shopShare') {
+    const txt = [...document.querySelectorAll('#c-lista li')].filter(li => !li.classList.contains('got')).map(li => `• ${li.querySelector('span').textContent} — ${li.querySelector('.mono').textContent}`).join('\n');
+    const body = `Lista de compras (RONIN)\n${txt}`;
+    if (navigator.share) navigator.share({ text: body }).catch(() => { });
+    else navigator.clipboard?.writeText(body).then(() => toast('Lista copiada'), () => toast('Não deu pra copiar'));
+  }
   if (a === 'scanOpen') openScan();
   if (a === 'scanClose') closeScan();
   if (a === 'scanRetry') { try { scanStop?.(); } catch (er) { } scanStop = null; scanCam(); }
