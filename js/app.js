@@ -769,6 +769,24 @@ document.addEventListener('change', e => {
   const v = e.target.value; if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return;
   viewDay = v >= today() ? null : v; render();
 });
+// correções em treino salvo, nota e faixa de referência do volume
+document.addEventListener('change', e => {
+  const t = e.target, k = t.dataset?.wk;
+  if (k) {
+    const [id, ex, i, f] = k.split('|'), w = S.logs.workouts.find(x => x.id === id), a = w?.sets?.[ex], x = Array.isArray(a) ? a[+i] : null; if (!x || typeof x !== 'object') return;
+    const v = num(t.value);
+    if (f === 'reps' && !(v > 0)) { toast('Repetições precisam ser maiores que zero. Pra tirar a série, use ×.'); t.value = +x.reps || ''; return; }
+    x[f] = f === 'kg' ? (v > 0 && v < 1000 ? v : null) : Math.min(999, Math.round(v));
+    w.t = Date.now(); save(); render(); toast('Série corrigida');
+  }
+  if (t.id === 'wkNote') { const w = S.logs.workouts.find(x => x.id === t.dataset.id); if (!w) return; const n = t.value.trim().slice(0, 300); if (n) w.note = n; else delete w.note; w.t = Date.now(); save(); toast('Nota salva'); }
+  if (t.id === 'vrLo' || t.id === 'vrHi') {
+    const lo = Math.round(num($('#vrLo')?.value)), hi = Math.round(num($('#vrHi')?.value));
+    if (!(lo >= 1 && hi > lo && hi <= 40)) { toast('Faixa inválida: mínimo de 1, máximo de 40, e o máximo maior que o mínimo.'); render(); return; }
+    S.ui = { ...(S.ui || {}), volRef: { lo, hi }, volOpen: true }; save(true);
+    setTimeout(() => { const f = document.activeElement?.id; render(); if (f) $('#' + f)?.focus({ preventScroll: true }); }, 0);
+  }
+});
 document.addEventListener('click', e => { const i = e.target.closest?.('.dayPick'); if (i && i.showPicker) { try { i.showPicker(); } catch (er) { } } });
 document.addEventListener('visibilitychange', () => { if (document.hidden && scanStop) { try { scanStop(); } catch (e) { } scanStop = null; if ($('#scanbox')) { $('#scanView').hidden = true; scanMsg('Câmera pausada.'); $('#scanRes').innerHTML = `<button class="btn small block" data-act="scanRetry">Ligar a câmera de novo</button>`; } } });
 window.addEventListener('hashchange', closeScan);
@@ -823,7 +841,6 @@ views.treino = () => {
   <small class="cat pad">Base científica</small>
   ${['forca-lesao', 'calistenia', 'soco', 'concorrente'].map(id => evCard(ev(id))).join('')}`;
   const vols = Object.entries(plan.vol).filter(([m]) => m !== 'pescoco');
-  const hist = S.logs.workouts.slice(-5).reverse();
   const extras = mySports().filter(id => SPORTS[id].sc.length).map(id => SPORTS[id].n);
   const nx = nextSessionIdx(plan);
   return `<section class="head"><h1>Força</h1><a class="chip" href="#rotinas">Trocar rotina</a></section>
@@ -841,15 +858,118 @@ views.treino = () => {
   </div>
   ${r.auto && plan.reduced ? `<p class="note small">Volume ajustado pra baixo (${S.profile.experience === 'iniciante' ? 'iniciante' : 'muitos treinos do esporte na semana'}). Recupere bem antes de subir.</p>` : ''}
   ${r.auto && extras.length ? `<p class="note small">Inclui exercícios específicos pra ${esc(extras.join(' e '))} (pegada, adutor, panturrilha, pescoço…).</p>` : ''}
-  <details class="card"><summary><h3>Volume semanal por músculo</h3></summary>
-    <p class="small muted">Séries/semana (indiretas = 0,5). Faixa de referência: 10–20 por músculo.</p>
-    ${vols.map(([m, v]) => { const c = v < 6 ? 'var(--muted)' : v < 10 ? 'var(--amber)' : v <= 20 ? 'var(--acc)' : 'var(--red)'; return bar(MUSCLES[m], v, 20, '', c); }).join('')}
-    <p class="small muted">Seu esporte também trabalha ombros, core e pernas: acima de 20 séries, avalie se está recuperando. Com 2 dias/semana o volume é de manutenção, bom quando o esporte é a prioridade.</p>
-  </details>
-  <div class="card"><h3>Histórico</h3>
-    <ul class="list">${hist.map(w => `<li><div><b>${esc(w.name)}</b><small>${w.date.split('-').reverse().join('/')} · ${Object.values(w.sets).flat().filter(s => s && s.reps).length} séries</small></div></li>`).join('') || '<li class="muted small">Nenhum treino registrado.</li>'}</ul></div>
+  ${weekCard(plan)}
+  ${volumeCard(plan)}
+  ${historyCard()}
+  ${evoCard()}
   <small class="cat pad">Base científica</small>
   ${EVIDENCE.filter(e => e.cat === 'Musculação').map(e => evCard(e)).join('')}`;
+};
+
+// ---------- Acompanhamento: semana, volume real, histórico, evolução ----------
+const isoDay = d => dayKey(d);
+const addDay = (k, n) => { const d = new Date(k + 'T12:00'); d.setDate(d.getDate() + n); return isoDay(d); };
+const weekStart = (k = today()) => { const d = new Date(k + 'T12:00'), wd = (d.getDay() + 6) % 7; d.setDate(d.getDate() - wd); return isoDay(d); };
+const dmy = k => String(k || '').split('-').reverse().slice(0, 2).join('/');
+// séries válidas de um treino salvo (dados da nuvem podem vir tortos: tudo vira número aqui)
+const wSets = w => Object.entries(w?.sets && typeof w.sets === 'object' ? w.sets : {}).filter(([ex]) => EXERCISES[ex])
+  .map(([ex, arr]) => [ex, (Array.isArray(arr) ? arr : []).filter(x => x && +x.reps > 0).map(x => ({ kg: +x.kg > 0 ? +x.kg : 0, reps: +x.reps, note: typeof x.note === 'string' ? x.note : '' }))]).filter(([, a]) => a.length);
+const e1rm = x => x.kg > 0 && x.reps <= 12 ? x.kg * (1 + x.reps / 30) : 0; // Epley: só vale até ~12 reps
+// melhor série: com carga = maior 1RM estimado (empate: mais carga); sem carga = mais repetições
+const bestSet = (ex, arr) => { const inc = !!EXERCISES[ex]?.inc; let b = null; for (const x of arr) { const sc = inc ? (e1rm(x) || x.kg) : x.reps; if (!b || sc > b.sc) b = { ...x, sc }; } return b; };
+const setLbl = x => x.kg ? `${fmt(x.kg)} kg × ${x.reps}` : `${x.reps}`;
+const byWhen = (a, b) => String(a.date).localeCompare(String(b.date)) || (+a.start || 0) - (+b.start || 0) || String(a.id).localeCompare(String(b.id));
+function exHistory(ex) {
+  return S.logs.workouts.slice().sort(byWhen).map(w => { const arr = wSets(w).find(([k]) => k === ex)?.[1]; return arr ? { w, arr, best: bestSet(ex, arr) } : null; }).filter(Boolean);
+}
+// recorde: melhor marca do exercício superando tudo que veio antes (precisa de histórico anterior)
+function prsOf(w) {
+  const out = {};
+  for (const [ex] of wSets(w)) { const h = exHistory(ex), i = h.findIndex(x => x.w.id === w.id); if (i < 1) continue; const prev = Math.max(...h.slice(0, i).map(x => x.best.sc)); if (h[i].best.sc > prev) out[ex] = h[i].best; }
+  return out;
+}
+const volRef = () => { const v = S.ui?.volRef, lo = Math.round(+v?.lo), hi = Math.round(+v?.hi); return lo >= 1 && hi > lo && hi <= 40 ? { lo, hi } : { lo: 10, hi: 20 }; };
+function doneVolume() {
+  const from = addDay(today(), -6), v = {};
+  for (const w of S.logs.workouts) { if (!(w.date >= from && w.date <= today())) continue;
+    for (const [ex, arr] of wSets(w)) for (const [m, f] of Object.entries(EXERCISES[ex].m || {})) v[m] = (v[m] || 0) + f * arr.length; }
+  return v;
+}
+function weekCard(plan) {
+  const ws = weekStart(), we = addDay(ws, 6), wk = S.logs.workouts.filter(w => w.date >= ws && w.date <= we);
+  const doneSids = new Set(wk.map(w => w.sid)), done = plan.days.filter(d => doneSids.has(d.sid)).length;
+  const strip = Array.from({ length: 7 }, (_, i) => { const k = addDay(ws, i), n = wk.filter(w => w.date === k).length; return `<span class="wd ${n ? 'on' : ''} ${k === today() ? 'now' : ''}"><small>${'STQQSSD'[i]}</small><i>${n ? '●' : ''}</i></span>`; }).join('');
+  return `<div class="card" id="t-semana"><div class="row between"><h3>Esta semana</h3><b class="mono">${done}/${plan.days.length}</b></div>
+    <div class="wstrip">${strip}</div>
+    ${plan.days.length ? `<ul class="wlist">${plan.days.map(d => `<li class="${doneSids.has(d.sid) ? 'ok' : ''}"><span>${doneSids.has(d.sid) ? '✓' : '○'}</span>${esc(d.name)}<small>${doneSids.has(d.sid) ? 'feita' : 'pendente'}</small></li>`).join('')}</ul>` : ''}
+    <small class="muted">Sem dia fixo: faça na ordem, quando der. A semana começa na segunda.</small></div>`;
+}
+let volMode = 'done';
+function volumeCard(plan) {
+  const ref = volRef(), dv = doneVolume(), pv = plan.vol;
+  const src = volMode === 'done' ? dv : pv;
+  const ms = Object.keys(MUSCLES).filter(m => m !== 'pescoco' && ((pv[m] || 0) > 0 || (dv[m] || 0) > 0));
+  const any = Object.values(dv).some(x => x > 0);
+  const flag = v => v < ref.lo ? ['abaixo', 'var(--amber)'] : v > ref.hi ? ['acima', 'var(--red)'] : ['na faixa', 'var(--acc)'];
+  return `<details class="card" id="t-volume" ${S.ui?.volOpen ? 'open' : ''}><summary><h3>Volume semanal por músculo</h3></summary>
+    <div class="segs small"><button class="${volMode === 'done' ? 'on' : ''}" data-act="volMode" data-m="done">Feito (7 dias)</button><button class="${volMode === 'plan' ? 'on' : ''}" data-act="volMode" data-m="plan">Planejado na rotina</button></div>
+    ${volMode === 'done' && !any ? '<p class="small muted">Nenhuma série registrada nos últimos 7 dias. Conclua um treino e o volume real aparece aqui.</p>' :
+    ms.map(m => { const v = src[m] || 0, [t, c] = flag(v); return `<div class="vrow">${bar(MUSCLES[m], v, Math.max(ref.hi, v), '', v ? c : 'var(--muted)')}<small style="color:${v ? c : 'var(--muted)'}">${v ? t : '—'}${volMode === 'done' && pv[m] ? ` · plano ${fmt(pv[m], 1)}` : ''}</small></div>`; }).join('')}
+    <p class="small muted">Séries por semana; o músculo secundário do exercício conta 0,5. Abaixo de ${ref.lo} costuma ser manutenção; acima de ${ref.hi}, olhe a recuperação (seu esporte também cansa pernas, ombros e core).</p>
+    <div class="vref"><span class="small">Faixa de referência</span><input id="vrLo" inputmode="numeric" value="${ref.lo}" aria-label="Mínimo de séries"><span>a</span><input id="vrHi" inputmode="numeric" value="${ref.hi}" aria-label="Máximo de séries"><span class="small">séries</span></div>
+  </details>`;
+}
+let histAll = false;
+function historyCard() {
+  const all = S.logs.workouts.slice().sort(byWhen).reverse(), list = histAll ? all.slice(0, 60) : all.slice(0, 6);
+  return `<div class="card" id="t-hist"><h3>Histórico</h3>
+    ${all.length ? `<ul class="list hlist">${list.map(w => { const st = workoutStats(w), pr = Object.keys(prsOf(w)).length; return `<li><a href="#wk-${esc(w.id)}"><div class="grow"><b>${esc(w.name || 'Treino')}</b><small>${esc(fmtDay(w.date))} · ${st.sets} séries${+w.dur ? ' · ' + Math.round(w.dur / 60) + ' min' : ''}${st.vol ? ' · ' + fmt(st.vol, 0) + ' kg' : ''}</small></div>${pr ? `<span class="prtag">${pr} PR</span>` : ''}<span>›</span></a></li>`; }).join('')}</ul>
+      ${all.length > 6 ? `<button class="linkbtn" data-act="histAll">${histAll ? 'Mostrar menos' : `Ver todos (${all.length})`}</button>` : ''}`
+    : '<p class="small muted">Nenhum treino registrado ainda. Comece uma sessão da sua rotina: cada série concluída aparece aqui, com detalhes e recordes.</p>'}</div>`;
+}
+function evoCard() {
+  const ids = [...new Set(S.logs.workouts.flatMap(w => wSets(w).map(([ex]) => ex)))];
+  const rows = ids.map(ex => { const h = exHistory(ex); return h.length >= 2 ? { ex, h, last: h[h.length - 1] } : null; }).filter(Boolean).sort((a, b) => byWhen(b.last.w, a.last.w)).slice(0, 8);
+  if (!S.logs.workouts.length) return '';
+  return `<div class="card" id="t-evo"><h3>Evolução</h3>
+    ${rows.length ? `<ul class="list hlist">${rows.map(({ ex, h }) => { const f = h[0].best, l = h[h.length - 1].best, top = h.reduce((a, x) => x.best.sc > a.sc ? x.best : a, h[0].best), d = f.sc ? (l.sc - f.sc) / f.sc * 100 : 0;
+      return `<li><a href="#evo-${ex}"><div class="grow"><b>${esc(EXERCISES[ex].n)}</b><small>${esc(setLbl(f))} → ${esc(setLbl(l))} · melhor ${esc(setLbl(top))}</small></div><small class="${d > 0.5 ? 'up' : d < -0.5 ? 'down' : 'muted'}">${Math.abs(d) < 0.5 ? '=' : (d > 0 ? '+' : '') + fmt(d, 0) + '%'}</small><span>›</span></a></li>`; }).join('')}</ul>
+      <small class="muted">Comparação entre a primeira e a última vez. Com carga, usa o 1RM estimado (só séries de até 12 reps).</small>`
+    : '<p class="small muted">Faça o mesmo exercício pelo menos 2 vezes pra ver a evolução. Não dá pra comparar com um registro só.</p>'}</div>`;
+}
+// detalhe de um treino salvo: dá pra corrigir séries, nota, e apagar
+let wkArm = null;
+views.wk = (id) => {
+  const w = S.logs.workouts.find(x => x.id === id);
+  if (!w) return `<section class="head"><div><a href="#treino" class="backlink">← Força</a><h1>Treino</h1></div></section><div class="card"><p class="small">Esse treino não existe mais.</p></div>`;
+  const st = workoutStats(w), pr = prsOf(w), raw = w.sets && typeof w.sets === 'object' ? w.sets : {};
+  return `<section class="head"><div><a href="#treino" class="backlink">← Força</a><h1>${esc(w.name || 'Treino')}</h1></div></section>
+  <div class="card"><small class="cat">${esc(fmtDay(w.date))}</small>
+    <div class="wstats"><div><small>Exercícios</small><b class="mono">${st.exN}</b></div><div><small>Séries</small><b class="mono">${st.sets}</b></div><div><small>Duração</small><b class="mono">${+w.dur ? Math.round(w.dur / 60) + ' min' : '—'}</b></div><div><small>Volume</small><b class="mono">${st.vol ? fmt(st.vol, 0) + ' kg' : '—'}</b></div></div>
+    ${Object.keys(pr).length ? `<p class="small"><span class="prtag">PR</span> Recorde em ${esc(Object.keys(pr).map(ex => EXERCISES[ex].n).join(', '))}.</p>` : ''}</div>
+  ${Object.keys(raw).filter(ex => EXERCISES[ex] && Array.isArray(raw[ex])).map(ex => { const e = EXERCISES[ex], arr = raw[ex]; return `<div class="card ex"><div class="row between"><h3>${esc(e.n)}</h3><a class="chip" href="#evo-${ex}">Evolução</a></div>
+    <div class="sethead"><span>#</span><span>${e.inc ? 'kg' : ''}</span><span>${e.u === 's' ? 's' : e.u === 'm' ? 'm' : 'reps'}</span><span></span><span></span></div>
+    ${arr.map((x, i) => x ? `<div class="set wkset ${pr[ex] && +x.kg === pr[ex].kg && +x.reps === pr[ex].reps ? 'pr' : ''}"><span class="mono">${i + 1}</span>
+      ${e.inc ? `<input data-wk="${esc(w.id)}|${ex}|${i}|kg" inputmode="decimal" value="${esc(+x.kg || '')}" aria-label="Carga série ${i + 1}">` : '<span class="muted small">—</span>'}
+      <input data-wk="${esc(w.id)}|${ex}|${i}|reps" inputmode="numeric" value="${esc(+x.reps || '')}" aria-label="Repetições série ${i + 1}">
+      <span class="small">${pr[ex] && +x.kg === pr[ex].kg && +x.reps === pr[ex].reps ? '<span class="prtag">PR</span>' : ''}</span>
+      <button class="x" data-act="wkSetDel" data-k="${esc(w.id)}|${ex}|${i}" aria-label="Apagar série ${i + 1}">×</button></div>${typeof x.note === 'string' && x.note ? `<small class="muted setnote-t">✎ ${esc(x.note)}</small>` : ''}` : '').join('')}</div>`; }).join('')}
+  <div class="card"><label>Nota do treino<textarea id="wkNote" data-id="${esc(w.id)}" maxlength="300" rows="3" placeholder="Sem nota">${esc(typeof w.note === 'string' ? w.note : '')}</textarea></label></div>
+  <small class="muted pad">Correções salvam na hora e sincronizam.</small>
+  <button class="btn block danger ${wkArm === id ? 'armed' : ''}" data-act="wkDel" data-id="${esc(w.id)}">${wkArm === id ? 'Toque de novo pra apagar' : 'Apagar este treino'}</button>`;
+};
+// evolução de um exercício
+views.evo = (ex) => {
+  const e = EXERCISES[ex]; if (!e) { location.hash = '#treino'; return ''; }
+  const h = exHistory(ex).reverse();
+  const top = h.reduce((a, x) => !a || x.best.sc > a.best.sc ? x : a, null);
+  const pts = h.slice().reverse().map(x => x.best.sc), mx = Math.max(...pts, 1), mn = Math.min(...pts, mx);
+  const spark = pts.length >= 2 ? `<svg class="spark" viewBox="0 0 100 32" preserveAspectRatio="none"><polyline points="${pts.map((v, i) => `${(i / (pts.length - 1) * 100).toFixed(1)},${(30 - (mx === mn ? 14 : (v - mn) / (mx - mn) * 28)).toFixed(1)}`).join(' ')}"/></svg>` : '';
+  return `<section class="head"><div><a href="#treino" class="backlink">← Força</a><h1>${esc(e.n)}</h1></div></section>
+  <div class="card">${h.length ? `<small class="cat">Melhor marca</small><h2 class="mono">${esc(setLbl(top.best))}</h2>
+    ${e.inc && e1rm(top.best) ? `<small class="muted">1RM estimado ≈ ${fmt(e1rm(top.best), 0)} kg (fórmula de Epley, estimativa)</small>` : ''}
+    ${spark}${h.length < 2 ? '<p class="small muted">Só 1 registro. A evolução aparece a partir do segundo.</p>' : ''}` : '<p class="small muted">Nenhuma série registrada desse exercício.</p>'}</div>
+  ${h.length ? `<div class="card"><h3>Registros</h3><ul class="list hlist">${h.map(x => `<li><a href="#wk-${esc(x.w.id)}"><div class="grow"><b>${esc(fmtDay(x.w.date))}</b><small>${esc(x.arr.map(setLbl).join(', '))}</small></div>${x === top && h.length > 1 ? '<span class="prtag">melhor</span>' : ''}<span>›</span></a></li>`).join('')}</ul></div>` : ''}`;
 };
 
 // ---------- Divisões e rotinas ----------
@@ -914,9 +1034,9 @@ views.ver = (idx) => {
 // ---------- Execução do treino ----------
 // rascunho do treino em andamento fica guardado no aparelho (sobrevive a fechar o app no meio da série)
 const DRAFT_KEY = 'ronin:draft';
-let draft = (() => { try { const d = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null'); return d && d.sid && d.sets && typeof d.sets === 'object' ? d : null; } catch (e) { return null; } })();
+let draft = (() => { try { const d = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null'); if (!d || typeof d.sid !== 'string' || !d.sets || typeof d.sets !== 'object') return null; for (const k of Object.keys(d.sets)) { if (!EXERCISES[k] || !Array.isArray(d.sets[k])) delete d.sets[k]; else d.sets[k] = d.sets[k].map(x => x && typeof x === 'object' ? x : {}); } d.start = +d.start || Date.now(); d.name = String(d.name || 'Treino'); return d; } catch (e) { return null; } })();
 function saveDraft() { try { draft ? localStorage.setItem(DRAFT_KEY, JSON.stringify(draft)) : localStorage.removeItem(DRAFT_KEY); } catch (e) { } }
-const lastFor = (ex, beforeId) => { for (let i = S.logs.workouts.length - 1; i >= 0; i--) { const w = S.logs.workouts[i]; if (w.id === beforeId) continue; if (w.sets?.[ex]?.some(s => s && s.reps)) return { sets: w.sets[ex], date: w.date }; } return null; };
+const lastFor = (ex, beforeId) => { for (let i = S.logs.workouts.length - 1; i >= 0; i--) { const w = S.logs.workouts[i]; if (w.id === beforeId) continue; const a = w.sets?.[ex]; if (Array.isArray(a) && a.some(x => x && +x.reps > 0)) return { sets: a.filter(x => x && typeof x === 'object'), date: String(w.date || '') }; } return null; };
 const setsTxt = sets => sets.filter(s => s && s.reps).map(s => `${s.kg ? fmt(s.kg) + '×' : ''}${s.reps}`).join(', ');
 const mmss = sec => `${Math.floor(sec / 60)}:${String(Math.floor(sec % 60)).padStart(2, '0')}`;
 let noteOpen = null;
@@ -978,7 +1098,7 @@ views.sessao = (idx) => {
 // resumo antes de salvar
 function workoutStats(w) {
   let sets = 0, vol = 0, exN = 0;
-  for (const [ex, arr] of Object.entries(w.sets || {})) { const d = (arr || []).filter(x => x && x.reps); if (d.length) exN++; sets += d.length; for (const x of d) if (x.kg) vol += (+x.kg) * (+x.reps); }
+  for (const [, d] of wSets(w)) { exN++; sets += d.length; for (const x of d) if (x.kg) vol += x.kg * x.reps; }
   return { sets, vol, exN };
 }
 const prevSame = (w) => { for (let i = S.logs.workouts.length - 1; i >= 0; i--) { const o = S.logs.workouts[i]; if (o.id !== w.id && o.sid && o.sid === w.sid) return o; } return null; };
@@ -1419,7 +1539,7 @@ function render() {
   const ms = mySports();
   const spLabel = ms.length === 1 ? SPORTS[ms[0]].n : 'Esporte';
   const tabs = [['hoje', 'Hoje'], ['nutri', 'Nutrição'], ['treino', 'Força'], ['esporte', spLabel], ['coach', 'Coach']];
-  $('#nav').innerHTML = tabs.map(([id, label]) => `<a href="#${id}" class="${(v === id || ((v === 'sessao' || v === 'rotinas' || v === 'rotina' || v === 'ver' || v === 'resumo') && id === 'treino') || (v === 'cardapio' && id === 'nutri') || ((v === 'tecnica' || v === 'tecnicas') && id === 'esporte')) ? 'on' : ''}"><svg viewBox="0 0 24 24"><path d="${ICONS[id]}"/></svg><span>${esc(label)}</span></a>`).join('');
+  $('#nav').innerHTML = tabs.map(([id, label]) => `<a href="#${id}" class="${(v === id || ((v === 'sessao' || v === 'rotinas' || v === 'rotina' || v === 'ver' || v === 'resumo' || v === 'wk' || v === 'evo') && id === 'treino') || (v === 'cardapio' && id === 'nutri') || ((v === 'tecnica' || v === 'tecnicas') && id === 'esporte')) ? 'on' : ''}"><svg viewBox="0 0 24 24"><path d="${ICONS[id]}"/></svg><span>${esc(label)}</span></a>`).join('');
   bindAfter(v, arg);
   if (window.scrollY !== keepY) window.scrollTo(0, keepY);
   if (v === 'esporte') paintTimer();
@@ -1755,6 +1875,13 @@ document.addEventListener('click', async e => {
   if (a === 'restPause') { if (REST.paused) { REST.end = Date.now() + REST.left * 1000; REST.paused = false; } else { REST.paused = true; } restTick(); }
   if (a === 'restReset') restStart(REST.total, REST.label);
   if (a === 'restSkip') restStop();
+  if (a === 'volMode') { volMode = el.dataset.m === 'plan' ? 'plan' : 'done'; S.ui = { ...(S.ui || {}), volOpen: true }; save(); render(); }
+  if (a === 'histAll') { histAll = !histAll; render(); }
+  if (a === 'wkSetDel') { const [id, ex, i] = el.dataset.k.split('|'), w = S.logs.workouts.find(x => x.id === id); if (!w || !Array.isArray(w.sets?.[ex])) return; w.sets[ex].splice(+i, 1); if (!w.sets[ex].length) delete w.sets[ex]; w.t = Date.now(); save(); render(); toast('Série apagada'); }
+  if (a === 'wkDel') {
+    const id = el.dataset.id; if (wkArm !== id) { wkArm = id; render(); setTimeout(() => { if (wkArm === id) { wkArm = null; if (location.hash === '#wk-' + id) render(); } }, 3500); return; }
+    wkArm = null; S.logs.workouts = S.logs.workouts.filter(x => x.id !== id); S.del[id] = Date.now(); save(); toast('Treino apagado'); location.hash = '#treino';
+  }
   if (a === 'sport') { S.ui.sport = el.dataset.id; save(true); timerReset(); render(); }
   if (a === 'preset') { const p = SPORTS[curSport()].presets.find(x => x.id === el.dataset.id); Object.assign(S.timer, { preset: p.id, rounds: p.rounds, work: p.work, rest: p.rest, program: null }); save(true); timerReset(); render(); }
   if (a === 'tToggle') timerToggle();

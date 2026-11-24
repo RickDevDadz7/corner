@@ -92,7 +92,7 @@ export function merge(local, remote) {
   return out;
 }
 
-const sig = S => JSON.stringify([S.meta?.pt, Object.keys(S.del || {}).length, S.logs.workouts.length, S.logs.sessions.length,
+const sig = S => JSON.stringify([S.meta?.pt, Object.keys(S.del || {}).length, S.logs.workouts.length, S.logs.workouts.reduce((a, w) => a + (+w.t || 0), 0), S.logs.sessions.length,
   Object.values(S.logs.food).flat().length, Object.values(S.logs.water).flat().length, Object.keys(S.logs.weights).length, JSON.stringify(S.prog)]);
 
 let running = null;
