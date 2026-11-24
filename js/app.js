@@ -1,4 +1,4 @@
-import { EVIDENCE, EXERCISES, FOODS, MUSCLES, EQUIP, PUNCHES, MEALS } from './data.js';
+import { EVIDENCE, EXERCISES, FOODS, MUSCLES, EQUIP, PUNCHES, MEALS, RESTR, restrOf } from './data.js';
 import { NEAT, GOALS, targets, adaptiveTDEE, buildPlan as plan_, suggest, dayKey, fmt, sessionKcal, movingAvg, equipment, comboPool, comboSpeech, sportsOf, sportDays } from './calc.js';
 import { SPORTS, SPORT_IDS, combatSession, runSession } from './sports.js';
 import { TECHNIQUES, TIRED, CATS, animate, thumbSVG } from './techniques.js';
@@ -99,6 +99,20 @@ function toast(msg) {
 function foodTotals() { const out = {}; for (const [d, items] of Object.entries(S.logs.food)) out[d] = items.reduce((a, i) => a + i.k, 0); return out; }
 function T() { return targets(S.profile, S.settings.adaptive ? adaptiveTDEE(S.logs.weights, foodTotals()) : null); }
 function dayFood(d = curDay()) { return (S.logs.food[d] || []).reduce((a, i) => ({ k: a.k + i.k, p: a.p + i.p, c: a.c + i.c, f: a.f + i.f, fb: a.fb + (i.fb || 0) }), { k: 0, p: 0, c: 0, f: 0, fb: 0 }); }
+// restrições alimentares ativas (perfil) e o que cada registro fere
+function activeRestr() { const r = S.profile?.restr; return r?.ids?.length && (!r.until || today() <= r.until) ? r.ids.filter(k => RESTR[k]) : []; }
+const hitsOf = n => { const a = activeRestr(); return a.length ? restrOf(n).filter(k => a.includes(k)) : []; };
+const dayHits = d => (S.logs.food[d] || []).filter(i => hitsOf(i.n).length);
+function cleanStreak() {
+  const since = S.profile?.restr?.since || today(); let n = 0;
+  for (let i = 0; i < 400; i++) {
+    const d = dayKey(new Date(Date.now() - i * 864e5)); if (d < since) break;
+    const items = S.logs.food[d] || [];
+    if (!items.length) { if (i === 0) continue; break; }
+    if (dayHits(d).length) break; n++;
+  }
+  return n;
+}
 const dayWater = (d = curDay()) => (S.logs.water[d] || []).reduce((a, w) => a + (w.ml || 0), 0);
 function latestWeight() { const ks = Object.keys(S.logs.weights).sort(); return ks.length ? S.logs.weights[ks[ks.length - 1]] : S.profile?.weight; }
 const mySports = () => Object.keys(sportsOf(S.profile || {})).filter(id => SPORTS[id]);
@@ -249,6 +263,13 @@ views.onboarding = () => {
       ${Object.entries(EQUIP).map(([k, v]) => `<label class="check"><input type="checkbox" name="equip" value="${k}" ${(p.equip || []).includes(k) ? 'checked' : ''}><span>${esc(v)}</span></label>`).join('')}
       <small class="muted">Sem nada marcado = só peso corporal (calistenia). O app escolhe os exercícios pelo que você tem.</small>
     </fieldset>
+
+    <h3 class="sec">Restrições e alergias</h3>
+    <p class="small muted">O app marca esses alimentos na busca, avisa antes de registrar e conta seus dias sem deslize.</p>
+    <fieldset class="equip restr">
+      ${Object.entries(RESTR).map(([k, r]) => `<label class="check"><input type="checkbox" name="restr" value="${k}" ${(p.restr?.ids || []).includes(k) ? 'checked' : ''}><span>Sem ${esc(r.n.charAt(0).toLowerCase() + r.n.slice(1))}</span></label>`).join('')}
+    </fieldset>
+    <label>Até quando? <small>(opcional, ex.: dieta de 6 meses)</small><input type="date" name="restrUntil" value="${esc(p.restr?.until || '')}"></label>
     <button class="btn primary" type="submit">${S.profile ? 'Salvar' : 'Montar meu plano'}</button>
     <p class="muted small">Não substitui nutricionista ou médico se você tem alguma condição de saúde.</p>
   </form>`;
@@ -360,9 +381,12 @@ views.nutri = () => {
         <small>Das suas ${ad.weighIns} pesagens nos últimos 28 dias.</small></li>` : ''}
       <li><b>Fibras</b><span class="mono">${fmt(f.fb, 0)} / ${t.fiber} g</span>
         <small>Meta de 14 g a cada 1.000 kcal (recomendação do IOM/EUA). Vêm de feijão, aveia, frutas, verduras e integrais.</small></li>
+      ${activeRestr().length ? (() => { const h = dayHits(curDay()), st = cleanStreak(), r = p.restr, left = r.until ? Math.round((new Date(r.until) - new Date(today())) / 864e5) : null; return `<li class="${h.length ? 'alert' : ''}"><b>Restrições</b><span class="mono">${h.length ? `${h.length} ${h.length === 1 ? 'deslize' : 'deslizes'}` : items.length ? 'limpo ✓' : '—'}</span>
+        <small>Evitando: ${esc(activeRestr().map(k => RESTR[k].n).join(', '))}.${h.length ? ` Hoje: ${esc(h.map(i => i.n).join(', '))}.` : ''}${st ? ` ${st} ${st === 1 ? 'dia' : 'dias seguidos'} sem deslize.` : ''}${left != null ? ` Faltam ${left} ${left === 1 ? 'dia' : 'dias'} (até ${r.until.split('-').reverse().join('/')}).` : ''}</small>
+        <small><b>Trocas:</b> ${activeRestr().map(k => `${esc(RESTR[k].n.split(' (')[0].toLowerCase())} → ${esc(RESTR[k].swap)}`).join('; ')}.</small></li>`; })() : ''}
       ${t.notes.map(n => `<li class="alert"><b>Atenção</b><span></span><p class="small">${esc(n.msg)}</p><small>Base: ${esc(n.base)}</small></li>`).join('')}
     </ul>
-    ${t.notes.length ? '' : '<p class="small muted">Nenhum alerta: seus dados não indicam nada fora da faixa.</p>'}
+    ${t.notes.length || dayHits(curDay()).length ? '' : '<p class="small muted">Nenhum alerta: seus dados não indicam nada fora da faixa.</p>'}
   </div>
   <details class="card" id="n-como"><summary><h3>Como cheguei nesse número</h3></summary>
     <small class="cat">Seus dados usados</small>
@@ -424,7 +448,7 @@ function mealCard(m, list) {
     : `<div class="mhead"><span class="mico">${m.ico}</span><span class="grow"><b>${esc(m.n)}</b><small>Nada registrado</small></span>${adding ? '' : `<button class="btn small" data-act="addMeal" data-m="${m.id}" aria-label="Adicionar ${addLabel} em ${esc(m.n)}">+ Adicionar</button>`}</div>`;
   return `<div class="card meal ${adding ? 'open' : ''} ${list.length ? '' : 'empty'}" id="meal-${m.id}">
     ${head}
-    ${open && list.length ? `<ul class="list items">${list.map(it => `<li><div class="grow"><b>${esc(it.n)}</b><small><b class="mono">${fmt(it.k, 0)} kcal</b> · P ${fmt(it.p, 0)} · C ${fmt(it.c, 0)} · G ${fmt(it.f, 0)}</small></div>
+    ${open && list.length ? `<ul class="list items">${list.map(it => `<li class="${hitsOf(it.n).length ? 'hit' : ''}"><div class="grow"><b>${esc(it.n)}</b>${hitsOf(it.n).length ? `<em class="rtag">⚠ ${esc(hitsOf(it.n).map(k => RESTR[k].n.split(' (')[0]).join(', '))}</em>` : ''}<small><b class="mono">${fmt(it.k, 0)} kcal</b> · P ${fmt(it.p, 0)} · C ${fmt(it.c, 0)} · G ${fmt(it.f, 0)}</small></div>
       <div class="qty"><button data-act="qty" data-id="${it.id}" data-d="-1" aria-label="Menos">−</button><input data-qty="${it.id}" inputmode="decimal" value="${fmt(amtOf(it), 1)}" aria-label="Quantidade"><span>${esc(unitOf(it))}</span><button data-act="qty" data-id="${it.id}" data-d="1" aria-label="Mais">+</button></div>
       <button class="x" data-act="delFood" data-id="${it.id}" aria-label="Remover">×</button></li>`).join('')}</ul>
       <div class="msum"><span>Total</span><b class="mono">${fmt(tot.k, 0)} kcal</b><span class="mono">P ${fmt(tot.p, 0)}g</span><span class="mono">C ${fmt(tot.c, 0)}g</span><span class="mono">G ${fmt(tot.f, 0)}g</span><span class="mono">Fibra ${fmt(tot.fb, 0)}g</span></div>` : ''}
@@ -446,7 +470,7 @@ function foodPickHTML(i) {
   const fd = FOODS[i];
   return `<form id="pickForm" class="pick" data-i="${i}"><b>${esc(fd.n)}</b>
     <div class="row gap"><input name="g" inputmode="decimal" value="${esc(fd.g)}" aria-label="quantidade"><span>${/\(ml\)/.test(fd.n) ? 'ml' : 'g'}</span><button class="btn small primary" type="submit">Adicionar</button></div>
-    <small class="muted" id="pickInfo"></small></form>`;
+    <small class="muted" id="pickInfo"></small>${hitsOf(fd.n).length ? `<p class="rwarn small">⚠ Tem ${esc(hitsOf(fd.n).map(k => RESTR[k].n.toLowerCase()).join(' e '))}, que você está evitando.</p>` : ''}</form>`;
 }
 
 views.treino = () => {
@@ -744,7 +768,7 @@ function coachContext() {
   const weakAll = allWeak();
   return `Você é o RONIN, um coach de esportes de combate, corrida, força e nutrição esportiva que fala português do Brasil, de forma direta, informal e inteligente.
 REGRAS: Baseie-se em evidência científica. Use as cartas de evidência abaixo como base principal e cite-as pelo título e autor/ano. Se algo não estiver bem estabelecido na literatura, diga que a evidência é limitada. Nunca invente estudos. Não faça diagnósticos médicos; para dor persistente, sintomas após pancada na cabeça, condições de saúde ou cortes de peso agressivos, recomende um profissional. Respostas curtas e práticas (leitura no celular).
-PERFIL: ${p.sex === 'f' ? 'mulher' : 'homem'}, ${p.age} anos, ${p.height} cm, ${latestWeight()} kg${p.bf ? `, ${p.bf}% gordura` : ''}. Objetivo: ${GOALS[p.goal]}. Experiência: ${p.experience}.
+PERFIL: ${p.sex === 'f' ? 'mulher' : 'homem'}, ${p.age} anos, ${p.height} cm, ${latestWeight()} kg${p.bf ? `, ${p.bf}% gordura` : ''}. Objetivo: ${GOALS[p.goal]}. Experiência: ${p.experience}.${activeRestr().length ? ` RESTRIÇÕES (não sugerir nada com isso): ${activeRestr().map(k => RESTR[k].n).join(', ')}${p.restr.until ? ` até ${p.restr.until}` : ''}.` : ''}
 ESPORTES: ${Object.entries(sp).map(([id, s]) => `${SPORTS[id]?.n} ${s.days}x/semana, ${s.min} min, ${SPORTS[id]?.types[s.type]?.n || ''}, ${s.where}`).join('; ') || 'nenhum'}.
 FORÇA: ${p.liftDays}x/semana (${p.env === 'casa' ? 'em casa; equipamento: ' + ((p.equip || []).map(k => EQUIP[k]).join(', ') || 'só peso corporal/calistenia') : 'academia'}).
 METAS: ${t.kcal} kcal, P ${t.protein} g, C ${t.carbs} g, G ${t.fat} g, água ${t.water} ml. Gasto estimado ${Math.round(t.tdee)} kcal (${t.source}).
@@ -943,6 +967,9 @@ function bindAfter(v, arg) {
         sex: g('sex'), age: num(g('age')), height: num(g('height')), weight: num(g('weight')), bf: num(g('bf')), neat: num(g('neat')), goal: g('goal'), rate: num(g('rate')),
         experience: g('experience'), liftDays: num(g('liftDays')) ?? 0, liftMin: num(g('liftMin')) || 40, env: g('env'), equip: fd.getAll('equip'), sports
       };
+      const rIds = fd.getAll('restr').filter(k => RESTR[k]), until = /^\d{4}-\d{2}-\d{2}$/.test(g('restrUntil') || '') ? g('restrUntil') : '';
+      const oldR = S.profile?.restr;
+      p.restr = rIds.length ? { ids: rIds, until, since: oldR?.ids?.length ? (oldR.since || today()) : today() } : null;
       if (!p.age || !p.height || !p.weight || p.age < 14 || p.age > 90 || p.height < 120 || p.height > 230 || p.weight < 35 || p.weight > 250) { toast('Confira idade, altura e peso.'); return; }
       if (!Object.keys(sports).length && !p.liftDays) { toast('Marque pelo menos um esporte ou dias de força.'); return; }
       const first = !S.profile;
@@ -967,8 +994,9 @@ function bindAfter(v, arg) {
       if (!res) return;
       const q = norm(inp.value);
       const list = FOODS.map((f, i) => [f, i]).filter(([f]) => (!foodCat || (f.cat || 'base') === foodCat) && (!q || norm(f.n).includes(q))).slice(0, q || foodCat ? 20 : 10);
-      res.innerHTML = list.map(([f, i]) => `<button class="chipbtn" data-act="pickFood" data-i="${i}">${esc(f.n)}</button>`).join('');
-      const rc = $('#foodRecent'); if (rc) { const r = q || foodCat ? [] : recentFoods(); rc.innerHTML = r.length ? `<small class="muted">Recentes (toque pra repetir a mesma quantidade)</small><div class="chips">${r.map((x, j) => `<button class="chipbtn rec" data-act="reAdd" data-r="${j}">${esc(x.it.n)} <i>${fmt(amtOf(x.it), 0)} ${esc(unitOf(x.it))}</i></button>`).join('')}</div><small class="muted">Sugestões</small>` : ''; }
+      list.sort((a, b) => (hitsOf(a[0].n).length ? 1 : 0) - (hitsOf(b[0].n).length ? 1 : 0));
+      res.innerHTML = list.map(([f, i]) => { const h = hitsOf(f.n).length; return `<button class="chipbtn ${h ? 'bad' : ''}" data-act="pickFood" data-i="${i}">${h ? '⚠ ' : ''}${esc(f.n)}</button>`; }).join('');
+      const rc = $('#foodRecent'); if (rc) { const r = q || foodCat ? [] : recentFoods(); rc.innerHTML = r.length ? `<small class="muted">Recentes (toque pra repetir a mesma quantidade)</small><div class="chips">${r.map((x, j) => `<button class="chipbtn rec ${hitsOf(x.it.n).length ? 'bad' : ''}" data-act="reAdd" data-r="${j}">${hitsOf(x.it.n).length ? '⚠ ' : ''}${esc(x.it.n)} <i>${fmt(amtOf(x.it), 0)} ${esc(unitOf(x.it))}</i></button>`).join('')}</div><small class="muted">Sugestões</small>` : ''; }
     };
     if (inp) {
       inp.addEventListener('input', show); show();

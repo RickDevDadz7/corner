@@ -510,3 +510,18 @@ export const WEAKNESSES = [
       'Se for competir, alinhe o corte com treinador e nutricionista.'
     ], ev: ['corte-peso', 'ritmo-perda', 'prot-cut'] }
 ];
+
+// Restrições e alergias: o que cada uma evita, como reconhecer pelo nome (alimentos digitados à mão) e trocas possíveis
+export const RESTR = {
+  alcool: { n: 'Álcool', re: /cerveja|vinho|vodka|cacha[cç]a|whisky|u[ií]sque|gin\b|drink|caipirinha|chopp?|espumante|licor|[aá]lcool/, swap: 'água com gás e limão, chá gelado sem açúcar, kombucha' },
+  acucar: { n: 'Açúcar refinado', re: /a[cç][uú]car|refri|chocolate|doce|bolo|biscoito recheado|sorvete|bala\b|brigadeiro|xarope|leite condensado|pudim|torta|nutella|barra de cereal|granola/, swap: 'frutas (banana, manga, uva), iogurte natural com fruta, pasta de amendoim sem açúcar' },
+  massa: { n: 'Massas (macarrão, pão, pizza)', re: /macarr[aã]o|(?<!sorvete de )massa|lasanha|espaguete|nhoque|p[aã]o(?! de queijo)|pizza|hamb[uú]rguer|sandu[ií]che|coxinha|pastel|esfiha|torrada|bolo|biscoito/, swap: 'arroz, batata-doce, batata, cuscuz de milho, mandioca, tapioca' },
+  gluten: { n: 'Glúten', re: /trigo|macarr[aã]o|massa|lasanha|p[aã]o(?! de queijo)|pizza|hamb[uú]rguer|sandu[ií]che|coxinha|pastel|biscoito|bolo|cerveja|aveia|granola|barra de cereal|torrada|cevada|centeio/, swap: 'arroz, batata, mandioca, tapioca, cuscuz de milho, pão de queijo' },
+  lactose: { n: 'Lactose', re: /leite|iogurte|queijo|requeij[aã]o|manteiga|whey|creme de leite|sorvete|chocolate ao leite|pizza|p[aã]o de queijo|nata\b/, swap: 'versões sem lactose, bebida vegetal, whey isolado (confira o rótulo)' },
+  carne: { n: 'Carnes e peixes', re: /frango|carne|patinho|alcatra|picanha|bife|atum|til[aá]pia|peixe|sardinha|salm[aã]o|porco|bacon|presunto|salsicha|lingui[cç]a|hamb[uú]rguer|coxinha|camar[aã]o/, swap: 'ovos, feijão, lentilha, grão-de-bico, tofu, iogurte' },
+  ovo: { n: 'Ovo', re: /\bovos?\b|omelete|maionese/, swap: 'frango, atum, iogurte, tofu' },
+  amendoim: { n: 'Amendoim', re: /amendoim|pa[cç]oca/, swap: 'sementes de girassol ou abóbora' },
+  castanhas: { n: 'Castanhas', re: /castanha|noz|nozes|am[eê]ndoa|avel[aã]|pistache|macad[aâ]mia/, swap: 'sementes de girassol ou abóbora' }
+};
+const RNORM = s => String(s).toLowerCase();
+export const restrOf = name => Object.keys(RESTR).filter(k => RESTR[k].re.test(RNORM(name)));
