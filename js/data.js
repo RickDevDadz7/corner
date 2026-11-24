@@ -346,7 +346,18 @@ export const TEMPLATES = {
   L2: { name: 'Inferior 2', list: [['power_l', 3, 3, 5], ['glute', 3, 8, 12], ['lunge', 3, 8, 12], ['quad_acc', 3, 10, 15], ['hamcurl', 2, 10, 15], ['calf', 3, 10, 15], ['core_rot', 3, 6, 8], ['carry', 2, 20, 30]] },
   PU: { name: 'Empurrar', list: [['power_p', 3, 5, 5], ['hpush', 4, 6, 10], ['vpush', 3, 6, 10], ['ipush', 3, 8, 12], ['lateral', 3, 12, 20], ['triceps', 3, 10, 15]] },
   PL: { name: 'Puxar', list: [['power_r', 3, 5, 5], ['vpull', 4, 6, 10], ['hpull', 3, 8, 12], ['hpull2', 3, 8, 12], ['rear', 3, 12, 20], ['biceps', 3, 10, 15], ['biceps2', 2, 10, 15], ['neck', 2, 15, 30]] },
-  LG: { name: 'Pernas', list: [['power_l', 3, 3, 5], ['squat', 4, 6, 10], ['hinge', 3, 6, 10], ['quad_acc', 3, 10, 15], ['hamcurl', 3, 10, 15], ['calf', 3, 10, 15], ['core_anti', 3, 10, 12]] }
+  LG: { name: 'Pernas', list: [['power_l', 3, 3, 5], ['squat', 4, 6, 10], ['hinge', 3, 6, 10], ['quad_acc', 3, 10, 15], ['hamcurl', 3, 10, 15], ['calf', 3, 10, 15], ['core_anti', 3, 10, 12]] },
+  // ABC tradicional de academia
+  AA: { name: 'A · Peito e tríceps', list: [['power_p', 3, 5, 5], ['hpush', 4, 6, 10], ['ipush', 3, 8, 12], ['dip', 3, 8, 12], ['lateral', 3, 12, 20], ['triceps', 3, 10, 15], ['core_anti', 3, 10, 12]] },
+  BB: { name: 'B · Costas e bíceps', list: [['power_r', 3, 5, 5], ['vpull', 4, 6, 10], ['hpull', 4, 8, 12], ['hpull2', 3, 8, 12], ['rear', 3, 12, 20], ['biceps', 3, 10, 15], ['biceps2', 2, 10, 15]] },
+  CC: { name: 'C · Pernas e ombros', list: [['power_l', 3, 3, 5], ['squat', 4, 6, 10], ['hinge', 3, 6, 10], ['lunge', 3, 8, 12], ['vpush', 3, 6, 10], ['hamcurl', 3, 10, 15], ['calf', 3, 10, 15]] },
+  // ABCDEF: um grupo por dia
+  F1: { name: 'A · Peito', list: [['power_p', 3, 5, 5], ['hpush', 4, 6, 10], ['ipush', 4, 8, 12], ['dip', 3, 8, 12], ['core_anti', 3, 10, 12]] },
+  F2: { name: 'B · Costas', list: [['power_r', 3, 5, 5], ['vpull', 4, 6, 10], ['hpull', 4, 8, 12], ['hpull2', 3, 8, 12], ['grip', 2, 20, 40]] },
+  F3: { name: 'C · Quadríceps', list: [['power_l', 3, 3, 5], ['squat', 4, 6, 10], ['quad_acc', 3, 10, 15], ['lunge', 3, 8, 12], ['calf', 4, 10, 15]] },
+  F4: { name: 'D · Ombros', list: [['vpush', 4, 6, 10], ['lateral', 4, 12, 20], ['rear', 3, 12, 20], ['er', 2, 15, 20], ['neck', 2, 15, 30]] },
+  F5: { name: 'E · Braços', list: [['biceps', 3, 10, 15], ['triceps', 3, 10, 15], ['biceps2', 3, 10, 15], ['dip', 3, 8, 12], ['core_rot', 3, 6, 8]] },
+  F6: { name: 'F · Posterior e glúteo', list: [['hinge', 4, 6, 10], ['glute', 4, 8, 12], ['hamcurl', 3, 10, 15], ['calf', 3, 10, 15], ['core_anti', 3, 10, 12]] }
 };
 
 export const SPLITS = {

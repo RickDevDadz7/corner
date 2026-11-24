@@ -12,7 +12,7 @@
 import { cloud } from './cloud.js';
 
 export const TABLE = 'ronin_sync';
-const PREFS = ['profile', 'settings', 'weak', 'timer', 'boxGen', 'ui'];
+const PREFS = ['profile', 'settings', 'weak', 'timer', 'boxGen', 'ui', 'routines'];
 const clone = o => JSON.parse(JSON.stringify(o ?? null));
 const ls = () => { try { return globalThis.localStorage; } catch (e) { return null; } };
 

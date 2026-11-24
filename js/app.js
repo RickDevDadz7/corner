@@ -4,9 +4,56 @@ import { SPORTS, SPORT_IDS, combatSession, runSession } from './sports.js';
 import { TECHNIQUES, TIRED, CATS, animate, thumbSVG } from './techniques.js';
 import { cloud } from './cloud.js';
 import { startScan, lookupBarcode } from './scan.js';
+import { SPLIT_DEFS, genRoutine, recommend, cleanRoutine, alternatives, library, musclesOf, fmtRest, repsOf, restOf } from './routine.js';
 import { pickDay, solveDay, dayTargets, measure, shoppingList, shopQty, swapPick, foodByName, SLOTS, candidates, sameCarb } from './menu.js';
 import * as sync from './sync.js';
 const buildPlan = p => plan_(p, S.prog);
+// ---------- Rotinas de força ----------
+// "auto" = a rotina recomendada pelo perfil (comportamento de sempre: muda junto com o perfil até a pessoa editar)
+function routinesState() { const R = (S.routines ||= { active: 'auto', list: {} }); if (!R.list || typeof R.list !== 'object') R.list = {}; return R; }
+function autoRoutine() {
+  const plan = buildPlan(S.profile);
+  return { id: 'auto', auto: true, name: 'Recomendada pelo perfil', split: 'auto', splitName: plan.split, none: !!plan.none, reduced: plan.reduced,
+    sessions: plan.days.map(d => ({ id: `auto-${d.key}-${d.idx}`, key: d.key, name: d.name, items: d.items.map(it => ({ ex: it.ex, sets: it.sets, lo: it.lo, hi: it.hi, rest: restOf(EXERCISES[it.ex]) })) })) };
+}
+function activeRoutine() {
+  const R = routinesState();
+  if (R.active !== 'auto') { const r = cleanRoutine(R.list[R.active]); if (r) return r; }
+  return autoRoutine();
+}
+function activePlan() {
+  const r = activeRoutine(), p = S.profile, startLvl = p.experience === 'iniciante' ? 0 : 1;
+  const days = r.sessions.map((s, i) => ({ key: s.key || s.id, sid: s.id, idx: i, name: s.name, items: s.items.map(it => {
+    const e = EXERCISES[it.ex], lvl = e.vars ? Math.min(e.vars.length - 1, S.prog[it.ex] ?? startLvl) : null;
+    return { ...it, lvl, name: e.vars ? e.vars[lvl] : e.n, rir: e.t === 'power' ? null : (p.experience === 'iniciante' ? '2–3' : '1–2'), restS: it.rest, rest: fmtRest(it.rest) };
+  }) }));
+  const vol = Object.fromEntries(Object.keys(MUSCLES).map(m => [m, 0]));
+  for (const d of days) for (const it of d.items) for (const [m, f] of Object.entries(EXERCISES[it.ex].m)) vol[m] += it.sets * f;
+  return { routine: r, split: r.auto ? r.splitName : r.name, days, vol, reduced: !!r.reduced, home: p.env === 'casa', none: r.auto ? r.none : !days.length };
+}
+// próxima sessão: a seguinte à última feita nesta rotina
+function nextSessionIdx(plan) {
+  if (!plan.days.length) return 0;
+  for (let i = S.logs.workouts.length - 1; i >= 0; i--) {
+    const w = S.logs.workouts[i], j = plan.days.findIndex(d => d.sid === w.sid);
+    if (j >= 0) return (j + 1) % plan.days.length;
+    if (!w.sid && plan.routine.auto && Number.isInteger(w.idx)) return (w.idx + 1) % plan.days.length;
+  }
+  return 0;
+}
+const lastDoneOf = sid => { for (let i = S.logs.workouts.length - 1; i >= 0; i--) if (S.logs.workouts[i].sid === sid) return S.logs.workouts[i].date; return null; };
+// editar: se a ativa é a automática, vira uma rotina sua (cópia) na primeira mudança
+function editableRoutine() {
+  const R = routinesState();
+  let r = R.active !== 'auto' ? cleanRoutine(R.list[R.active]) : null;
+  if (!r) {
+    const a = autoRoutine();
+    r = { id: newId(), name: 'Minha rotina', split: 'custom', t: Date.now(), sessions: a.sessions.map(s => ({ ...s, id: 's' + newId().slice(0, 8), items: s.items.map(x => ({ ...x })) })) };
+    toast('A rotina agora é sua: não muda mais sozinha com o perfil');
+  }
+  R.list[r.id] = r; R.active = r.id; return r;
+}
+function editRoutine(fn) { const r = editableRoutine(); fn(r); r.t = Date.now(); save(true); render(); }
 
 // ---------------- Armazenamento ----------------
 const KEY = 'ronin:v1', OLD_KEY = 'corner:v1';
@@ -17,7 +64,7 @@ const blank = () => ({
   settings: { adaptive: true, model: 'claude-sonnet-5-5' }, chat: [], weak: [], prog: {},
   boxGen: { minutes: 30, saco: false, partner: false, kind: 'intervalado' },
   timer: { preset: '', rounds: 3, work: 180, rest: 60, voice: true, calls: false, program: null },
-  ui: { sport: null }, del: {}, meta: { pt: 0, wt: {} }
+  ui: { sport: null }, routines: { active: 'auto', list: {} }, del: {}, meta: { pt: 0, wt: {} }
 });
 const newId = sync.newId;
 let S = load();
@@ -30,6 +77,7 @@ function load() {
     const b = blank();
     d.timer = { ...b.timer, ...d.timer }; d.logs = { ...b.logs, ...d.logs }; d.meta = { ...b.meta, ...d.meta }; d.ui = { ...b.ui, ...d.ui };
     d.boxGen = { ...b.boxGen, ...d.boxGen }; d.del = d.del || {};
+    if (!d.routines || typeof d.routines !== 'object' || typeof d.routines.list !== 'object' || !d.routines.list) d.routines = b.routines;
     // migrações da versão Corner
     if (d.profile) {
       if (!d.profile.env) Object.assign(d.profile, { env: 'academia', equip: [] });
@@ -314,9 +362,9 @@ views.onboarding = () => {
 
 views.hoje = () => {
   const t = T(), f = dayFood(), w = dayWater();
-  const plan = buildPlan(S.profile);
+  const plan = activePlan();
   const lastW = S.logs.workouts[S.logs.workouts.length - 1];
-  const nextIdx = lastW && plan.days.length ? (lastW.idx + 1) % plan.days.length : 0;
+  const nextIdx = nextSessionIdx(plan);
   const next = plan.days[nextIdx];
   const hour = new Date().getHours();
   const greet = hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite';
@@ -329,7 +377,7 @@ views.hoje = () => {
   const nMeals = MEALS.filter(m => m.id !== 'extra' && mealsDone.has(m.id)).length;
   const doneTrain = todayS.length + todayW.length;
   // treino sugerido: força se ainda não fez força ontem/hoje (ou se não tem esporte); senão o esporte
-  const lift = next && (S.profile.liftDays ?? 2) > 0 && next.items.length;
+  const lift = next && (plan.routine.auto ? (S.profile.liftDays ?? 2) > 0 : true) && next.items.length;
   const yest = dayKey(new Date(Date.now() - 864e5));
   const liftRecent = lastW && (lastW.date === today() || lastW.date === yest);
   const hasSport = mySports().length > 0;
@@ -694,6 +742,26 @@ async function scanFound(code) {
     addFood({ n: p.n, g, u: p.u, st: g <= 60 ? g : 10, k: p.k * m, p: p.p * m, c: p.c * m, f: p.f * m, fb: p.fb * m, x: p.x, bc: p.code });
   });
 }
+// edição da rotina: séries, reps, descanso, nomes
+document.addEventListener('change', e => {
+  const t = e.target;
+  if (t.dataset?.rt) {
+    const [sId, i, f] = t.dataset.rt.split('|'), v = Math.round(num(t.value) ?? NaN);
+    if (!Number.isFinite(v)) { render(); return; }
+    editRoutine(r => { const it = r.sessions.find(x => x.id === sId)?.items[+i]; if (!it) return;
+      if (f === 'sets') it.sets = Math.max(1, Math.min(10, v));
+      if (f === 'lo') { it.lo = Math.max(1, Math.min(120, v)); it.hi = Math.max(it.hi, it.lo); }
+      if (f === 'hi') { it.hi = Math.max(1, Math.min(120, v)); it.lo = Math.min(it.lo, it.hi); }
+      if (f === 'rest') it.rest = Math.max(0, Math.min(600, v)); });
+  }
+  if (t.dataset?.rtname) { const n = t.value.trim().slice(0, 40); if (n) editRoutine(r => { const s = r.sessions.find(x => x.id === t.dataset.rtname); if (s) s.name = n; }); }
+  if (t.id === 'rtName') { const n = t.value.trim().slice(0, 40); if (n) editRoutine(r => { r.name = n; }); }
+});
+document.addEventListener('input', e => {
+  if (e.target.id !== 'rtSearch') return;
+  rtQuery = e.target.value; const q = norm(rtQuery);
+  document.querySelectorAll('.rlib').forEach(g => { let any = false; g.querySelectorAll('[data-act=rtAddEx]').forEach(b => { b.hidden = !!q && !b.dataset.q.includes(q); any ||= !b.hidden; }); g.hidden = !any; });
+});
 // calendário do seletor de dia (Hoje e Nutrição)
 document.addEventListener('change', e => {
   if (!e.target.classList?.contains('dayPick')) return;
@@ -745,22 +813,32 @@ function foodPickHTML(i) {
 }
 
 views.treino = () => {
-  const plan = buildPlan(S.profile);
-  if (plan.none) return `<section class="head"><h1>Força</h1><div class="chip">0 dias</div></section>
+  const plan = activePlan(), r = plan.routine;
+  if (plan.none && r.auto) return `<section class="head"><h1>Força</h1><a class="chip" href="#rotinas">Escolher rotina</a></section>
   <div class="card panel"><h3>Você marcou 0 dias de força</h3>
     <p class="small">Tudo certo focar no seu esporte. Mas 2 sessões curtas de força por semana (25–40 min, dá pra fazer em casa só com peso corporal) aumentam potência e reduzem lesões.</p>
-    <button class="btn primary" data-act="addStrength">Quero 2 sessões de calistenia</button></div>
+    <button class="btn primary" data-act="addStrength">Quero 2 sessões de calistenia</button>
+    <a class="btn small ghost block" href="#rotinas">Ver as divisões de treino</a></div>
   <small class="cat pad">Base científica</small>
   ${['forca-lesao', 'calistenia', 'soco', 'concorrente'].map(id => evCard(ev(id))).join('')}`;
   const vols = Object.entries(plan.vol).filter(([m]) => m !== 'pescoco');
   const hist = S.logs.workouts.slice(-5).reverse();
   const extras = mySports().filter(id => SPORTS[id].sc.length).map(id => SPORTS[id].n);
-  return `<section class="head"><h1>Força</h1><div class="chip">${esc(plan.split)}${plan.home ? ' · casa' : ''}</div></section>
-  ${plan.reduced ? `<p class="note small">Volume ajustado pra baixo (${S.profile.experience === 'iniciante' ? 'iniciante' : 'muitos treinos do esporte na semana'}). Recupere bem antes de subir.</p>` : ''}
-  ${extras.length ? `<p class="note small">Inclui exercícios específicos pra ${esc(extras.join(' e '))} (pegada, adutor, panturrilha, pescoço…).</p>` : ''}
-  ${plan.days.map((d, i) => `<a class="card link" href="#sessao-${i}">
-    <small class="cat">Dia ${i + 1}</small><h3>${esc(d.name)}</h3>
-    <p class="muted small">${d.items.filter(i => EXERCISES[i.ex].t !== 'prehab').slice(0, 3).map(i => esc(i.name)).join(' · ')}… · ${d.items.reduce((a, b) => a + b.sets, 0)} séries</p><span class="go">Abrir →</span></a>`).join('')}
+  const nx = nextSessionIdx(plan);
+  return `<section class="head"><h1>Força</h1><a class="chip" href="#rotinas">Trocar rotina</a></section>
+  <div class="card rcard" id="t-rotina">
+    <div class="row between"><small class="cat">Minha rotina</small><span class="rbadge">Ativa</span></div>
+    <h2>${esc(r.auto ? plan.split : r.name)}</h2>
+    <p class="small muted">${plan.days.length} ${plan.days.length === 1 ? 'sessão' : 'sessões'} por semana${r.auto ? ' · recomendada pelo seu perfil, se ajusta sozinha' : r.split !== 'custom' ? ' · ' + esc(SPLIT_DEFS[r.split].n) : ''}${plan.home ? ' · em casa' : ''}</p>
+    ${plan.days.length ? `<ul class="rsess">${plan.days.map((d, i) => { const last = lastDoneOf(d.sid), mus = musclesOf(d.items).slice(0, 3); return `<li class="${i === nx ? 'next' : ''}">
+      <span class="rday">DIA ${i + 1}</span>
+      <div class="grow"><b>${esc(d.name)}</b><small>${esc(mus.join(', ') || 'sem exercícios')} · ${d.items.length} exerc. · ${last ? 'última: ' + last.split('-').reverse().slice(0, 2).join('/') : 'ainda não feita'}</small></div>
+      <a class="btn small ghost" href="#ver-${i}">Ver</a>${d.items.length ? `<a class="btn small ${i === nx ? 'primary' : ''}" href="#sessao-${i}">Começar</a>` : ''}</li>`; }).join('')}</ul>`
+      : '<p class="small">Essa rotina ainda não tem sessões.</p>'}
+    <div class="row gap"><a class="btn small block" href="#rotina">Editar rotina</a></div>
+  </div>
+  ${r.auto && plan.reduced ? `<p class="note small">Volume ajustado pra baixo (${S.profile.experience === 'iniciante' ? 'iniciante' : 'muitos treinos do esporte na semana'}). Recupere bem antes de subir.</p>` : ''}
+  ${r.auto && extras.length ? `<p class="note small">Inclui exercícios específicos pra ${esc(extras.join(' e '))} (pegada, adutor, panturrilha, pescoço…).</p>` : ''}
   <details class="card"><summary><h3>Volume semanal por músculo</h3></summary>
     <p class="small muted">Séries/semana (indiretas = 0,5). Faixa de referência: 10–20 por músculo.</p>
     ${vols.map(([m, v]) => { const c = v < 6 ? 'var(--muted)' : v < 10 ? 'var(--amber)' : v <= 20 ? 'var(--acc)' : 'var(--red)'; return bar(MUSCLES[m], v, 20, '', c); }).join('')}
@@ -772,12 +850,71 @@ views.treino = () => {
   ${EVIDENCE.filter(e => e.cat === 'Musculação').map(e => evCard(e)).join('')}`;
 };
 
+// ---------- Divisões e rotinas ----------
+let rtAdd = null, rtSwap = null, rtArm = null, rtQuery = '';
+views.rotinas = () => {
+  const R = routinesState(), rec = recommend(S.profile), P = S.profile;
+  const saved = Object.values(R.list).map(cleanRoutine).filter(Boolean).sort((a, b) => b.t - a.t);
+  const row = (id, name, sub, active, own) => `<li class="${active ? 'on' : ''}"><div class="grow"><b>${esc(name)}</b><small>${esc(sub)}</small></div>
+    ${active ? '<span class="rbadge">Ativa</span>' : `<button class="btn small" data-act="rtActivate" data-id="${esc(id)}">Ativar</button>`}
+    ${own ? `<button class="btn small ghost" data-act="rtDup" data-id="${esc(id)}" aria-label="Duplicar ${esc(name)}">⧉</button><button class="x ${rtArm === id ? 'armed' : ''}" data-act="rtDel" data-id="${esc(id)}" aria-label="Apagar ${esc(name)}">${rtArm === id ? 'apagar?' : '×'}</button>` : ''}</li>`;
+  return `<section class="head"><div><a href="#treino" class="backlink">← Força</a><h1>Rotinas</h1></div></section>
+  <div class="card glow"><small class="cat">Recomendado pra você</small><h3>${esc(SPLIT_DEFS[rec.split].n)} · ${rec.days}x por semana</h3>
+    <p class="small">${esc(rec.why)}</p>
+    <button class="btn primary block" data-act="rtNew" data-s="${rec.split}" data-d="${rec.days}">Criar essa rotina</button></div>
+  <div class="card"><h3>Suas rotinas</h3><ul class="list rlist">
+    ${row('auto', 'Recomendada pelo perfil', `${buildPlan(P).split} · se ajusta sozinha quando você muda o perfil`, R.active === 'auto' || !saved.some(x => x.id === R.active), false)}
+    ${saved.map(x => row(x.id, x.name, `${x.sessions.length} ${x.sessions.length === 1 ? 'sessão' : 'sessões'} · ${SPLIT_DEFS[x.split].n}`, R.active === x.id, true)).join('')}
+  </ul><p class="small muted">Trocar de rotina não apaga nada: o histórico fica guardado por exercício.</p></div>
+  <small class="cat pad">Nova rotina</small>
+  <p class="small muted pad">Montada com seu perfil: ${esc(GOALS[P.goal] || '')} · ${esc(P.experience || '')} · ${P.env === 'casa' ? 'em casa' + ((P.equip || []).length ? ' com ' + P.equip.map(k => EQUIP[k]).join(', ') : ', só peso corporal') : 'academia'}. <a href="#perfil">Mudar</a></p>
+  ${Object.entries(SPLIT_DEFS).map(([k, d]) => `<div class="card split ${k === rec.split ? 'rec' : ''}"><div class="row between"><h3>${esc(d.n)}</h3>${k === rec.split ? '<span class="rbadge">Recomendada</span>' : ''}</div>
+    <p class="small">${esc(d.d)}</p>
+    <div class="row gap">${Object.keys(d.opts).map(n => `<button class="btn small" data-act="rtNew" data-s="${k}" data-d="${n}">${k === 'custom' ? 'Começar do zero' : `${n}x por semana`}</button>`).join('')}</div></div>`).join('')}`;
+};
+views.rotina = () => {
+  const r = activeRoutine(), lib = rtAdd ? library(S.profile) : null;
+  const restOpts = [30, 45, 60, 90, 120, 150, 180, 240, 300];
+  const itemRow = (s, it, i) => { const e = EXERCISES[it.ex], key = `${s.id}|${i}`;
+    return `<li class="rit"><div class="row between"><b class="grow">${esc(e.vars ? e.vars[Math.min(e.vars.length - 1, S.prog[it.ex] ?? 0)] : e.n)}</b>
+      <button class="ibtn" data-act="rtMove" data-k="${key}" data-d="-1" ${i ? '' : 'disabled'} aria-label="Subir">↑</button><button class="ibtn" data-act="rtMove" data-k="${key}" data-d="1" ${i < s.items.length - 1 ? '' : 'disabled'} aria-label="Descer">↓</button>
+      <button class="ibtn" data-act="rtSwapOpen" data-k="${key}" aria-label="Substituir">↻</button><button class="x" data-act="rtRemove" data-k="${key}" aria-label="Remover">×</button></div>
+      <div class="rfields"><label>Séries<input data-rt="${key}|sets" inputmode="numeric" value="${it.sets}"></label><label>Reps de<input data-rt="${key}|lo" inputmode="numeric" value="${it.lo}"></label><label>até<input data-rt="${key}|hi" inputmode="numeric" value="${it.hi}"></label>
+        <label>Descanso<select data-rt="${key}|rest">${[...new Set([...restOpts, it.rest])].sort((a, b) => a - b).map(v => `<option value="${v}" ${v === it.rest ? 'selected' : ''}>${v < 60 ? v + ' s' : `${Math.floor(v / 60)}:${String(v % 60).padStart(2, '0')}`}</option>`).join('')}</select></label></div>
+      ${rtSwap === key ? `<div class="subs"><small class="muted">Substituir por (o histórico do anterior continua salvo):</small><div class="chips">${alternatives(S.profile, it).slice(0, 12).map(a => `<button class="chipbtn ${a.ok ? '' : 'bad'}" data-act="rtSwap" data-k="${key}" data-ex="${a.id}">${esc(EXERCISES[a.id].n)}${a.ok ? '' : ' · precisa de equipamento'}</button>`).join('') || '<span class="small muted">Sem alternativas.</span>'}</div></div>` : ''}</li>`; };
+  return `<section class="head"><div><a href="#treino" class="backlink">← Força</a><h1>Editar rotina</h1></div></section>
+  ${r.auto ? '<p class="note small">Essa é a rotina recomendada pelo perfil. Ao mudar qualquer coisa, ela vira sua e para de se ajustar sozinha.</p>' : ''}
+  <div class="card"><label>Nome da rotina<input id="rtName" value="${esc(r.auto ? 'Minha rotina' : r.name)}" maxlength="40"></label></div>
+  ${r.sessions.map((s, si) => `<div class="card rsession" id="rs-${s.id}" data-si="${si}">
+    <div class="row between"><input class="rsname" data-rtname="${s.id}" value="${esc(s.name)}" maxlength="40" aria-label="Nome da sessão ${si + 1}"><span class="rday">DIA ${si + 1}</span></div>
+    <ul class="list ritems">${s.items.map((it, i) => itemRow(s, it, i)).join('') || '<li class="muted small">Sem exercícios ainda.</li>'}</ul>
+    ${rtAdd === s.id ? `<div class="subs"><input id="rtSearch" placeholder="Buscar exercício" value="${esc(rtQuery)}" autocomplete="off">
+      ${Object.entries(lib).map(([g, l]) => `<div class="rlib"><small class="cat">${esc(g)}</small><div class="chips">${l.map(x => `<button class="chipbtn ${x.ok ? '' : 'bad'}" data-act="rtAddEx" data-s="${s.id}" data-ex="${x.id}" data-q="${esc(norm(EXERCISES[x.id].n))}">${esc(EXERCISES[x.id].n)}${x.ok ? '' : ' ·  equipamento'}</button>`).join('')}</div></div>`).join('')}
+      <button class="linkbtn" data-act="rtAddOpen" data-s="">Fechar</button></div>`
+      : `<button class="btn small ghost block" data-act="rtAddOpen" data-s="${s.id}">+ Adicionar exercício</button>`}
+    <div class="row gap rsact"><button class="btn small" data-act="rtSessDup" data-s="${s.id}">Duplicar sessão</button><button class="btn small ghost" data-act="rtSessMove" data-s="${s.id}" data-d="-1" ${si ? '' : 'disabled'}>↑</button><button class="btn small ghost" data-act="rtSessMove" data-s="${s.id}" data-d="1" ${si < r.sessions.length - 1 ? '' : 'disabled'}>↓</button><button class="x ${rtArm === s.id ? 'armed' : ''}" data-act="rtSessDel" data-s="${s.id}" aria-label="Apagar sessão">${rtArm === s.id ? 'apagar?' : '×'}</button></div>
+  </div>`).join('')}
+  <button class="btn primary block" data-act="rtSessNew">+ Nova sessão</button>
+  <p class="small muted pad">As mudanças são salvas na hora. Mudar a rotina não altera os treinos que você já registrou.</p>`;
+};
+// ver a sessão sem começar o treino (prescrição)
+views.ver = (idx) => {
+  const plan = activePlan(), d = plan.days[+idx];
+  if (!d) { location.hash = '#treino'; return ''; }
+  return `<section class="head"><div><a href="#treino" class="backlink">← Força</a><h1>${esc(d.name)}</h1></div></section>
+  <p class="small muted pad">${d.items.length} exercícios · ${d.items.reduce((a, b) => a + b.sets, 0)} séries · ${esc(musclesOf(d.items).join(', '))}</p>
+  ${d.items.map((it, i) => { const e = EXERCISES[it.ex]; return `<div class="card exv"><div class="row between"><h3>${i + 1}. ${esc(it.name)}</h3><span class="chip">${it.sets}×${repsOf(it)}${e.u && e.u !== 's' && e.u !== 'm' ? e.u : e.u === 's' ? ' s' : ''}</span></div>
+    <p class="small">${esc(e.cue)}</p>
+    <p class="small muted">Descanso ${esc(it.rest)}${it.rir ? ` · pare com ${it.rir} reps na reserva` : ''}${e.req.length ? ` · precisa: ${esc(e.req.map(k => EQUIP[k] || (k === 'gym' ? 'academia' : k)).join(', '))}` : ''}</p></div>`; }).join('')}
+  ${d.items.length ? `<a class="btn primary block" href="#sessao-${idx}">Começar este treino</a>` : `<a class="btn block" href="#rotina">Adicionar exercícios</a>`}`;
+};
+
 let draft = null;
 views.sessao = (idx) => {
-  const plan = buildPlan(S.profile);
+  const plan = activePlan();
   const day = plan.days[+idx] || plan.days[0];
   if (!day) { location.hash = '#treino'; return ''; }
-  if (!draft || draft.idx !== day.idx) draft = { idx: day.idx, key: day.key, name: day.name, date: today(), sets: {} };
+  if (!draft || draft.sid !== day.sid) draft = { idx: day.idx, key: day.key, sid: day.sid, rid: plan.routine.id, name: day.name, date: today(), sets: {} };
   const lastFor = ex => { for (let i = S.logs.workouts.length - 1; i >= 0; i--) { const w = S.logs.workouts[i]; if (w.sets[ex]?.some(s => s && s.reps)) return w.sets[ex]; } return null; };
   return `<section class="head"><a href="#treino" class="back">←</a><h1>${esc(day.name)}</h1></section>
   <p class="note small">Aqueça 5–10 min + 1–2 séries leves no 1º composto. Exercícios de potência primeiro, sempre descansado.</p>
@@ -1035,7 +1172,7 @@ views.ciencia = () => {
 
 // ---------------- Coach ----------------
 function coachContext() {
-  const p = S.profile, t = T(), plan = buildPlan(p), sp = sportsOf(p);
+  const p = S.profile, t = T(), plan = activePlan(), sp = sportsOf(p);
   const weakAll = allWeak();
   return `Você é o RONIN, um coach de esportes de combate, corrida, força e nutrição esportiva que fala português do Brasil, de forma direta, informal e inteligente.
 REGRAS: Baseie-se em evidência científica. Use as cartas de evidência abaixo como base principal e cite-as pelo título e autor/ano. Se algo não estiver bem estabelecido na literatura, diga que a evidência é limitada. Nunca invente estudos. Não faça diagnósticos médicos; para dor persistente, sintomas após pancada na cabeça, condições de saúde ou cortes de peso agressivos, recomende um profissional. Respostas curtas e práticas (leitura no celular).
@@ -1195,7 +1332,7 @@ function render() {
   const ms = mySports();
   const spLabel = ms.length === 1 ? SPORTS[ms[0]].n : 'Esporte';
   const tabs = [['hoje', 'Hoje'], ['nutri', 'Nutrição'], ['treino', 'Força'], ['esporte', spLabel], ['coach', 'Coach']];
-  $('#nav').innerHTML = tabs.map(([id, label]) => `<a href="#${id}" class="${(v === id || (v === 'sessao' && id === 'treino') || (v === 'cardapio' && id === 'nutri') || ((v === 'tecnica' || v === 'tecnicas') && id === 'esporte')) ? 'on' : ''}"><svg viewBox="0 0 24 24"><path d="${ICONS[id]}"/></svg><span>${esc(label)}</span></a>`).join('');
+  $('#nav').innerHTML = tabs.map(([id, label]) => `<a href="#${id}" class="${(v === id || ((v === 'sessao' || v === 'rotinas' || v === 'rotina' || v === 'ver') && id === 'treino') || (v === 'cardapio' && id === 'nutri') || ((v === 'tecnica' || v === 'tecnicas') && id === 'esporte')) ? 'on' : ''}"><svg viewBox="0 0 24 24"><path d="${ICONS[id]}"/></svg><span>${esc(label)}</span></a>`).join('');
   bindAfter(v, arg);
   if (window.scrollY !== keepY) window.scrollTo(0, keepY);
   if (v === 'esporte') paintTimer();
@@ -1507,9 +1644,40 @@ document.addEventListener('click', async e => {
   if (a === 'callsToggle') { S.timer.calls = el.checked; save(true); }
   if (a === 'weak') { const id = el.dataset.id; S.weak = S.weak.includes(id) ? S.weak.filter(x => x !== id) : [...S.weak, id]; save(true); render(); }
   if (a === 'lvl') {
-    const ex = el.dataset.ex, e2 = EXERCISES[ex]; const cur = buildPlan(S.profile).days.flatMap(d => d.items).find(i => i.ex === ex)?.lvl ?? 0;
+    const ex = el.dataset.ex, e2 = EXERCISES[ex]; const cur = activePlan().days.flatMap(d => d.items).find(i => i.ex === ex)?.lvl ?? (S.prog[ex] ?? 0);
     S.prog[ex] = Math.max(0, Math.min(e2.vars.length - 1, cur + +el.dataset.d)); save(); render(); toast(e2.vars[S.prog[ex]]);
   }
+  if (a === 'rtNew') {
+    const sp = el.dataset.s, d = +el.dataset.d; if (!SPLIT_DEFS[sp]) return;
+    const r = genRoutine(S.profile, sp, d); const R = routinesState(); R.list[r.id] = r; R.active = r.id; save(true);
+    toast(`${r.name} criada e ativada`); location.hash = sp === 'custom' ? '#rotina' : '#treino';
+  }
+  if (a === 'rtActivate') { const R = routinesState(), id = el.dataset.id; if (id === 'auto' || cleanRoutine(R.list[id])) { R.active = id; draft = null; save(true); render(); toast('Rotina ativada'); } }
+  if (a === 'rtDup') {
+    const R = routinesState(), src = cleanRoutine(R.list[el.dataset.id]); if (!src) return;
+    const c = { ...src, id: newId(), name: (src.name + ' (cópia)').slice(0, 40), t: Date.now(), sessions: src.sessions.map(x => ({ ...x, id: 's' + newId().slice(0, 8), items: x.items.map(y => ({ ...y })) })) };
+    R.list[c.id] = c; save(true); render(); toast('Rotina duplicada');
+  }
+  if (a === 'rtDel') {
+    const R = routinesState(), id = el.dataset.id; if (!R.list[id]) return;
+    if (rtArm !== id) { rtArm = id; render(); setTimeout(() => { if (rtArm === id) { rtArm = null; render(); } }, 3500); return; }
+    delete R.list[id]; if (R.active === id) R.active = 'auto'; rtArm = null; save(true); render(); toast('Rotina apagada (os treinos feitos continuam no histórico)');
+  }
+  const rk = el.dataset.k ? el.dataset.k.split('|') : null; // "sessão|item"
+  if (a === 'rtMove') editRoutine(r => { const s = r.sessions.find(x => x.id === rk[0]); const i = +rk[1], j = i + +el.dataset.d; if (s && s.items[j]) [s.items[i], s.items[j]] = [s.items[j], s.items[i]]; });
+  if (a === 'rtRemove') editRoutine(r => { const s = r.sessions.find(x => x.id === rk[0]); s?.items.splice(+rk[1], 1); rtSwap = null; });
+  if (a === 'rtSwapOpen') { rtSwap = rtSwap === el.dataset.k ? null : el.dataset.k; rtAdd = null; render(); }
+  if (a === 'rtSwap') editRoutine(r => { const s = r.sessions.find(x => x.id === rk[0]), it = s?.items[+rk[1]], ex = el.dataset.ex; if (it && EXERCISES[ex]) { it.ex = ex; const e = EXERCISES[ex]; if (e.r) [it.lo, it.hi] = e.r; it.rest = restOf(e); } rtSwap = null; });
+  if (a === 'rtAddOpen') { rtAdd = el.dataset.s || null; rtSwap = null; rtQuery = ''; render(); if (rtAdd) $('#rtSearch')?.focus({ preventScroll: true }); }
+  if (a === 'rtAddEx') editRoutine(r => { const s = r.sessions.find(x => x.id === el.dataset.s), ex = el.dataset.ex, e = EXERCISES[ex]; if (s && e) { const [lo, hi] = e.r || (e.t === 'power' ? [3, 5] : e.t === 'iso' ? [10, 15] : [8, 12]); s.items.push({ ex, sets: 3, lo, hi, rest: restOf(e) }); } });
+  if (a === 'rtSessDup') editRoutine(r => { const i = r.sessions.findIndex(x => x.id === el.dataset.s); if (i >= 0 && r.sessions.length < 14) r.sessions.splice(i + 1, 0, { ...r.sessions[i], id: 's' + newId().slice(0, 8), name: (r.sessions[i].name + ' (cópia)').slice(0, 40), items: r.sessions[i].items.map(y => ({ ...y })) }); });
+  if (a === 'rtSessMove') editRoutine(r => { const i = r.sessions.findIndex(x => x.id === el.dataset.s), j = i + +el.dataset.d; if (r.sessions[j]) [r.sessions[i], r.sessions[j]] = [r.sessions[j], r.sessions[i]]; });
+  if (a === 'rtSessDel') {
+    const sId = el.dataset.s;
+    if (rtArm !== sId) { rtArm = sId; render(); setTimeout(() => { if (rtArm === sId) { rtArm = null; render(); } }, 3500); return; }
+    rtArm = null; editRoutine(r => { r.sessions = r.sessions.filter(x => x.id !== sId); });
+  }
+  if (a === 'rtSessNew') editRoutine(r => { if (r.sessions.length < 14) r.sessions.push({ id: 's' + newId().slice(0, 8), name: `Treino ${r.sessions.length + 1}`, items: [] }); });
   if (a === 'addStrength') { Object.assign(S.profile, { liftDays: 2, env: S.profile.env || 'casa' }); save(true); render(); toast('2 treinos de força adicionados'); }
   if (a === 'techPause' && anim) { el.textContent = anim.toggle() ? '▶ Continuar' : '❚❚ Pausar'; }
   if (a === 'techSpeed' && anim) { anim.setSpeed(+el.dataset.s); el.parentNode.querySelectorAll('[data-act=techSpeed]').forEach(b => b.classList.toggle('on', b === el)); }
