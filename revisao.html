@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RONIN · revisão das animações</title><link rel="stylesheet" href="styles.css">
+<style>
+body{padding:12px 12px 120px}#list{display:grid;grid-template-columns:1fr 1fr;gap:10px;max-width:700px;margin:0 auto}
+.rv{background:var(--sheet);border:2px solid var(--ink);padding:6px;display:flex;flex-direction:column;gap:4px}
+.rv.sel{border-color:var(--acc);box-shadow:3px 3px 0 var(--acc)}.rv .fig{width:100%;height:auto}.rv b{font-size:12.5px;line-height:1.2}
+.rv button{font:800 12px var(--font);border:2px solid var(--ink);background:var(--paper);color:var(--ink);padding:5px;cursor:pointer}
+.rv.sel button.mk{background:var(--acc);color:#fff;border-color:var(--acc)}.rv textarea{font-size:12px;min-height:44px;padding:4px}
+#bar{position:fixed;left:0;right:0;bottom:0;background:var(--ink);color:var(--sheet);padding:10px;display:flex;gap:8px;align-items:center;justify-content:center}
+#bar button{font:900 14px var(--font);padding:10px 14px;border:0;background:var(--acc);color:#fff}
+h1{display:block;margin:0 auto 10px;max-width:700px}
+</style><script src="js/theme.js"></script></head>
+<body><h1>Revisão dos bonecos</h1>
+<p class="small" style="max-width:700px;margin:0 auto 10px">Toque no boneco pra ver a animação. Marque os que precisam melhorar, escreva o que está errado (opcional) e toque em <b>Copiar lista</b> pra colar na conversa.</p>
+<div id="list"></div><div id="bar"><span id="cnt">0 marcados</span><button id="copy">Copiar lista</button></div>
+<script type="module" src="js/revisao.js"></script></body></html>
