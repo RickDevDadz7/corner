@@ -8,6 +8,7 @@
 import { EXERCISES, SLOTS, TEMPLATES, SPLITS, MUSCLES } from './data.js';
 import { equipment, canDo, sportDays, sportsOf } from './calc.js';
 import { SPORTS } from './sports.js';
+import { CONDITIONS, condsOf, condFlag, bodyOk, caps } from './health.js';
 
 export const TGOALS = {
   luta: { n: 'Render na luta', d: 'Força e potência sem pesar: volume moderado, qualidade alta. O esporte já cansa.' },
@@ -41,8 +42,20 @@ export function tgoalOf(p) {
 }
 export const injuriesOf = p => (Array.isArray(p?.inj) ? p.inj : []).filter(k => INJURIES[k]);
 export const focusOf = p => (Array.isArray(p?.focus) ? p.focus : []).filter(m => FOCUS_MUSCLES.includes(m)).slice(0, 3);
-export function avoidSet(p) { const s = new Set(); for (const k of injuriesOf(p)) for (const x of INJURIES[k].avoid) s.add(x); return s; }
-export function careOf(p, ex) { return injuriesOf(p).filter(k => INJURIES[k].care.includes(ex) || INJURIES[k].avoid.includes(ex)); }
+export function avoidSet(p) {
+  const s = new Set();
+  for (const k of injuriesOf(p)) for (const x of INJURIES[k].avoid) s.add(x);
+  for (const k of condsOf(p)) for (const x of CONDITIONS[k].avoid || []) s.add(x);
+  if (condFlag(p, 'noPower')) for (const [id, e] of Object.entries(EXERCISES)) if (e.t === 'power') s.add(id);
+  return s;
+}
+// dá pra fazer: equipamento + corpo + sem lesão/condição que tire o exercício
+export const usable = (ex, p, eq = equipment(p), av = avoidSet(p), c = caps(p)) => canDo(ex, eq) && !av.has(ex) && bodyOk(ex, p, c);
+// regiões/condições que pedem cuidado nesse exercício (nomes prontos pra mostrar)
+export function careOf(p, ex) {
+  return [...injuriesOf(p).filter(k => INJURIES[k].care.includes(ex) || INJURIES[k].avoid.includes(ex)).map(k => INJURIES[k].n.toLowerCase()),
+    ...condsOf(p).filter(k => (CONDITIONS[k].care || []).includes(ex) || (CONDITIONS[k].avoid || []).includes(ex)).map(k => CONDITIONS[k].n.split(' (')[0].split(' /')[0].toLowerCase())];
+}
 const lvlOf = p => p?.experience === 'avancado' ? 'avancado' : p?.experience === 'iniciante' ? 'iniciante' : 'intermediario';
 
 // ---------- parâmetros por objetivo ----------
@@ -57,11 +70,15 @@ export function goalParams(p) {
   }[g];
   const capLv = { iniciante: 12, intermediario: 16, avancado: 22 }[lv];
   let start = R.start - (lv === 'iniciante' ? 2 : 0), cap = Math.min(R.cap, capLv);
+  const cons = condFlag(p, 'conservative'); // condição que pede cautela: começa mais baixo e sobe menos
+  if (cons) { start -= 1; cap -= 3; }
   const sd = sportDays(p || {});
   if (sd >= 4) { start -= 1; cap -= 2; }
   if ((p?.age || 0) >= 50) cap -= 2;
   const acc = g === 'luta' || lv === 'iniciante' ? 3 : 4; // semanas subindo antes da semana leve
-  return { g, lv, ...R, start: Math.max(4, start), cap: Math.max(start + 2, cap), acc, rir: lv === 'iniciante' ? '2–3' : R.rirC };
+  const RIR_ORDER = ['1–2', '1–3', '2–3', '3–4'], condRir = condsOf(p).map(k => CONDITIONS[k].rir).filter(Boolean);
+  const rir = [lv === 'iniciante' ? '2–3' : R.rirC, ...condRir].sort((a, b) => RIR_ORDER.indexOf(b) - RIR_ORDER.indexOf(a))[0];
+  return { g, lv, ...R, start: Math.max(4, start), cap: Math.max(start + 2, cap), acc, rir, cons };
 }
 // repetições e descanso do exercício conforme o objetivo (só muda exercício com carga ajustável)
 export function repsFor(e, base, gp) {
@@ -83,9 +100,9 @@ export const sessionMin = items => Math.round(8 + items.reduce((a, it) => a + it
 // ---------- ciclo: semanas treinadas, não semanas do calendário ----------
 const wkStart = k => { const d = new Date(k + 'T12:00'); d.setDate(d.getDate() - (d.getDay() + 6) % 7); return d.toISOString().slice(0, 10); };
 const dDays = (a, b) => Math.round((new Date(b + 'T12:00') - new Date(a + 'T12:00')) / 864e5);
-export function cycleInfo(p, workouts, todayK) {
+export function cycleInfo(p, workouts, todayK, since = '') {
   const gp = goalParams(p), total = gp.acc + 1, cur = wkStart(todayK);
-  const weeks = [...new Set((workouts || []).filter(w => typeof w?.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(w.date) && w.date <= todayK).map(w => wkStart(w.date)))].sort();
+  const weeks = [...new Set((workouts || []).filter(w => typeof w?.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(w.date) && w.date <= todayK && w.date >= since).map(w => wkStart(w.date)))].sort();
   const past = weeks.filter(w => w < cur);
   let idx = 0, last = null, reset = false;
   for (const w of past) { if (last && dDays(last, w) > 21) { idx = 0; reset = true; } idx++; last = w; }
@@ -93,6 +110,25 @@ export function cycleInfo(p, workouts, todayK) {
   const week = idx % total + 1;
   return { week, acc: gp.acc, total, deload: week > gp.acc, cycle: Math.floor(idx / total) + 1, rot: Math.floor(past.length / total), resumed: reset && idx === 0, weeksLeft: total - week };
 }
+// ---------- bloco: quanto tempo o treino vale antes de trocar ----------
+// Bloco = 2–3 ciclos. Tempo pra aprender o movimento e progredir carga; depois disso, trocar o estímulo ajuda.
+// Iniciante fica mais (adaptação neural). Variar de forma planejada ajuda; trocar demais atrapalha (Fonseca 2014; Kassiano 2022).
+export function blockLen(p) {
+  const gp = goalParams(p), total = gp.acc + 1;
+  const cycles = gp.lv === 'iniciante' || ['forca', 'luta', 'saude'].includes(gp.g) ? 3 : 2;
+  return total * cycles;
+}
+export function blockInfo(p, workouts, todayK, block) {
+  const len = blockLen(p), first = (workouts || []).map(w => w?.date).filter(d => typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d)).sort()[0];
+  const start = block?.start && /^\d{4}-\d{2}-\d{2}$/.test(block.start) ? block.start : (first ? wkStart(first) : wkStart(todayK));
+  const cur = wkStart(todayK);
+  const weeks = new Set((workouts || []).filter(w => typeof w?.date === 'string' && w.date >= start && w.date < cur).map(w => wkStart(w.date)));
+  const done = Math.min(len, weeks.size), left = Math.max(0, len - done);
+  const until = new Date(cur + 'T12:00'); until.setDate(until.getDate() + left * 7 - 1);
+  const snoozed = typeof block?.snooze === 'string' && block.snooze > todayK;
+  return { n: Math.max(1, Math.round(+block?.n) || 1), start, len, done, week: Math.min(len, done + 1), left, until: until.toISOString().slice(0, 10), over: done >= len && !snoozed, snoozed };
+}
+
 // autorregulação: séries que não saíram ou dor anotada na última semana seguram o aumento
 export function readiness(workouts, todayK) {
   const from = new Date(todayK + 'T12:00'); from.setDate(from.getDate() - 7); const fk = from.toISOString().slice(0, 10);
@@ -128,20 +164,22 @@ export function weeklyTargets(p, ci, rd) {
 // ---------- escolha dos exercícios (rotina recomendada) ----------
 function pick(slot, ctx, j, used) {
   const list = SLOTS[slot] || [];
-  let ok = list.filter(id => canDo(id, ctx.eq) && !ctx.avoid.has(id) && !used.has(id));
+  let ok = list.filter(id => !used.has(id) && usable(id, ctx.p, ctx.eq, ctx.avoid, ctx.caps));
+  const na = ok.filter(id => !EXERCISES[id].adapt); if (na.length) ok = na; // adaptados só quando não sobra outro
   if (ctx.gym) { const g = ok.filter(id => !GYM_SKIP.has(id)); if (g.length) ok = g; }
   if (!ok.length) return null;
   const main = MAIN_SLOTS.has(slot); // principais ficam o ciclo todo (progressão de carga); acessórios trocam
-  let ex = main ? ok[0] : ok[(ctx.rot + j) % ok.length];
+  // bloco 1 começa no padrão de cada vaga; principal alterna entre as 2 melhores opções a cada bloco; complementar gira a cada ciclo
+  let ex = main ? ok[(ctx.block - 1) % Math.min(2, ok.length)] : ok[(ctx.rot + (ctx.block - 1) * 2) % ok.length];
   // troca feita pela pessoa (estagnação) vale enquanto o exercício novo for possível
-  const sw = ctx.swap[ex]; if (sw && EXERCISES[sw] && canDo(sw, ctx.eq) && !ctx.avoid.has(sw) && !used.has(sw)) ex = sw;
+  const sw = ctx.swap[ex]; if (sw && EXERCISES[sw] && !used.has(sw) && usable(sw, ctx.p, ctx.eq, ctx.avoid, ctx.caps)) ex = sw;
   return ex;
 }
 export function planFor(p, prog = {}, opt = {}) {
   const d = Math.min(6, Math.max(0, p.liftDays ?? 2));
   if (!d) return { split: 'Sem dias de força', days: [], none: true, swapped: [] };
   const split = SPLITS[d], gp = goalParams(p), eq = equipment(p), avoid = avoidSet(p);
-  const ctx = { eq, avoid, gym: p.env === 'academia' || !p.env, rot: opt.rot || 0, swap: opt.swap || {} };
+  const ctx = { p, eq, avoid, caps: caps(p), gym: p.env === 'academia' || !p.env, rot: opt.rot || 0, swap: opt.swap || {}, block: opt.block || 1 };
   const extra = [];
   for (const id of Object.keys(sportsOf(p))) for (const x of (SPORTS[id]?.sc || [])) if (!extra.some(e => e[0] === x[0])) extra.push(x);
   const startLvl = p.experience === 'iniciante' ? 0 : 1, swapped = [];
@@ -150,10 +188,10 @@ export function planFor(p, prog = {}, opt = {}) {
     let j = 0;
     for (const [slot, sets, lo, hi] of [...t.list, ...(i % 2 === 0 ? extra : [])]) {
       // lesão tirou o exercício padrão? registra pra explicar
-      const first = (SLOTS[slot] || []).find(id => canDo(id, eq) && !used.has(id));
+      const first = (SLOTS[slot] || []).find(id => canDo(id, eq) && !used.has(id) && !EXERCISES[id].adapt);
       const ex = pick(slot, ctx, j, used); j++;
       if (!ex) continue;
-      if (first && avoid.has(first) && first !== ex) swapped.push([first, ex]);
+      if (first && first !== ex && (avoid.has(first) || !bodyOk(first, p, ctx.caps))) swapped.push([first, ex]);
       used.add(ex);
       const e = EXERCISES[ex], [rlo, rhi] = repsFor(e, e.r || [lo, hi], gp);
       const lvl = e.vars ? Math.min(e.vars.length - 1, prog[ex] ?? startLvl) : null;
@@ -233,11 +271,11 @@ export function stagnant(hist) {
   return last3 <= prev;
 }
 export function swapOptions(p, ex, slot, exclude = []) {
-  const eq = equipment(p), avoid = avoidSet(p), e = EXERCISES[ex];
+  const eq = equipment(p), avoid = avoidSet(p), e = EXERCISES[ex], c = caps(p), ok = id => usable(id, p, eq, avoid, c);
   const main = Object.entries(e.m).filter(([, f]) => f >= 1).map(([m]) => m);
   const pool = slot && SLOTS[slot] ? SLOTS[slot] : Object.values(SLOTS).filter(l => l.includes(ex)).flat();
-  const same = [...new Set(pool)].filter(id => id !== ex && !exclude.includes(id) && canDo(id, eq) && !avoid.has(id) && EXERCISES[id].t === e.t);
-  const alt = Object.keys(EXERCISES).filter(id => id !== ex && !same.includes(id) && !exclude.includes(id) && canDo(id, eq) && !avoid.has(id) && EXERCISES[id].t === e.t && main.some(m => (EXERCISES[id].m[m] || 0) >= 1));
+  const same = [...new Set(pool)].filter(id => id !== ex && !exclude.includes(id) && ok(id) && EXERCISES[id].t === e.t);
+  const alt = Object.keys(EXERCISES).filter(id => id !== ex && !same.includes(id) && !exclude.includes(id) && ok(id) && !EXERCISES[id].adapt && EXERCISES[id].t === e.t && main.some(m => (EXERCISES[id].m[m] || 0) >= 1));
   return [...same, ...alt].slice(0, 3);
 }
 export const MUSCLE_N = MUSCLES;

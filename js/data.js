@@ -371,24 +371,30 @@ export const EXERCISES = {
   // Potência
   broad:    { n: 'Salto horizontal', m: {}, t: 'power', req: [], r: [3, 5], cue: 'Braços jogam pra frente, salta longe e aterrissa estável.' },
   skater:   { n: 'Salto do patinador', m: { glut: 0.5 }, t: 'power', req: [], u: '/lado', r: [4, 6], cue: 'Salto lateral de uma perna pra outra: troca de base rápida.' },
-  medslam:  { n: 'Arremesso no chão (slam) com medicine ball', m: { core: 0.5 }, t: 'power', req: ['medball'], r: [5, 8], cue: 'Sobe na ponta do pé e joga a bola no chão com o corpo todo.' }
+  medslam:  { n: 'Arremesso no chão (slam) com medicine ball', m: { core: 0.5 }, t: 'power', req: ['medball'], r: [5, 8], cue: 'Sobe na ponta do pé e joga a bola no chão com o corpo todo.' },
+  // ---- Adaptados (v3.22): entram quando o corpo ou a condição pede (adapt = só se não houver outra opção na vaga) ----
+  wcdip:    { n: 'Elevação do corpo na cadeira', m: { triceps: 1, peito: 0.5, costas: 0.5 }, t: 'comp', req: [], r: [6, 15], adapt: true, cue: 'Mãos nos apoios da cadeira, empurra pra baixo e tira o quadril do assento. Ombro forte e transferência mais fácil.' },
+  sbpress:  { n: 'Supino sentado com elástico', m: { peito: 1, triceps: 0.5, ombros: 0.5 }, t: 'comp', req: ['elastico'], r: [10, 20], band: true, adapt: true, cue: 'Elástico preso atrás na altura do peito, empurra pra frente até esticar.' },
+  sitstand: { n: 'Sentar e levantar da cadeira', m: { quad: 1, glut: 1 }, t: 'comp', req: [], r: [8, 15], adapt: true, vars: ['Sentar e levantar com apoio das mãos', 'Sentar e levantar sem as mãos', 'Sentar e levantar segurando peso no peito'], cue: 'Pés firmes, peito à frente, levanta sem embalar. Força de perna pra vida toda.' },
+  wallpush: { n: 'Flexão na parede', m: { peito: 1, triceps: 0.5, ombros: 0.5 }, t: 'comp', req: [], r: [10, 20], adapt: true, cue: 'Mãos na parede na altura do ombro, corpo reto, desce o peito até perto da parede.' },
+  suitcase: { n: 'Caminhada com peso de um lado (suitcase)', m: { core: 1 }, t: 'core', req: ['halteres'], u: 'm', r: [20, 30], adapt: true, cue: 'Peso numa mão só, tronco reto sem tombar pro lado. Troque de mão na série seguinte.' }
 };
 
 // Cada "slot" é um padrão de movimento; o app escolhe o 1º exercício que você consegue fazer com seu equipamento
 export const SLOTS = {
   power_l: ['jump', 'broad', 'skater'], power_r: ['mbr', 'shadowx', 'medslam'], power_p: ['mbc', 'plyopush', 'medslam'],
-  squat: ['sq', 'hack', 'gsq', 'sumo', 'bwsq'], lunge: ['bul', 'walklunge', 'stepup', 'afundo', 'bwsq'], quad_acc: ['lp', 'hack', 'ext', 'stepup', 'afundo', 'bwsq'],
+  squat: ['sq', 'hack', 'gsq', 'sumo', 'bwsq', 'sitstand'], lunge: ['bul', 'walklunge', 'stepup', 'afundo', 'bwsq'], quad_acc: ['lp', 'hack', 'ext', 'stepup', 'afundo', 'bwsq', 'sitstand'],
   quad_iso: ['ext', 'stepup', 'bwsq'],
   hinge: ['rdl', 'dl', 'dbrdl', 'singlerdl', 'kbswing', 'nordic', 'slide', 'sgb'], glute: ['ht', 'kbswing', 'sgb'], glute_iso: ['abd', 'cablekick', 'hipext', 'sgb'],
   hamcurl: ['lc', 'nordic', 'slide'], calf: ['calf', 'seatcalf', 'calfbw'],
-  hpush: ['bp', 'dbfp', 'pushup'], ipush: ['dbi', 'incbp', 'landpress', 'dip', 'pushup', 'chairdip'], dip: ['dip', 'chairdip', 'diamond'],
+  hpush: ['bp', 'dbfp', 'pushup', 'sbpress', 'wallpush'], ipush: ['dbi', 'incbp', 'landpress', 'dip', 'pushup', 'chairdip', 'sbpress', 'wallpush'], dip: ['dip', 'chairdip', 'diamond', 'wcdip'],
   chest_iso: ['cross', 'pecdeck', 'fly', 'pushup'],
   vpush: ['ohp', 'dbohp', 'arnold', 'landpress', 'pike'], vpull: ['pu', 'pullup', 'bandpd', 'invrow'], hpull: ['row', 'seatrow', 'tbar', 'dbrow', 'invrow', 'bandrow'],
   hpull2: ['dbrow', 'seatrow', 'invrow', 'bandrow'], lat_iso: ['pullover', 'dbpullover', 'bandpd'], traps: ['shrug', 'farm'],
   rear: ['fp', 'rdelt', 'bandpull', 'ytw'], lateral: ['lat', 'cablelat', 'bandlat'],
-  biceps: ['curl', 'bbcurl', 'chin', 'bandcurl'], biceps2: ['ham', 'preacher', 'conc', 'bandcurl'], triceps: ['tri', 'skull', 'ohtri', 'kick', 'bandtri', 'diamond'],
-  core_anti: ['pal', 'sideplank', 'abwheel', 'plankrot', 'birddog'], core_rot: ['lmr', 'woodchop', 'hlr', 'russian', 'crunchcable', 'legraiseb', 'hollow'],
-  carry: ['farm'], neck: ['neck'], er: ['er', 'ytw', 'bandpull'], lowback: ['hipext', 'superman', 'birddog'],
+  biceps: ['curl', 'bbcurl', 'chin', 'bandcurl'], biceps2: ['ham', 'preacher', 'conc', 'bandcurl'], triceps: ['tri', 'skull', 'ohtri', 'kick', 'bandtri', 'diamond', 'wcdip'],
+  core_anti: ['pal', 'sideplank', 'abwheel', 'plankrot', 'birddog', 'suitcase'], core_rot: ['lmr', 'woodchop', 'hlr', 'russian', 'crunchcable', 'legraiseb', 'hollow'],
+  carry: ['farm', 'suitcase'], neck: ['neck'], er: ['er', 'ytw', 'bandpull'], lowback: ['hipext', 'superman', 'birddog'],
   grip: ['hang', 'farm', 'towelgrip'], adductor: ['copen'], pogo: ['pogo']
 };
 

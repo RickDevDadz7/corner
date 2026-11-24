@@ -75,7 +75,10 @@ export function adaptiveTDEE(weights, foodTotals, today = new Date()) {
   return { ready: true, tdee: avgIn - slope * KCAL_PER_KG, slopeWeek: slope * 7, avgIn };
 }
 
-export function targets(p, adaptive) {
+export function targets(p0, adaptive) {
+  // condições de saúde mexem na meta: gestação não emagrece; rim limita proteína
+  const cond = Array.isArray(p0.cond) ? p0.cond : [], preg = cond.includes('gestacao') && p0.goal === 'cut';
+  const p = preg ? { ...p0, goal: 'recomp' } : p0;
   const b = bmr(p);
   const ex = exerciseKcalPerDay(p);
   const formula = b.value * p.neat + ex;
@@ -87,6 +90,7 @@ export function targets(p, adaptive) {
     source = 'ajustado pelos seus dados';
   }
   const notes = [];
+  if (preg) notes.push({ msg: 'Gestação marcada no perfil: a meta de secar foi trocada por manter. Ganho de peso na gestação se acompanha com o obstetra.', base: 'Dieta restritiva na gestação não é recomendada (ACOG, OMS).' });
   let kcal = tdee, adj = 0;
   const rate = p.rate || 0.5; // % do peso por semana
   if (p.goal === 'cut') {
@@ -105,6 +109,8 @@ export function targets(p, adaptive) {
   let protein;
   if (p.goal === 'cut') protein = lbm ? 2.6 * lbm : 2.2 * p.weight;
   else protein = 1.8 * p.weight;
+  let proteinRule = null;
+  if (cond.includes('renal')) { protein = 0.8 * p.weight; proteinRule = '0,8 g por kg (doença renal)'; notes.push({ msg: 'Doença renal marcada: proteína limitada a 0,8 g por kg. Confirme o valor com seu nefrologista ou nutricionista.', base: 'KDIGO 2024: 0,8 g/kg/dia para doença renal crônica sem diálise.' }); }
   const fat = Math.max(0.8 * p.weight, (kcal * 0.2) / 9);
   let carbs = (kcal - protein * 4 - fat * 9) / 4;
   if (carbs < 0) carbs = 0;
@@ -118,7 +124,7 @@ export function targets(p, adaptive) {
     bmr: b.value, bmrMethod: b.method, neat: b.value * p.neat, ex, formula, tdee, source,
     kcal: Math.round(kcal), protein: Math.round(protein), fat: Math.round(fat), carbs: Math.round(carbs),
     water: Math.round(water / 100) * 100, fiber: Math.round(kcal / 1000 * 14), weekChange, notes,
-    adj, floored: notes.some(n => n.msg.startsWith('Meta travada')), lbm, trainHours, proteinRule: p.goal === 'cut' ? (lbm ? '2,6 g por kg de massa magra' : '2,2 g por kg') : '1,8 g por kg', fatByFloor: 0.8 * p.weight >= (kcal * 0.2) / 9
+    adj, floored: notes.some(n => n.msg.startsWith('Meta travada')), lbm, trainHours, proteinRule: proteinRule || (p.goal === 'cut' ? (lbm ? '2,6 g por kg de massa magra' : '2,2 g por kg') : '1,8 g por kg'), fatByFloor: 0.8 * p.weight >= (kcal * 0.2) / 9
   };
 }
 

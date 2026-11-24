@@ -8,16 +8,18 @@ import { startScan, lookupBarcode } from './scan.js';
 import { SPLIT_DEFS, genRoutine, recommend, cleanRoutine, alternatives, library, musclesOf, fmtRest, repsOf, restOf } from './routine.js';
 import { pickDay, solveDay, dayTargets, measure, shoppingList, shopQty, swapPick, foodByName, SLOTS, candidates, sameCarb } from './menu.js';
 import * as sync from './sync.js';
-import { TGOALS, INJURIES, FOCUS_MUSCLES, tgoalOf, injuriesOf, focusOf, careOf, goalParams, cycleInfo, readiness, weeklyTargets, planFor, fitVolume, sessionMin, stagnant, swapOptions } from './periodize.js';
+import { TGOALS, INJURIES, FOCUS_MUSCLES, tgoalOf, injuriesOf, focusOf, careOf, goalParams, cycleInfo, blockInfo, readiness, weeklyTargets, planFor, fitVolume, sessionMin, stagnant, swapOptions } from './periodize.js';
+import { CONDITIONS, COND_GROUPS, BODY, condsOf, condFlag, condRestr, bodyOf, caps, bodyLabel, bodyCare, bodyNA, bodyFig } from './health.js';
 const buildPlan = p => plan_(p, S.prog);
 // trocas feitas pela pessoa (exercício estagnado) na rotina recomendada: {de: para}
 const swapsOf = () => { const sw = routinesState().swap; return sw && typeof sw === 'object' ? Object.fromEntries(Object.entries(sw).filter(([a, b]) => EXERCISES[a] && EXERCISES[b])) : {}; };
-const cycleNow = () => cycleInfo(S.profile, S.logs.workouts, today());
+const blockNow = () => blockInfo(S.profile, S.logs.workouts, today(), routinesState().block);
+const cycleNow = () => cycleInfo(S.profile, S.logs.workouts, today(), blockNow().start);
 // ---------- Rotinas de força ----------
 // "auto" = a rotina recomendada pelo perfil (comportamento de sempre: muda junto com o perfil até a pessoa editar)
 function routinesState() { const R = (S.routines ||= { active: 'auto', list: {} }); if (!R.list || typeof R.list !== 'object') R.list = {}; if (!R.swap || typeof R.swap !== 'object' || Array.isArray(R.swap)) R.swap = {}; return R; }
 function autoRoutine() {
-  const ci = cycleNow(), plan = planFor(S.profile, S.prog, { rot: ci.rot, swap: swapsOf() });
+  const ci = cycleNow(), plan = planFor(S.profile, S.prog, { rot: ci.rot, swap: swapsOf(), block: blockNow().n });
   return { id: 'auto', auto: true, name: 'Recomendada pelo perfil', split: 'auto', splitName: plan.split, none: !!plan.none, swapped: plan.swapped,
     sessions: plan.days.map(d => ({ id: `auto-${d.key}-${d.idx}`, key: d.key, name: d.name, items: d.items.map(it => ({ ex: it.ex, slot: it.slot, sets: it.sets, lo: it.lo, hi: it.hi, rest: it.rest })) })) };
 }
@@ -35,12 +37,43 @@ function activePlan() {
   const days = sessions.map((s, i) => ({ key: s.key || s.id, sid: s.id, idx: i, name: s.name, min: sessionMin(s.items), items: s.items.map((it, j) => {
     const e = EXERCISES[it.ex], lvl = e.vars ? Math.min(e.vars.length - 1, S.prog[it.ex] ?? startLvl) : null;
     const base = r.sessions[i]?.items.find(x => x.ex === it.ex)?.sets ?? it.sets;
-    return { ...it, base, lvl, name: e.vars ? e.vars[lvl] : e.n, rir: e.t === 'power' ? null : ci.deload && auto ? '3–4' : e.t === 'comp' ? gp.rir : (gp.lv === 'iniciante' ? '2–3' : '1–2'), restS: it.rest, rest: fmtRest(it.rest), care: careOf(p, it.ex) };
+    const bl = bodyLabel(it.ex, p), bc = bodyCare(it.ex, p);
+    return { ...it, base, lvl, name: (e.vars ? e.vars[lvl] : e.n) + (bl ? ` (${bl})` : ''), bodyCare: bc, rir: e.t === 'power' ? null : ci.deload && auto ? '3–4' : e.t === 'comp' ? gp.rir : (gp.lv === 'iniciante' ? '2–3' : '1–2'), restS: it.rest, rest: fmtRest(it.rest), care: careOf(p, it.ex) };
   }) }));
   const vol = Object.fromEntries(Object.keys(MUSCLES).map(m => [m, 0]));
   for (const d of days) for (const it of d.items) for (const [m, f] of Object.entries(EXERCISES[it.ex].m)) vol[m] += it.sets * f;
   return { routine: r, split: r.auto ? r.splitName : r.name, days, vol, home: p.env === 'casa', none: r.auto ? r.none : !days.length,
-    auto, gp, ci, rd, tg: fit?.tg || tg, limited: fit?.limited || [], uncovered: fit?.uncovered || [], dropped: fit?.dropped || [], swapped: r.swapped || [] };
+    auto, gp, ci, rd, bk: blockNow(), tg: fit?.tg || tg, limited: fit?.limited || [], uncovered: fit?.uncovered || [], dropped: fit?.dropped || [], swapped: r.swapped || [] };
+}
+// ---------- Condições de saúde ----------
+const condNames = p => condsOf(p).map(k => CONDITIONS[k].n);
+function condDietCard() {
+  const cs = condsOf(S.profile).filter(k => CONDITIONS[k].diet.length); if (!cs.length) return '';
+  return `<details class="card" id="n-cond" ${S.ui?.condOpen ? 'open' : ''}><summary><h3>Sua condição e a dieta</h3></summary>
+    ${cs.map(k => `<p class="small"><b>${esc(CONDITIONS[k].n)}:</b> ${esc(CONDITIONS[k].diet.join(' '))}</p>`).join('')}
+    ${condRestr(cs).length ? `<p class="small muted">Restrições ligadas: ${esc(condRestr(cs).map(x => RESTR[x]?.n.split(' (')[0]).filter(Boolean).join(', '))}. Dá pra desmarcar no Perfil.</p>` : ''}
+    <p class="small muted">Orientação geral baseada em diretrizes oficiais. Não substitui nutricionista ou médico.</p></details>`;
+}
+function clearanceCard() {
+  const cs = condsOf(S.profile).filter(k => CONDITIONS[k].clearance); if (!cs.length || S.ui?.clearOk) return '';
+  return `<div class="card panel clr"><h3>Antes de treinar: liberação médica</h3><p class="small">Com ${esc(cs.map(k => CONDITIONS[k].n.toLowerCase()).join(' e '))}, o treino precisa ser liberado pelo seu médico. Até lá, o app monta tudo no modo cauteloso: menos volume, longe da falha e sem potência.</p>
+    <button class="btn small" data-act="clearOk">Já tenho liberação</button></div>`;
+}
+function preTrainTips() {
+  const tips = condsOf(S.profile).map(k => CONDITIONS[k].train[0] && ['diabetes1', 'diabetes2', 'hipertensao', 'asma', 'cardiopatia', 'gestacao', 'artrose'].includes(k) ? [CONDITIONS[k].n, CONDITIONS[k].train[0]] : null).filter(Boolean);
+  return tips.length ? `<div class="pretips">${tips.map(([n, t]) => `<p class="small"><b>${esc(n)}:</b> ${esc(t)}</p>`).join('')}</div>` : '';
+}
+function blockBanner(plan) {
+  const bk = plan.bk, stag = plan.days.flatMap(d => d.items).filter(it => EXERCISES[it.ex].t !== 'power' && stagnant(exHistory(it.ex))).length;
+  if (!bk.over && stag < 3) return '';
+  const r = plan.routine;
+  return `<div class="card panel blk"><small class="cat">${bk.over ? 'Bloco concluído' : 'Hora de mudar?'}</small>
+    <h3>${bk.over ? `Seu treino cumpriu as ${bk.len} semanas do bloco` : `${stag} exercícios pararam de evoluir`}</h3>
+    <p class="small">${bk.over ? 'O corpo já se adaptou a esse estímulo. Trocar agora mantém o progresso (e a vontade de treinar).' : 'Quando vários exercícios travam juntos, um bloco novo costuma destravar.'} O que você prefere?</p>
+    <button class="btn primary block" data-act="blockNew">App monta o próximo bloco</button>
+    <a class="btn block" href="#rotinas">Quero montar o meu</a>
+    ${bk.over ? '<button class="linkbtn center-link" data-act="blockSnooze">Continuar mais 2 semanas</button>' : ''}
+    ${r.auto ? '' : '<small class="muted">"App monta" troca da sua rotina pra recomendada. A sua continua salva.</small>'}</div>`;
 }
 // ---------- Ciclo e explicação do plano ----------
 const MN = m => MUSCLES[m] || m;
@@ -55,10 +88,12 @@ function cycleBox(plan) {
     : `${ci.week === 1 ? 'Volume de entrada.' : `Uma série a mais por músculo que na semana ${ci.week - 1}.`} Semana leve ${ci.acc - ci.week + 1 === 1 ? 'na próxima semana' : `daqui a ${ci.acc - ci.week + 1} semanas`}.`;
   const bar = Array.from({ length: ci.total }, (_, i) => `<i class="${i + 1 < ci.week ? 'done' : i + 1 === ci.week ? 'now' : ''} ${i + 1 > ci.acc ? 'dl' : ''}" title="Semana ${i + 1}${i + 1 > ci.acc ? ' (leve)' : ''}"></i>`).join('');
   const lim = plan.limited.filter(m => !plan.uncovered.includes(m));
-  const rows = FOCUS_MUSCLES.filter(m => (plan.tg[m] || 0) > 0).map(m => { const v = plan.vol[m] || 0, t = plan.tg[m], f = focusOf(p).includes(m);
+  const rows = FOCUS_MUSCLES.filter(m => (plan.tg[m] || 0) > 0 && !bodyNA(p).includes(m)).map(m => { const v = plan.vol[m] || 0, t = plan.tg[m], f = focusOf(p).includes(m);
     return `<tr class="${v + 0.5 < t && !plan.uncovered.includes(m) ? 'short' : ''}"><td>${esc(MN(m))}${f ? ' ★' : ''}</td><td class="mono">${fmt(t, 0)}</td><td class="mono">${fmt(v, 1)}</td><td class="small muted">${plan.uncovered.includes(m) ? 'sem exercício direto' : lim.includes(m) ? 'não coube no tempo' : v + 0.5 >= t ? 'ok' : ''}</td></tr>`; }).join('');
   const inj = injuriesOf(p), mins = Math.round(+p.liftMin) || 45;
-  return `<div class="cyc ${ci.deload ? 'dl' : ''}"><div class="row between"><b>Ciclo ${ci.cycle} · semana ${ci.week} de ${ci.total}</b><span class="cyctag">${esc(tag)}</span></div>
+  const bk = plan.bk, na = bodyNA(p), cs = condsOf(p), bd = bodyOf(p);
+  return `<p class="small blkline"><b>Treino válido até ${esc(bk.until.split('-').reverse().slice(0, 2).join('/'))}</b> · bloco ${bk.n}, semana ${bk.week} de ${bk.len}</p>
+  <div class="cyc ${ci.deload ? 'dl' : ''}"><div class="row between"><b>Ciclo ${ci.cycle} · semana ${ci.week} de ${ci.total}</b><span class="cyctag">${esc(tag)}</span></div>
     <div class="cycbar">${bar}</div><small>${esc(msg)}</small></div>
   <details class="howplan"><summary>Como o app montou seu treino</summary>
     <p class="small"><b>Objetivo:</b> ${esc(TGOALS[gp.g].n)}. ${esc(TGOALS[gp.g].d)}</p>
@@ -68,9 +103,12 @@ function cycleBox(plan) {
     <p class="small muted">Séries por semana (exercício que ajuda conta 0,5). O alvo começa em ${gp.start} e sobe 1 por semana até ${gp.cap}${focusOf(p).length ? ' (★ prioridade: começa 3 acima e sobe 2)' : ''}. Depois de ${ci.acc} semanas vem uma semana leve.</p>
     ${lim.length ? `<p class="small note">Não coube tudo em ${mins} min: ${esc(lim.map(MN).join(', '))} ficaram abaixo do alvo. Com uns 15 min a mais por sessão ou 1 dia a mais, chega lá. <a href="#perfil">Ajustar no Perfil</a></p>` : ''}
     ${plan.routine.auto && plan.dropped.length ? `<p class="small muted">Ficaram de fora pra caber no tempo: ${esc([...new Set(plan.dropped)].map(x => EXERCISES[x].n).join(', '))}.</p>` : ''}
+    ${cs.length ? `<p class="small"><b>Saúde:</b> ${esc(cs.map(k => CONDITIONS[k].n).join(', '))}.${plan.gp.cons ? ' Modo cauteloso: começa com menos séries, sobe menos e para mais longe da falha.' : ''}</p>${cs.map(k => `<p class="small muted">• ${esc(CONDITIONS[k].train.join(' '))}</p>`).join('')}` : ''}
+    ${bd.length ? `<p class="small"><b>Corpo:</b> ${esc(bd.map(k => BODY[k]).join(', '))}. Os exercícios foram escolhidos pro que você consegue fazer${na.length ? ' (pernas não entram na conta)' : ''}; os de dois lados viram unilaterais quando precisa.</p>` : ''}
     ${inj.length ? `<p class="small"><b>Cuidados:</b> ${esc(inj.map(k => INJURIES[k].n).join(', '))}. ${plan.swapped.length ? 'Trocas feitas: ' + esc([...new Map(plan.swapped.map(x => [x.join(), x])).values()].map(([a, b]) => `${EXERCISES[a].n} → ${EXERCISES[b].n}`).join('; ')) + '.' : 'Os exercícios que pioram essas regiões saíram da rotina.'}</p>` : ''}
     ${plan.routine.auto ? `<p class="small"><b>Variedade:</b> os exercícios principais ficam fixos pra você progredir carga; os complementares trocam a cada ciclo${ci.deload ? ' (troca na semana que vem)' : ` (próxima troca em ${ci.total - ci.week + 1} ${ci.total - ci.week + 1 === 1 ? 'semana' : 'semanas'})`}. Se um exercício parar de evoluir, o app sugere outro na hora do treino.</p>`
       : '<p class="small"><b>Sua rotina:</b> o app mantém seus exercícios e só soma séries semana a semana, com semana leve no fim do ciclo.</p>'}
+    <p class="small"><b>Bloco:</b> ${bk.len} semanas treinadas (${bk.len / ci.total} ciclos). Tempo pra aprender o movimento e subir carga antes de trocar o estímulo: variar de forma planejada ajuda, trocar toda hora atrapalha (Fonseca 2014; Kassiano 2022). No fim, o app avisa e você escolhe.</p>
     <p class="small muted">Base: dose-resposta de volume (Schoenfeld 2017; Pelland 2024), descanso (Grgic 2018), reps na reserva (Helms 2016). A semana leve é prática consagrada de treinadores, com evidência ainda limitada. Os números são ponto de partida: o app ajusta pelo que você registra.</p>
   </details>`;
 }
@@ -407,6 +445,7 @@ views.onboarding = () => {
       <small class="muted">Sem nada marcado = só peso corporal (calistenia). O app escolhe os exercícios pelo que você tem.</small>
     </fieldset>
 
+    ${healthBox(p)}
     ${restrBox(restrOfProfile(p))}
     <button class="btn primary" type="submit">${S.profile ? 'Salvar' : 'Montar meu plano'}</button>
     <p class="muted small">Não substitui nutricionista ou médico se você tem alguma condição de saúde.</p>
@@ -515,6 +554,7 @@ views.nutri = () => {
     ${waterBar(w, t.water)}
   </div>
   ${menuCard()}
+  ${condDietCard()}
   <div class="card" id="n-analise">
     <h3>Análise Nutricional</h3>
     <ul class="alist">
@@ -852,6 +892,32 @@ function restrSummary(r) {
   const a = [r.perm.length ? `${r.perm.length} para sempre` : '', r.temp.length ? `${r.temp.length} ${r.temp.length === 1 ? 'temporária' : 'temporárias'}` : ''].filter(Boolean);
   return a.length ? a.join(' · ') : 'nenhuma';
 }
+// saúde e corpo: dado sensível (LGPD), só salva com consentimento
+function healthBox(p) {
+  const cs = condsOf(p), bd = bodyOf(p), on = cs.length || bd.length;
+  return `<details class="tfine hbox" id="hbox" ${on ? 'open' : ''}><summary>Saúde e corpo <small>${on ? esc([...cs.map(k => CONDITIONS[k].n.split(' (')[0].split(' /')[0]), ...bd.map(k => BODY[k])].slice(0, 3).join(', ')) + (cs.length + bd.length > 3 ? '…' : '') : 'condições, adaptações'}</small></summary>
+    <small class="muted">Marque o que vale pra você: o app adapta treino e dieta. Restrições ligadas (ex.: celíaca → sem glúten) são marcadas sozinhas e dá pra desmarcar.</small>
+    ${Object.entries(COND_GROUPS).map(([g, gn]) => `<fieldset class="equip"><legend>${esc(gn)}</legend>${Object.entries(CONDITIONS).filter(([, c]) => c.g === g).map(([k, c]) => `<label class="check"><input type="checkbox" name="cond" value="${k}" ${cs.includes(k) ? 'checked' : ''}><span>${esc(c.n)}</span></label>`).join('')}</fieldset>`).join('')}
+    <fieldset class="equip"><legend>Corpo</legend>${Object.entries(BODY).map(([k, v]) => `<label class="check"><input type="checkbox" name="body" value="${k}" ${bd.includes(k) ? 'checked' : ''}><span>${esc(v)}</span></label>`).join('')}
+      <small class="muted">O app troca o que não dá pra fazer por versões de um braço, de uma perna ou sentado.</small></fieldset>
+    <label class="check"><input type="checkbox" name="bodyFig" ${p.bodyFig === false ? '' : 'checked'}><span>Mostrar os bonecos com o meu corpo</span></label>
+    <label class="check consent"><input type="checkbox" name="healthOk" ${p.healthOk ? 'checked' : ''}><span>Autorizo o app a guardar essas informações de saúde pra personalizar meu plano (dá pra apagar quando quiser).</span></label>
+  </details>`;
+}
+function bindHealthBox(form) {
+  const box = form.querySelector('#hbox'); if (!box) return;
+  box.addEventListener('change', e => {
+    const t = e.target; if (t.name !== 'cond') return;
+    const rd = (() => { try { return JSON.parse(form.restrData.value); } catch (x) { return { perm: [], temp: [] }; } })();
+    const keys = [...box.querySelectorAll('input[name=cond]:checked')].map(x => x.value), linked = CONDITIONS[t.value]?.restr || [];
+    if (!linked.length) return;
+    if (t.checked) { const add = linked.filter(k => !rd.perm.includes(k)); rd.temp = rd.temp.filter(k => !linked.includes(k)); rd.perm.push(...add); if (add.length) toast(`Marcado nas restrições: ${add.map(k => RESTR[k].n.split(' (')[0].toLowerCase()).join(', ')}. Dá pra desmarcar.`); }
+    else { const still = new Set(condRestr(keys)); rd.perm = rd.perm.filter(k => !linked.includes(k) || still.has(k)); }
+    form.restrData.value = JSON.stringify(rd);
+    form.querySelectorAll('#rbox .rchip').forEach(c => { c.classList.toggle('perm', rd.perm.includes(c.dataset.r)); c.classList.toggle('temp', rd.temp.includes(c.dataset.r)); });
+    const sum = form.querySelector('#rsum'); if (sum) sum.textContent = restrSummary(rd);
+  });
+}
 function restrBox(r) {
   const st = k => r.perm.includes(k) ? 'perm' : r.temp.includes(k) ? 'temp' : '';
   return `<details class="rbox" id="rbox"><summary><span><b>Restrições e alergias</b><small id="rsum">${esc(restrSummary(r))}</small></span></summary>
@@ -901,6 +967,8 @@ views.treino = () => {
   const todayW = S.logs.workouts.filter(w => w.date === today()).pop(), nx = todayW ? -1 : nextSessionIdx(plan);
   return `<section class="head"><h1>Força</h1><a class="chip" href="#rotinas">Trocar rotina</a></section>
   ${draftBanner()}
+  ${clearanceCard()}
+  ${blockBanner(plan)}
   <div class="card rcard" id="t-rotina">
     <div class="row between"><small class="cat">Minha rotina</small><span class="rbadge">Ativa</span></div>
     <h2>${esc(r.auto ? plan.split : r.name)}</h2>
@@ -1070,7 +1138,7 @@ views.rotina = () => {
   const restOpts = [30, 45, 60, 90, 120, 150, 180, 240, 300];
   const itemRow = (s, it, i) => { const e = EXERCISES[it.ex], key = `${s.id}|${i}`;
     const cr = careOf(S.profile, it.ex);
-    return `<li class="rit"><div class="row between"><b class="grow">${esc(e.vars ? e.vars[Math.min(e.vars.length - 1, S.prog[it.ex] ?? 0)] : e.n)}${cr.length ? ` <small class="caretag">⚠ ${esc(cr.map(k => INJURIES[k].n.toLowerCase()).join(', '))}</small>` : ''}</b>
+    return `<li class="rit"><div class="row between"><b class="grow">${esc(e.vars ? e.vars[Math.min(e.vars.length - 1, S.prog[it.ex] ?? 0)] : e.n)}${cr.length ? ` <small class="caretag">⚠ ${esc(cr.join(', '))}</small>` : ''}</b>
       <button class="ibtn" data-act="rtMove" data-k="${key}" data-d="-1" ${i ? '' : 'disabled'} aria-label="Subir">↑</button><button class="ibtn" data-act="rtMove" data-k="${key}" data-d="1" ${i < s.items.length - 1 ? '' : 'disabled'} aria-label="Descer">↓</button>
       <button class="ibtn" data-act="rtSwapOpen" data-k="${key}" aria-label="Substituir">↻</button><button class="x" data-act="rtRemove" data-k="${key}" aria-label="Remover">×</button></div>
       <div class="rfields"><label>Séries<input data-rt="${key}|sets" inputmode="numeric" value="${it.sets}"></label><label>Reps de<input data-rt="${key}|lo" inputmode="numeric" value="${it.lo}"></label><label>até<input data-rt="${key}|hi" inputmode="numeric" value="${it.hi}"></label>
@@ -1104,7 +1172,8 @@ views.ver = (idx) => {
 };
 
 // ---------- Demonstração do exercício (mesmo boneco dos golpes) ----------
-const demoBtn = (ex, label = 'Ver execução') => hasDemo(ex) ? `<a class="exdemo" href="#demo-${ex}" aria-label="${esc(label)}: ${esc(EXERCISES[ex].n)}"><span class="exthumb">${exThumb(ex)}</span><span>${esc(label)} ›</span></a>` : '';
+const myFig = () => S.profile?.bodyFig === false || S.ui?.figStd ? null : bodyFig(S.profile);
+const demoBtn = (ex, label = 'Ver execução') => hasDemo(ex) ? `<a class="exdemo" href="#demo-${ex}" aria-label="${esc(label)}: ${esc(EXERCISES[ex].n)}"><span class="exthumb">${exThumb(ex, myFig())}</span><span>${esc(label)} ›</span></a>` : '';
 views.demo = (ex) => {
   const e = EXERCISES[ex]; if (!e || !hasDemo(ex)) { location.hash = '#treino'; return ''; }
   const prim = Object.entries(e.m || {}).filter(([, f]) => f >= 1).map(([m]) => MUSCLES[m]).filter(Boolean), sec = Object.entries(e.m || {}).filter(([, f]) => f < 1).map(([m]) => MUSCLES[m]).filter(Boolean);
@@ -1114,6 +1183,8 @@ views.demo = (ex) => {
     <div id="techFig" class="techfig"></div>
     <div class="segs speed"><button data-act="techPause">❚❚ Pausar</button><button class="on" data-act="techSpeed" data-s="1">Normal</button><button data-act="techSpeed" data-s="2.5">Lento</button><button data-act="techSpeed" data-s="5">Bem lento</button></div>
     ${ex === 'shadowx' ? '<p class="small muted">Mesmo movimento do cruzado da aba de luta, só que em séries curtas e 100% de velocidade.</p>' : ''}
+    ${bodyFig(S.profile) && S.profile.bodyFig !== false ? `<button class="chip figmode" data-act="figMode">${S.ui?.figStd ? 'Ver com o meu corpo' : 'Ver boneco padrão'}</button>` : ''}
+    ${bodyLabel(ex, S.profile) ? `<p class="small note">Pra você: ${esc(bodyLabel(ex, S.profile))}. ${esc(bodyCare(ex, S.profile) || 'Mesmo movimento, só do lado que trabalha; troque de lado se tiver os dois.')}</p>` : bodyCare(ex, S.profile) ? `<p class="small note">${esc(bodyCare(ex, S.profile))}</p>` : ''}
   </div>
   <div class="card"><h3>Passo a passo</h3><ol class="steps" id="techSteps">${steps.map((t, i) => `<li data-i="${i}">${esc(t)}</li>`).join('')}</ol>
     <p class="small"><b>Dica:</b> ${esc(e.cue)}</p></div>
@@ -1162,7 +1233,7 @@ views.sessao = (idx) => {
   <div class="card sprog" id="sprog"><div class="row between"><b class="mono">${doneN} de ${planned} séries</b><span class="mono" id="sessClock">${clockTxt()}</span></div>
     <div class="kbar"><div style="width:${planned ? Math.round(doneN / planned * 100) : 0}%"></div></div>
     <small class="muted">Aqueça 5–10 min e faça 1–2 séries leves no primeiro composto. Potência primeiro, sempre descansado.</small>
-    ${plan.auto && plan.ci.deload ? '<p class="small note">Semana leve: metade das séries e ~10% menos carga. Saia do treino com energia sobrando.</p>' : ''}</div>
+    ${plan.auto && plan.ci.deload ? '<p class="small note">Semana leve: metade das séries e ~10% menos carga. Saia do treino com energia sobrando.</p>' : ''}${preTrainTips()}</div>
   ${day.items.map((it, xi) => {
     const e = EXERCISES[it.ex], last = lastFor(it.ex), sg = suggest(it, last?.sets);
     const unit = e.u === 's' ? 's' : e.u === 'm' ? 'm' : 'reps';
@@ -1181,7 +1252,7 @@ views.sessao = (idx) => {
     const lv = e.vars ? `<div class="lvl-row"><button class="lvlbtn" data-act="lvl" data-ex="${it.ex}" data-d="-1" ${it.lvl <= 0 ? 'disabled' : ''} aria-label="Mais fácil">‹</button>
         <span class="small">Nível ${it.lvl + 1} de ${e.vars.length}${it.lvl < e.vars.length - 1 ? ` · próximo: ${esc(e.vars[it.lvl + 1])}` : ' · último nível'}</span><button class="lvlbtn ${sg.up ? 'hot' : ''}" data-act="lvl" data-ex="${it.ex}" data-d="1" ${it.lvl >= e.vars.length - 1 ? 'disabled' : ''} aria-label="Mais difícil">›</button></div>` : '';
     return `<div class="card ex" id="ex-${xi}"><div class="row between"><h3><span class="mono exn">${xi + 1}</span> ${esc(it.name)}</h3><button class="ibtn" data-act="exOpen" data-i="-1" aria-label="Recolher">▴</button></div>
-      ${it.care.length ? `<p class="small care">⚠ Cuidado com ${esc(it.care.map(k => INJURIES[k].n.toLowerCase()).join(' e '))}: carga moderada e pare se doer.</p>` : ''}
+      ${it.care.length ? `<p class="small care">⚠ Cuidado (${esc(it.care.join(', '))}): carga moderada, técnica perfeita e pare se doer.</p>` : ''}${it.bodyCare ? `<p class="small care">${esc(it.bodyCare)}</p>` : ''}
       <div class="presc"><small class="cat">Prescrição</small><span><b>${it.sets} séries</b>${it.sets !== it.base ? ` <small>(${it.sets > it.base ? '+' : ''}${it.sets - it.base} esta semana)</small>` : ''} · <b>${repsOf(it)}</b> ${unit}${e.u && !['s', 'm'].includes(e.u) ? ' ' + esc(e.u) : ''} · descanso <b>${esc(it.rest)}</b>${it.rir ? ` · pare com ${it.rir} na reserva` : ''}</span></div>
       <p class="small">${esc(e.cue)}${e.req.length ? ` <span class="muted">· ${esc(e.req.map(k => EQUIP[k] || (k === 'gym' ? 'academia' : k)).join(', '))}</span>` : ''}</p>
       ${demoBtn(it.ex)}
@@ -1495,7 +1566,7 @@ function coachContext() {
 REGRAS: Baseie-se em evidência científica. Use as cartas de evidência abaixo como base principal e cite-as pelo título e autor/ano. Se algo não estiver bem estabelecido na literatura, diga que a evidência é limitada. Nunca invente estudos. Não faça diagnósticos médicos; para dor persistente, sintomas após pancada na cabeça, condições de saúde ou cortes de peso agressivos, recomende um profissional. Respostas curtas e práticas (leitura no celular).
 PERFIL: ${p.sex === 'f' ? 'mulher' : 'homem'}, ${p.age} anos, ${p.height} cm, ${latestWeight()} kg${p.bf ? `, ${p.bf}% gordura` : ''}. Objetivo: ${GOALS[p.goal]}. Experiência: ${p.experience}.${activeRestr().length ? ` RESTRIÇÕES (não sugerir nada com isso): ${(() => { const r = restrOfProfile(); return [r.perm.length ? 'para sempre: ' + r.perm.map(k => RESTR[k].n).join(', ') : '', tempOn(r) ? 'temporárias' + (r.until ? ` até ${r.until}` : '') + ': ' + r.temp.map(k => RESTR[k].n).join(', ') : ''].filter(Boolean).join('; '); })()}.` : ''}
 ESPORTES: ${Object.entries(sp).map(([id, s]) => `${SPORTS[id]?.n} ${s.days}x/semana, ${s.min} min, ${SPORTS[id]?.types[s.type]?.n || ''}, ${s.where}`).join('; ') || 'nenhum'}.
-FORÇA: ${p.liftDays}x/semana (${p.env === 'casa' ? 'em casa; equipamento: ' + ((p.equip || []).map(k => EQUIP[k]).join(', ') || 'só peso corporal/calistenia') : 'academia'}). ${Math.round(+p.liftMin) || 45} min/sessão. Objetivo do treino: ${TGOALS[tgoalOf(p)].n}.${injuriesOf(p).length ? ' Poupar: ' + injuriesOf(p).map(k => INJURIES[k].n).join(', ') + '.' : ''}${focusOf(p).length ? ' Prioridade: ' + focusOf(p).map(m => MUSCLES[m]).join(', ') + '.' : ''}
+FORÇA: ${p.liftDays}x/semana (${p.env === 'casa' ? 'em casa; equipamento: ' + ((p.equip || []).map(k => EQUIP[k]).join(', ') || 'só peso corporal/calistenia') : 'academia'}). ${Math.round(+p.liftMin) || 45} min/sessão. Objetivo do treino: ${TGOALS[tgoalOf(p)].n}.${injuriesOf(p).length ? ' Poupar: ' + injuriesOf(p).map(k => INJURIES[k].n).join(', ') + '.' : ''}${focusOf(p).length ? ' Prioridade: ' + focusOf(p).map(m => MUSCLES[m]).join(', ') + '.' : ''}${condsOf(p).length ? ' Condições de saúde: ' + condsOf(p).map(k => CONDITIONS[k].n).join(', ') + '.' : ''}${bodyOf(p).length ? ' Corpo: ' + bodyOf(p).map(k => BODY[k]).join(', ') + ' (adapte exercícios).' : ''}
 METAS: ${t.kcal} kcal, P ${t.protein} g, C ${t.carbs} g, G ${t.fat} g, água ${t.water} ml. Gasto estimado ${Math.round(t.tdee)} kcal (${t.source}).
 HOJE: consumido ${Math.round(dayFood().k)} kcal, P ${Math.round(dayFood().p)} g.
 CICLO: ${plan.auto ? `ciclo ${plan.ci.cycle}, semana ${plan.ci.week} de ${plan.ci.total}${plan.ci.deload ? ' (semana leve)' : ''}${plan.rd.hold ? ', volume segurado (falhas/dor)' : ''}` : 'progressão automática desligada'}.
@@ -1684,7 +1755,7 @@ function bindAfter(v, arg) {
     const eqVis = () => pf.querySelector('.equip').style.display = pf.env.value === 'casa' ? '' : 'none';
     pf.env.addEventListener('change', eqVis); eqVis();
     pf.querySelectorAll('.sport input[type=checkbox]').forEach(cb => cb.addEventListener('change', () => cb.closest('.sport').classList.toggle('on', cb.checked)));
-    bindRestrBox(pf);
+    bindRestrBox(pf); bindHealthBox(pf);
     pf.addEventListener('submit', e => {
       e.preventDefault();
       const fd = new FormData(pf), g = k => fd.get(k);
@@ -1693,6 +1764,7 @@ function bindAfter(v, arg) {
       const p = {
         sex: g('sex'), age: num(g('age')), height: num(g('height')), weight: num(g('weight')), bf: num(g('bf')), neat: num(g('neat')), goal: g('goal'), rate: num(g('rate')),
         experience: g('experience'), liftDays: num(g('liftDays')) ?? 0, liftMin: Math.max(15, Math.min(180, num(g('liftMin')) || 40)), env: g('env'), equip: fd.getAll('equip'), sports,
+        cond: fd.getAll('cond').filter(k => CONDITIONS[k]), body: fd.getAll('body').filter(k => BODY[k]), bodyFig: !!g('bodyFig'), healthOk: g('healthOk') ? (S.profile?.healthOk || today()) : '',
         tgoal: TGOALS[g('tgoal')] ? g('tgoal') : '', inj: fd.getAll('inj').filter(k => INJURIES[k]), focus: fd.getAll('focus').filter(m => FOCUS_MUSCLES.includes(m)).slice(0, 3), autoVol: !!g('autoVol')
       };
       let rd = { perm: [], temp: [] }; try { rd = JSON.parse(g('restrData') || '{}'); } catch (e) { }
@@ -1700,6 +1772,8 @@ function bindAfter(v, arg) {
       const until = temp.length && /^\d{4}-\d{2}-\d{2}$/.test(g('restrUntil') || '') ? g('restrUntil') : '';
       const oldR = restrOfProfile();
       p.restr = perm.length || temp.length ? { perm, temp, until, since: oldR.perm.length || oldR.temp.length ? (oldR.since || today()) : today() } : null;
+      if ((p.cond.length || p.body.length) && !p.healthOk) { toast('Pra guardar condição de saúde ou de corpo, marque a autorização no fim de "Saúde e corpo".'); $('#hbox').open = true; return; }
+      if (!p.cond.length && !p.body.length) p.healthOk = '';
       if (!p.age || !p.height || !p.weight || p.age < 14 || p.age > 90 || p.height < 120 || p.height > 230 || p.weight < 35 || p.weight > 250) { toast('Confira idade, altura e peso.'); return; }
       if (!Object.keys(sports).length && !p.liftDays) { toast('Marque pelo menos um esporte ou dias de força.'); return; }
       const first = !S.profile;
@@ -1794,7 +1868,7 @@ function bindAfter(v, arg) {
       const n = Math.max(1, Math.round(num(i.value) || 1)); S.timer[i.dataset.tm] = n; S.timer.preset = 'custom'; save(); if (TM.phase === 'idle') paintTimer();
     }));
   }
-  if (v === 'demo' && hasDemo(arg)) anim = exAnimate($('#techFig'), arg, i => document.querySelectorAll('#techSteps li').forEach(li => li.classList.toggle('on', +li.dataset.i === i)));
+  if (v === 'demo' && hasDemo(arg)) anim = exAnimate($('#techFig'), arg, i => document.querySelectorAll('#techSteps li').forEach(li => li.classList.toggle('on', +li.dataset.i === i)), myFig());
   if (v === 'tecnica') {
     const t = TECHNIQUES.find(x => x.id === arg);
     if (t) anim = animate($('#techFig'), t, i => document.querySelectorAll('#techSteps li').forEach(li => li.classList.toggle('on', +li.dataset.i === i)));
@@ -1989,6 +2063,15 @@ document.addEventListener('click', async e => {
   if (a === 'restPause') { if (REST.paused) { REST.end = Date.now() + REST.left * 1000; REST.paused = false; } else { REST.paused = true; } restTick(); }
   if (a === 'restReset') restStart(REST.total, REST.label);
   if (a === 'restSkip') restStop();
+  if (a === 'blockNew') {
+    const R = routinesState(), before = new Set(activePlan().days.flatMap(d => d.items.map(i => i.ex)));
+    R.block = { start: today(), n: blockNow().n + 1 }; R.swap = {}; R.active = 'auto'; save(true);
+    const after = activePlan().days.flatMap(d => d.items.map(i => i.ex)), novos = [...new Set(after.filter(x => !before.has(x)))].length;
+    render(); toast(`Bloco ${R.block.n} montado: ${novos} ${novos === 1 ? 'exercício novo' : 'exercícios novos'}`);
+  }
+  if (a === 'blockSnooze') { const R = routinesState(), d = new Date(today() + 'T12:00'); d.setDate(d.getDate() + 14); R.block = { ...(R.block || { start: blockNow().start, n: blockNow().n }), snooze: dayKey(d) }; save(true); render(); toast('Beleza: aviso volta em 2 semanas'); }
+  if (a === 'clearOk') { S.ui = { ...(S.ui || {}), clearOk: true }; save(true); render(); toast('Combinado. Qualquer sintoma estranho, pare e procure seu médico.'); }
+  if (a === 'figMode') { S.ui = { ...(S.ui || {}), figStd: !S.ui?.figStd }; save(); render(); }
   if (a === 'stagSwap') {
     const from = el.dataset.ex, to = el.dataset.to, sid = el.dataset.sid; if (!EXERCISES[from] || !EXERCISES[to]) return;
     const R = routinesState();

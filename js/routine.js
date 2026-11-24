@@ -3,7 +3,8 @@
 import { EXERCISES, TEMPLATES, SLOTS, MUSCLES } from './data.js';
 import { equipment, canDo, sportDays, sportsOf } from './calc.js';
 import { SPORTS } from './sports.js';
-import { avoidSet, goalParams, repsFor, restFor } from './periodize.js';
+import { avoidSet, goalParams, repsFor, restFor, usable } from './periodize.js';
+import { caps, bodyOk } from './health.js';
 
 export const SPLIT_DEFS = {
   fb: { n: 'Full Body', d: 'Corpo inteiro em toda sessão. Cada músculo 2 a 3 vezes por semana com poucos dias. Combina bem com esporte.', opts: { 1: ['A'], 2: ['A', 'B'], 3: ['A', 'B', 'C'] } },
@@ -25,7 +26,8 @@ function fromTemplate(p, key, extra = []) {
   const t = TEMPLATES[key], eq = equipment(p), used = new Set(), items = [], avoid = avoidSet(p), gp = goalParams(p);
   const reduce = p.experience === 'iniciante' || sportDays(p) >= 4;
   for (const [slot, sets, lo, hi] of [...t.list, ...extra]) {
-    const ex = (SLOTS[slot] || []).find(id => canDo(id, eq) && !used.has(id) && !avoid.has(id)); if (!ex) continue; // lesão marcada no perfil tira o exercício
+    const c = caps(p), ok = (SLOTS[slot] || []).filter(id => !used.has(id) && usable(id, p, eq, avoid, c)); // lesão, condição e corpo tiram o exercício
+    const ex = ok.find(id => !EXERCISES[id].adapt) || ok[0]; if (!ex) continue;
     used.add(ex); const e = EXERCISES[ex];
     const [rlo, rhi] = repsFor(e, e.r || [lo, hi], gp);
     items.push({ ex, slot, sets: reduce && e.t !== 'power' && sets >= 3 ? sets - 1 : sets, lo: rlo, hi: rhi, rest: restFor(e, gp) });
@@ -81,7 +83,8 @@ export function alternatives(p, it) {
   const main = Object.entries(e.m).filter(([, f]) => f >= 1).map(([m]) => m);
   const same = new Set(it.slot && SLOTS[it.slot] ? SLOTS[it.slot] : Object.entries(SLOTS).filter(([, l]) => l.includes(it.ex)).flatMap(([, l]) => l));
   const list = Object.keys(EXERCISES).filter(id => id !== it.ex && (same.has(id) || (main.length && main.some(m => (EXERCISES[id].m[m] || 0) >= 1) && EXERCISES[id].t === e.t)));
-  return list.map(id => ({ id, ok: canDo(id, eq), same: same.has(id) })).sort((a, b) => (b.ok - a.ok) || (b.same - a.same));
+  const av = avoidSet(p);
+  return list.filter(id => !av.has(id)).map(id => ({ id, ok: canDo(id, eq) && bodyOk(id, p), same: same.has(id) })).sort((a, b) => (b.ok - a.ok) || (b.same - a.same));
 }
 // biblioteca agrupada pelo músculo principal (pra adicionar exercício)
 export function library(p) {
@@ -89,7 +92,7 @@ export function library(p) {
   for (const [id, e] of Object.entries(EXERCISES)) {
     const main = Object.entries(e.m).sort((a, b) => b[1] - a[1])[0];
     const k = e.t === 'power' ? 'Potência' : e.t === 'prehab' ? 'Prevenção' : main ? MUSCLES[main[0]] : 'Outros';
-    (g[k] ||= []).push({ id, ok: canDo(id, eq) });
+    (g[k] ||= []).push({ id, ok: canDo(id, eq) && bodyOk(id, p) });
   }
   return g;
 }

@@ -101,14 +101,20 @@ function proj(p) {
 }
 const W = { th: 17, sn: 13, ua: 13, fa: 11, foot: 9 };
 
-export function draw(J, { gloves = true, hi = [], trail = null, burst = null, cam = 30, ox = 0, act = [], tilt = 0, zoom = 1, target = null, path = null, props = null } = {}) {
+// missing: membros ausentes ('armL','armR','handL','handR','legL','legR'); prosthesis: perna ausente desenhada como prótese
+export function draw(J, { gloves = true, hi = [], trail = null, burst = null, cam = 30, ox = 0, act = [], tilt = 0, zoom = 1, target = null, path = null, props = null, missing = null, prosthesis = false } = {}) {
   CAM = cam * D; TILT = tilt * D; ZOOM = zoom;
+  const miss = new Set(missing || []);
   const P = {}; for (const k in J) P[k] = proj(J[k]);
   const segs = [];
   const seg = (a, b, w, kind, side) => segs.push({ a: P[a], b: P[b], w, kind, side, z: (P[a][2] + P[b][2]) / 2 });
+  const stub = (a, b, t) => { const k = a + '_' + b; P[k] = [P[a][0] + (P[b][0] - P[a][0]) * t, P[a][1] + (P[b][1] - P[a][1]) * t, P[a][2] + (P[b][2] - P[a][2]) * t]; return k; };
   for (const s of ['L', 'R']) {
-    seg('hip' + s, 'kn' + s, W.th, 'leg', s); seg('kn' + s, 'an' + s, W.sn, 'leg', s); seg('an' + s, 'to' + s, W.foot, 'foot', s);
-    seg('sh' + s, 'el' + s, W.ua, 'arm', s); seg('el' + s, 'ha' + s, W.fa, 'arm', s);
+    if (!miss.has('leg' + s)) { seg('hip' + s, 'kn' + s, W.th, 'leg', s); seg('kn' + s, 'an' + s, W.sn, 'leg', s); seg('an' + s, 'to' + s, W.foot, 'foot', s); }
+    else if (prosthesis) { seg('hip' + s, 'kn' + s, W.th, 'leg', s); seg('kn' + s, 'an' + s, 5, 'pros', s); seg('an' + s, 'to' + s, W.foot, 'pros', s); }
+    else seg('hip' + s, stub('hip' + s, 'kn' + s, 0.45), W.th, 'leg', s);
+    if (!miss.has('arm' + s)) { seg('sh' + s, 'el' + s, W.ua, 'arm', s); seg('el' + s, 'ha' + s, W.fa, 'arm', s); }
+    else seg('sh' + s, stub('sh' + s, 'el' + s, 0.4), W.ua, 'arm', s);
   }
   // tronco como polígono (mostra a rotação: estreito de lado, largo de frente)
   const torsoZ = (P.shL[2] + P.shR[2] + P.hipL[2] + P.hipR[2]) / 4;
@@ -133,9 +139,9 @@ export function draw(J, { gloves = true, hi = [], trail = null, burst = null, ca
   const head = `<circle cx="${P.head[0].toFixed(1)}" cy="${P.head[1].toFixed(1)}" r="14" class="hd"/>`;
   const glove = (s, isFar) => gloves ? `<circle cx="${P['ha' + s][0].toFixed(1)}" cy="${P['ha' + s][1].toFixed(1)}" r="10.5" class="${isFar ? 'gb' : 'gf'}"/>` : `<circle cx="${P['ha' + s][0].toFixed(1)}" cy="${P['ha' + s][1].toFixed(1)}" r="4.5" class="${isFar ? 'hb' : 'hf'}"/>`;
   let back = '', frontLegs = '', front = '';
-  for (const s of segs) { const f = far(s); const h = line(s, f ? 'lb' : 'lf'); if (f) back += h; else if (s.kind === 'arm') front += h; else frontLegs += h; }
+  for (const s of segs) { const f = far(s); const h = line(s, s.kind === 'pros' ? 'lp' : f ? 'lb' : 'lf'); if (f) back += h; else if (s.kind === 'arm') front += h; else frontLegs += h; }
   const farH = s => P['ha' + s][2] > zMid + 0.02 && !act.includes('arm' + s);
-  const gL = glove('L', farH('L')), gR = glove('R', farH('R'));
+  const gL = miss.has('armL') || miss.has('handL') ? '' : glove('L', farH('L')), gR = miss.has('armR') || miss.has('handR') ? '' : glove('R', farH('R'));
   const gBack = (farH('L') ? gL : '') + (farH('R') ? gR : '');
   const gFront = (!farH('L') ? gL : '') + (!farH('R') ? gR : '');
   const sp = proj([J.pel[0], 0, J.pel[2]]);

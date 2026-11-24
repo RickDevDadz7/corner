@@ -409,6 +409,23 @@ def('bbcurl', { frames: PAT.curl.frames, steps: ['Pegada na largura do ombro, co
   def('medslam', { zoom: 0.86, frames: [F(up, 600, 0, 'load'), F(dn, 240, 1, 'snap'), F(dn, 400, 1), F(up, 700, 0)], steps: ['Bola acima da cabeça, sobe na ponta do pé', 'Joga a bola no chão com o corpo todo'],
     props: J => [{ k: 'ball', p: [mid(J.haL, J.haR)[0] + 0.04, Math.max(0.12, mid(J.haL, J.haR)[1] - 0.02), 0] }] }); }
 
+// ==================== Adaptados (v3.22) ====================
+{ const sd = P(SEAT, { p: [0, 0.52, 0], lean: 2, wL: [0.02, 0.62, -0.3], wR: [0.02, 0.62, 0.3], eL: [-1, 0, 0.4], eR: [-1, 0, -0.4] }), up = P(sd, { p: [0, 0.64, 0], fL: [0.45, 0.04, -0.14], fR: [0.45, 0.04, 0.14] });
+  const chair = J => [{ k: 'box', x1: -0.22, x2: 0.3, y: 0.48, z1: -0.24, z2: 0.24 }, { k: 'line', a: [-0.2, 0.62, -0.32], b: [0.25, 0.62, -0.32], w: 6, c: 'prb', layer: 'front' }, { k: 'line', a: [-0.2, 0.62, 0.32], b: [0.25, 0.62, 0.32], w: 6, c: 'prb', layer: 'back' }, { k: 'ball', p: [-0.05, 0.3, -0.34], r: 0.3, cls: 'whl', layer: 'front' }];
+  def('wcdip', { frames: rep4(sd, up, 700, 900), steps: ['Mãos nos apoios, braço quase esticado de cada lado', 'Empurra pra baixo e tira o quadril do assento; desce devagar'], props: chair }); }
+{ const s0 = P(SEAT, { lean: 0, hL: [0.16, -0.1, 0.2], hR: [0.16, -0.1, -0.2], eL: [-1, -0.2, 0.6], eR: [-1, -0.2, -0.6] }), s1 = P(s0, { hL: [0.55, -0.08, 0.14], hR: [0.55, -0.08, -0.14] });
+  def('sbpress', { frames: rep4(s0, s1, 700, 900), steps: ['Sentado, elástico preso atrás na altura do peito', 'Empurra pra frente até esticar e volta devagar'],
+    props: J => [seatBox, backRest, { k: 'band', a: J.haL, b: [-0.32, 1.0, -0.25] }, { k: 'band', a: J.haR, b: [-0.32, 1.0, 0.25] }] }); }
+{ const s0 = P(SEAT, { p: [-0.02, 0.5, 0], lean: 4, fL: [0.32, 0, -0.15], fR: [0.32, 0, 0.15], hL: [0.18, -0.05, 0.05], hR: [0.18, -0.05, -0.05], eL: [0, -1, 0.5], eR: [0, -1, -0.5] });
+  const mid_ = P(s0, { p: [0.04, 0.56, 0], lean: 34 }), up = P(s0, { p: [0.12, 0.9, 0], lean: 4 });
+  def('sitstand', { frames: [F(s0, 400, 0), F(mid_, 400, 0), F(up, 500, 0), F(up, 200, 1), F(mid_, 600, 1), F(s0, 500, 1)], steps: ['Peito à frente e levanta empurrando o chão com os pés', 'Senta devagar, controlando até encostar'],
+    props: () => [{ k: 'box', x1: -0.32, x2: 0.12, y: 0.45 }] }); }
+{ const s0 = P(ST, { p: [-0.05, 0.86, 0], lean: 18, fL: [-0.28, 0, -0.15], fR: [-0.28, 0, 0.15], wL: [0.52, 1.32, -0.25], wR: [0.52, 1.32, 0.25], eL: [-0.3, -1, 0.6], eR: [-0.3, -1, -0.6] });
+  const s1 = P(s0, { p: [0.08, 0.84, 0], lean: 34 });
+  def('wallpush', { frames: rep4(s0, s1, 800, 800), steps: ['Mãos na parede, corpo reto da cabeça ao calcanhar', 'Desce o peito até perto da parede e empurra de volta'],
+    props: () => [{ k: 'line', a: [0.6, 0, 0], b: [0.6, 2.0, 0], w: 8, c: 'pr', layer: 'back' }] }); }
+def('suitcase', { frames: PAT.farm.frames, steps: ['Peso numa mão só, tronco reto sem tombar pro lado, passos firmes'], props: J => [{ k: 'db', p: J.haL, d: [1, 0, 0] }] });
+
 // exercício → demonstração (sombra explosiva usa o cruzado da aba de luta)
 const ALIAS = { plyopush: 'plyopush' };
 export function hasDemo(ex) { return ex === 'shadowx' || !!PAT[ALIAS[ex] || ex]; }
@@ -417,12 +434,19 @@ function demoOf(ex) {
   return PAT[ALIAS[ex] || ex] || null;
 }
 export function demoSteps(ex) { const d = demoOf(ex); return d?.steps || null; }
-// miniatura: pose do meio do movimento
-export function exThumb(ex) {
+// corpo da pessoa (membro ausente/prótese): nas demonstrações o lado de perto é quem trabalha,
+// então o membro que falta some do lado de trás (visto de lado, tanto faz se é o esquerdo ou o direito)
+function bodyOpt(body) { const m = body?.missing || []; return m.length ? { missing: m, prosthesis: !!body.prosthesis } : null; }
+function propsFor(d, J, body) {
+  const list = d.props ? d.props(J) : null, bo = bodyOpt(body); if (!list || !bo) return list;
+  const gone = bo.missing.some(x => x === 'armR' || x === 'handR') ? [J.haR] : [];
+  return list.filter(it => !(it.k === 'db' && gone.includes(it.p)) && !(it.k === 'band' && gone.includes(it.a)));
+}
+export function exThumb(ex, body) {
   const d = demoOf(ex); if (!d) return '';
   const f = d.frames[Math.min(1, d.frames.length - 1)].p, J = solve(f);
-  return draw(J, { gloves: d.gloves, cam: d.cam, ox: d.ox, act: d.act, tilt: d.tilt, zoom: d.zoom, props: d.props ? d.props(J) : null });
+  return draw(J, { gloves: d.gloves, cam: d.cam, ox: d.ox, act: d.act, tilt: d.tilt, zoom: d.zoom, props: propsFor(d, J, body), ...(bodyOpt(body) || {}) });
 }
-export function exFrameSVG(ex, i) { const d = demoOf(ex), J = solve(d.frames[i].p); return draw(J, { gloves: d.gloves, cam: d.cam, ox: d.ox, act: d.act, tilt: d.tilt, zoom: d.zoom, props: d.props ? d.props(J) : null }); }
-export function exAnimate(el, ex, onStep) { const d = demoOf(ex); return d ? animTech(el, d, onStep) : null; }
+export function exFrameSVG(ex, i, body) { const d = demoOf(ex), J = solve(d.frames[i].p); return draw(J, { gloves: d.gloves, cam: d.cam, ox: d.ox, act: d.act, tilt: d.tilt, zoom: d.zoom, props: propsFor(d, J, body), ...(bodyOpt(body) || {}) }); }
+export function exAnimate(el, ex, onStep, body) { const d = demoOf(ex); if (!d) return null; const bo = bodyOpt(body); return animTech(el, bo ? { ...d, props: J => propsFor(d, J, body), body: bo } : d, onStep); }
 export const DEMO_IDS = Object.keys(PAT);
