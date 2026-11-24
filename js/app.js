@@ -4,7 +4,7 @@ import { SPORTS, SPORT_IDS, combatSession, runSession } from './sports.js';
 import { TECHNIQUES, TIRED, CATS, animate, thumbSVG } from './techniques.js';
 import { cloud } from './cloud.js';
 import { startScan, lookupBarcode } from './scan.js';
-import { pickDay, solveDay, dayTargets, measure, shoppingList, shopQty, swapPick, foodByName, SLOTS } from './menu.js';
+import { pickDay, solveDay, dayTargets, measure, shoppingList, shopQty, swapPick, foodByName, SLOTS, candidates, sameCarb } from './menu.js';
 import * as sync from './sync.js';
 const buildPlan = p => plan_(p, S.prog);
 
@@ -462,7 +462,7 @@ views.nutri = () => {
 // ---------------- Cardápio sugerido ----------------
 const MENU_MEALS = ['cafe', 'almoco', 'lanche', 'jantar'];
 const trainDaysWeek = () => (S.profile?.liftDays || 0) + sportDays(S.profile || {});
-const menuCtx = () => ({ ok: n => !hitsOf(n).length, pantry: S.ui.pantry || {}, strict: !!S.ui.pStrict, big: T().kcal > 2600 });
+const menuCtx = () => ({ ok: n => !hitsOf(n).length, pantry: S.ui.pantry || {}, strict: !!S.ui.pStrict, big: T().kcal > 2400 });
 const shortName = n => n.replace(/\s*\([^)]*(≈|ml|varia|lata, |sem pele)[^)]*\)/g, '').trim();
 function menuTrain(d = curDay()) {
   const v = S.ui.mtrain?.[d]; if (typeof v === 'boolean') return v;
@@ -490,7 +490,22 @@ function menuOf(d = curDay()) {
   }
   return m;
 }
-function makeMenu(d, avoid = new Set()) {
+// o que apareceu nos 2 dias anteriores (cardápio ou o que foi registrado) entra em "evitar repetir"
+function recentFoodsAround(d) {
+  const out = new Set();
+  for (let i = 1; i <= 2; i++) {
+    const x = new Date(d + 'T12:00'); x.setDate(x.getDate() - i); const k = dayKey(x);
+    const m = S.ui.menu?.[k]; if (m?.meals) for (const mm of Object.values(m.meals)) for (const n of Object.values(mm?.pick || {})) if (typeof n === 'string') out.add(n);
+    for (const it of S.logs.food[k] || []) out.add(it.n);
+  }
+  return out;
+}
+// todo dia, a partir de hoje, o cardápio aparece pronto (variando em relação aos últimos dias e puxando a despensa)
+function autoMenu(d = curDay()) {
+  if (d < today() || menuOf(d) || !S.profile) return;
+  makeMenu(d, recentFoodsAround(d)); save(true);
+}
+function makeMenu(d, avoid = recentFoodsAround(d)) {
   S.ui.menu ||= {};
   const seed = Math.floor(Math.random() * 1e9);
   S.ui.menu[d] = { seed, sw: 0, meals: pickDay(menuCtx(), seed, avoid) };
@@ -504,13 +519,20 @@ function solvedMenu(d = curDay()) {
   return { plan, dt, sol: solveDay(plan.meals, dt) };
 }
 function menuCard() {
+  autoMenu();
   const m = solvedMenu();
   return `<a class="card link menucard" href="#cardapio" id="n-menu"><small class="cat">Cardápio do dia</small>
     ${m ? `<h3>${fmt(m.sol.tot.k, 0)} kcal em 4 refeições</h3><p class="small muted">${MENU_MEALS.filter(x => m.plan.meals[x]?.done).length} de 4 registradas · ${menuTrain() ? 'dia de treino' : 'dia de descanso'}</p>`
       : `<h3>Montar meu cardápio</h3><p class="small muted">Sugestão que fecha suas metas, respeita suas restrições e usa o que você tem em casa.</p>`}
     <span class="go">Abrir →</span></a>`;
 }
-let pantryOpen = false, shopOpen = false;
+let pantryOpen = false, shopOpen = false, menuChoose = null;
+// lista de substituição: as melhores opções da mesma vaga (como a lista de equivalentes de um nutricionista)
+function menuSubs(meal, slotK, cur) {
+  const slot = SLOTS[meal]?.find(x => x.k === slotK); if (!slot) return [];
+  const pk = menuOf()?.meals?.[meal]?.pick || {}, other = { veg: pk.veg2, veg2: pk.veg, carb: pk.carb2, carb2: pk.carb }[slotK];
+  return candidates(meal, slot, menuCtx(), new Set(), 'subs').filter(f => f.n !== cur && f.n !== other && !(/^carb/.test(slotK) && sameCarb(f.n, other)) && !(other && /Salada|^Alface$|^Tomate$/.test(f.n) && /Salada|^Alface$|^Tomate$/.test(other) && (f.n.startsWith('Salada') || other.startsWith('Salada')))).slice(0, 12).map(f => f.n);
+}
 const PANTRY_ROLES = [['prot', 'Proteínas'], ['carb', 'Arroz, massas e tubérculos'], ['pao', 'Pães e café da manhã'], ['leg', 'Leguminosas'], ['lat', 'Leites, iogurtes e queijos'], ['veg', 'Verduras e legumes'], ['fruta', 'Frutas'], ['gord', 'Castanhas, sementes e pastas'], ['oleo', 'Óleos']];
 const P_NEXT = { '': 'tem', tem: 'comprar', comprar: 'nao', nao: '' };
 const pst = v => v === 'tem' || v === 'comprar' || v === 'nao' ? v : ''; // valor vindo da nuvem: só os três estados
@@ -546,14 +568,16 @@ function shopBox() {
   </details>`;
 }
 views.cardapio = () => {
+  autoMenu();
   const m = solvedMenu(), tr = menuTrain(), dt = m ? m.dt : dayTargets(T(), tr, trainDaysWeek()), td = trainDaysWeek();
   const P = S.ui.pantry || {};
   const mealHTML = meal => {
     const x = m.sol.meals[meal], info = MEALS.find(z => z.id === meal), done = m.plan.meals[meal]?.done;
     return `<div class="card cmeal ${done ? 'done' : ''}" id="cm-${meal}">
       <div class="row between"><h3><span class="mico">${info.ico}</span> ${esc(info.n)}</h3><span class="mono small">${fmt(x.tot.k, 0)} kcal</span></div>
-      <ul class="list citems">${x.items.map(i => { const f = foodByName(i.n), h = hitsOf(i.n); return `<li><div class="grow"><b>${esc(shortName(i.n))}</b>${P[i.n] === 'tem' ? ' <em class="ptag">tenho</em>' : ''}${h.length ? ` <em class="rtag">⚠ ${esc(h.map(k => RESTR[k].n.split(' (')[0]).join(', '))}</em>` : ''}<small>${esc(measure(i.n, i.g))}${f?.un ? ` · ${fmt(i.g, 0)} g` : ''} · ${fmt(i.k, 0)} kcal</small></div>
-        ${done ? '' : `<button class="swap" data-act="menuSwap" data-m="${meal}" data-s="${esc(i.slot)}" aria-label="Trocar ${esc(shortName(i.n))}">↻</button>`}</li>`; }).join('') || '<li class="muted small">Sem opções pra essa refeição com suas restrições.</li>'}</ul>
+      <ul class="list citems">${x.items.map(i => { const f = foodByName(i.n), h = hitsOf(i.n); return `<li class="${menuChoose === meal + '|' + i.slot ? 'choosing' : ''}"><div class="grow"><b>${done ? esc(shortName(i.n)) : `<button class="cname" data-act="menuChoose" data-m="${meal}" data-s="${esc(i.slot)}">${esc(shortName(i.n))} <span>▾</span></button>`}</b>${P[i.n] === 'tem' ? ' <em class="ptag">tenho</em>' : ''}${h.length ? ` <em class="rtag">⚠ ${esc(h.map(k => RESTR[k].n.split(' (')[0]).join(', '))}</em>` : ''}<small>${esc(measure(i.n, i.g))}${f?.un ? ` · ${fmt(i.g, 0)} g` : ''} · ${fmt(i.k, 0)} kcal</small></div>
+        ${done ? '' : `<button class="swap" data-act="menuSwap" data-m="${meal}" data-s="${esc(i.slot)}" aria-label="Trocar ${esc(shortName(i.n))}">↻</button>`}
+        ${menuChoose === meal + '|' + i.slot ? `<div class="subs"><small class="muted">Substituir por:</small><div class="chips">${menuSubs(meal, i.slot, i.n).map(n => `<button class="chipbtn ${P[n] === 'tem' ? 'on' : ''}" data-act="menuPick" data-m="${meal}" data-s="${esc(i.slot)}" data-n="${esc(n)}">${esc(shortName(n))}</button>`).join('') || '<span class="small muted">Sem outras opções com suas restrições.</span>'}</div></div>` : ''}</li>`; }).join('') || '<li class="muted small">Sem opções pra essa refeição com suas restrições.</li>'}</ul>
       <div class="msum"><span>Total</span><span class="mono">P ${fmt(x.tot.p, 0)}g</span><span class="mono">C ${fmt(x.tot.c, 0)}g</span><span class="mono">G ${fmt(x.tot.f, 0)}g</span><span class="mono">Fibra ${fmt(x.tot.fb, 0)}g</span></div>
       ${done ? `<p class="small okline">✓ Registrado em ${esc(info.n)}</p>` : `<button class="btn small block" data-act="menuEat" data-m="${meal}">✓ Comi isso: registrar</button>`}
     </div>`;
@@ -1406,13 +1430,19 @@ document.addEventListener('click', async e => {
   if (a === 'addMeal') { addMeal = el.dataset.m || null; if (addMeal) mealShut.delete(addMeal); foodCat = ''; render(); }
   if (a === 'mealToggle') { const m = el.dataset.m; if (mealShut.has(m)) mealShut.delete(m); else { mealShut.add(m); if (addMeal === m) addMeal = null; } render(); }
   if (a === 'syncWeight') { const lw = latestWeight(); if (lw && lw >= 35 && lw <= 250) { S.profile = { ...S.profile, weight: lw }; save(true); render(); toast(`Metas recalculadas com ${fmt(lw)} kg`); } }
+  if (a === 'menuChoose') { const k = el.dataset.m + '|' + el.dataset.s; menuChoose = menuChoose === k ? null : k; render(); }
+  if (a === 'menuPick') {
+    const plan = menuOf(), meal = el.dataset.m, sk = el.dataset.s, n = el.dataset.n;
+    if (!plan || !foodByName(n) || !menuSubs(meal, sk, '').includes(n)) return;
+    plan.meals[meal].pick[sk] = n; plan.edited = true; menuChoose = null; save(true); render();
+  }
   if (a === 'menuMake') { makeMenu(curDay()); save(true); render(); toast('Cardápio montado'); }
   if (a === 'menuTrain') { S.ui.mtrain ||= {}; S.ui.mtrain[curDay()] = el.dataset.v === '1'; save(true); render(); }
   if (a === 'menuSwap') {
     const plan = menuOf(); if (!plan) return;
     plan.sw = (plan.sw || 0) + 1;
     const n = swapPick(plan.meals, el.dataset.m, el.dataset.s, menuCtx(), plan.seed || 1, plan.sw);
-    if (n) { plan.meals[el.dataset.m].pick[el.dataset.s] = n; save(true); render(); } else toast('Sem outra opção pra esse item com suas restrições');
+    if (n) { plan.meals[el.dataset.m].pick[el.dataset.s] = n; plan.edited = true; save(true); render(); } else toast('Sem outra opção pra esse item com suas restrições');
   }
   if (a === 'menuEat') {
     const m = solvedMenu(), meal = el.dataset.m; if (!m || m.plan.meals[meal]?.done) return;
@@ -1428,7 +1458,7 @@ document.addEventListener('click', async e => {
     for (let i = 0; i < 7; i++) {
       const d = new Date(start + 'T12:00'); d.setDate(d.getDate() + i); const k = dayKey(d);
       const cur = menuOf(k);
-      if (!cur || !MENU_MEALS.some(x => cur.meals[x]?.done)) makeMenu(k, prev);
+      if (!cur || !(cur.edited === true || MENU_MEALS.some(x => cur.meals[x]?.done))) makeMenu(k); // mantém o que a pessoa escolheu ou já comeu
       prev = new Set(Object.values(S.ui.menu[k].meals).flatMap(x => Object.values(x.pick || {})));
     }
     S.ui.shop = { from: start, done: {} }; shopOpen = true; save(true); render(); toast('7 dias planejados');

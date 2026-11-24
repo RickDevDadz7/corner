@@ -13,6 +13,7 @@ const LUNCH = m => [
   { k: 'leg', roles: ['leg'], m, s: 'fix', opt: true, pAlt: true },
   { k: 'prot', roles: ['prot'], m, s: 'P' },
   { k: 'carb', roles: ['carb'], m, s: 'C' },
+  { k: 'carb2', roles: ['carb'], m, s: 'C', opt: true, big: true },
   { k: 'oleo', roles: ['oleo'], m, s: 'F', opt: true }
 ];
 export const SLOTS = {
@@ -36,6 +37,13 @@ export const SLOTS = {
 // o que é comum no prato brasileiro aparece mais; fígado e afins, de vez em quando
 const COMMON = new Set(['Arroz branco cozido', 'Arroz integral cozido', 'Feijão carioca cozido', 'Feijão preto cozido', 'Peito de frango grelhado', 'Patinho grelhado', 'Carne moída (patinho) refogada', 'Tilápia grelhada', 'Ovo cozido (1 un ≈ 50 g)', 'Ovo frito (1 un ≈ 50 g)', 'Omelete simples (2 ovos)', 'Pão francês (1 un ≈ 50 g)', 'Pão integral (fatia ≈ 25 g)', 'Tapioca (1 disco ≈ 50 g de goma)', 'Cuscuz de milho cozido', 'Leite integral (ml)', 'Leite desnatado (ml)', 'Iogurte natural', 'Queijo minas frescal', 'Banana prata', 'Maçã', 'Mamão papaia', 'Laranja', 'Batata-doce cozida', 'Salada (alface e tomate)', 'Brócolis cozido', 'Cenoura crua', 'Tomate', 'Alface', 'Azeite de oliva', 'Aveia em flocos', 'Whey protein (varia por marca)']);
 const RARE = new Set(['Fígado bovino grelhado', 'Camarão cozido', 'Clara de ovo cozida', 'Uva passa', 'Linhaça', 'Ricota', 'Quinoa cozida', 'Milho verde (lata, escorrido)', 'Frango desfiado (peito cozido)']);
+// verduras que já estão dentro de outra (salada = alface + tomate)
+const SALAD = 'Salada (alface e tomate)';
+const fam = n => String(n || '').split(' ')[0]; // Arroz branco e Arroz integral = mesma família
+export const sameCarb = (a, b) => !!a && !!b && fam(a) === fam(b);
+const clash = (a, b) => !!a && !!b && (a === b || (a === SALAD && /^(Alface|Tomate)$/.test(b)) || (b === SALAD && /^(Alface|Tomate)$/.test(a)));
+// a base (arroz, feijão, azeite) pode repetir todo dia; proteína, verdura, fruta e café da manhã rodam
+const ROTATE = new Set(['prot', 'veg', 'fruta', 'pao', 'lat', 'gord']);
 // sorteio com semente: o mesmo cardápio volta igual ao abrir de novo
 function rnd(str) { let h = 2166136261; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return ((h >>> 0) % 10000) / 10000; }
 
@@ -67,8 +75,8 @@ const ZERO = { k: 0, p: 0, c: 0, f: 0, fb: 0 };
 export function candidates(meal, slot, ctx, used = new Set(), seed = 0, avoid = new Set()) {
   let list = FOODS.filter(f => f.r && slot.roles.includes(f.r) && f.ml?.includes(slot.m) && ctx.ok(f.n) && ctx.pantry?.[f.n] !== 'nao');
   if (ctx.strict) { const mine = list.filter(f => ['tem', 'comprar'].includes(ctx.pantry?.[f.n])); if (mine.length) list = mine; }
-  const score = f => rnd(`${seed}|${meal}|${slot.k}|${f.n}`) + (ctx.pantry?.[f.n] === 'tem' ? 0.6 : ctx.pantry?.[f.n] === 'comprar' ? 0.45 : 0) - (used.has(f.n) ? 2 : 0) - (avoid.has(f.n) ? 0.8 : 0)
-    + (COMMON.has(f.n) ? 0.35 : 0) - (RARE.has(f.n) ? 0.45 : 0) + (meal === 'lanche' && slot.k === 'base' && f.r === 'fruta' ? 0.3 : 0) - (slot.s === 'P' && f.p > 0 && f.f / f.p > 0.5 ? 0.5 : 0);
+  const score = f => rnd(`${seed}|${meal}|${slot.k}|${f.n}`) + (ctx.pantry?.[f.n] === 'tem' ? 0.6 : ctx.pantry?.[f.n] === 'comprar' ? 0.45 : 0) - (used.has(f.n) ? 2 : 0) - (avoid.has(f.n) && ROTATE.has(f.r) ? 0.8 : 0)
+    + (COMMON.has(f.n) ? 0.35 : 0) + (meal === 'almoco' && /^(Arroz|Feijão)/.test(f.n) ? 0.6 : 0) - (RARE.has(f.n) ? 0.45 : 0) + (meal === 'lanche' && slot.k === 'base' && f.r === 'fruta' ? 0.3 : 0) - (slot.s === 'P' && f.p > 0 && f.f / f.p > 0.5 ? 0.5 : 0);
   return list.map(f => [f, score(f)]).sort((a, b) => b[1] - a[1]).map(x => x[0]);
 }
 
@@ -80,7 +88,7 @@ export function pickDay(ctx, seed, avoid = new Set()) {
     for (const slot of SLOTS[meal]) {
       if (slot.big && !ctx.big) continue; // pão extra no lanche só pra quem come muito
       if (slot.k === 'gord' && rnd(`${seed}|opt|${meal}|${slot.k}`) < 0.35) continue; // oleaginosa nem sempre
-      const c = candidates(meal, slot, ctx, used, seed, avoid).filter(f => !(slot.k === 'veg2' && f.n === pick.veg));
+      const c = candidates(meal, slot, ctx, used, seed, avoid).filter(f => !(slot.k === 'veg2' && clash(f.n, pick.veg)) && !(slot.k === 'carb2' && sameCarb(f.n, pick.carb)));
       if (c.length) { pick[slot.k] = c[0].n; used.add(c[0].n); }
     }
     meals[meal] = { pick, done: false };
@@ -93,7 +101,7 @@ export function swapPick(meals, meal, slotK, ctx, seed, n) {
   const slot = SLOTS[meal].find(s => s.k === slotK); if (!slot) return null;
   const used = new Set(Object.values(meals).flatMap(m => Object.values(m?.pick || {})));
   const cur = meals[meal]?.pick?.[slotK];
-  const c = candidates(meal, slot, ctx, used, `${seed}|swap${n}`).filter(f => f.n !== cur && !(slotK === 'veg2' && f.n === meals[meal]?.pick?.veg) && !(slotK === 'veg' && f.n === meals[meal]?.pick?.veg2));
+  const pk = meals[meal]?.pick || {}; const c = candidates(meal, slot, ctx, used, `${seed}|swap${n}`).filter(f => f.n !== cur && !(slotK === 'veg2' && clash(f.n, pk.veg)) && !(slotK === 'veg' && clash(f.n, pk.veg2)) && !(slotK === 'carb2' && sameCarb(f.n, pk.carb)) && !(slotK === 'carb' && sameCarb(f.n, pk.carb2)));
   return c[0]?.n || null;
 }
 
@@ -108,7 +116,7 @@ function solveMeal(meal, pick, tgt, sc) {
   const driveOf = s => s === alt ? 'P' : s.s;
   for (const st of ['fix', 'P', 'C', 'F']) {
     for (const slot of slots.filter(s => driveOf(s) === st)) {
-      const f = BY.get(pick[slot.k]), b = bounds(f, slot, sc);
+      const f = BY.get(pick[slot.k]), b0 = bounds(f, slot, sc), b = slot.k === 'carb' && slots.some(x => x.k === 'carb2') && !f.un ? { ...b0, hi: Math.min(b0.hi, 230) } : b0;
       let g;
       if (st === 'fix') g = f.un ? f.un[0] : f.md && ['fruta', 'lat'].includes(f.r) ? f.md[1] : f.g;
       else {
