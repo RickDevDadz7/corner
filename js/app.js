@@ -1689,6 +1689,9 @@ async function afterLogin() {
 
 views.perfil = () => `<section class="head"><h1>Perfil e ajustes</h1></section>
   ${accountCard()}
+  <div class="card"><div class="row between"><h3>Aparência</h3><small class="muted">só neste aparelho</small></div>
+    <div class="segs small" id="themeSeg">${[['auto', 'Automático'], ['light', 'Claro'], ['dark', 'Escuro']].map(([v, n]) => `<button class="${(window.roninTheme?.get() || 'auto') === v ? 'on' : ''}" data-act="themeSet" data-v="${v}">${n}</button>`).join('')}</div>
+    <small class="muted">Automático segue o modo do celular. Atalho: o botão de lua/sol no topo.</small></div>
   ${views.onboarding().replace('<section class="head"><h1>Perfil</h1></section>', '')}
   <div class="card form"><h3>Coach com IA</h3>
     <p class="small muted">Chave da API Anthropic (console.anthropic.com). Cobrança por uso, separada da assinatura do Claude. Fica só neste aparelho e fora dos backups e da sincronização.</p>
@@ -1939,6 +1942,8 @@ function setAmount(id, amt) {
 document.addEventListener('click', async e => {
   const el = e.target.closest('[data-act]'); if (!el) return;
   const a = el.dataset.act;
+  if (a === 'theme') { const dark = window.roninTheme?.isDark(); window.roninTheme?.set(dark ? 'light' : 'dark'); toast(dark ? 'Modo claro' : 'Modo escuro'); if (location.hash === '#perfil') render(); return; }
+  if (a === 'themeSet') { window.roninTheme?.set(el.dataset.v); render(); return; }
   if (a === 'water') addWater(+el.dataset.v);
   if (a === 'clearWater') {
     // dois toques: o primeiro arma, o segundo (em até 4 s) apaga
