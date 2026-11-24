@@ -395,6 +395,7 @@ views.hoje = () => {
   ];
   const okN = tiles.filter(x => x.ok).length;
   return `<section class="head"><div>${viewDay ? '<small class="muted">Editando um dia passado</small><br>' : `<small class="muted">${greet}</small><br>`}<h1>${viewDay ? 'Registro' : 'Hoje'}</h1></div></section>
+  ${viewDay ? '' : draftBanner()}
   ${dayNav()}
   ${viewDay ? '' : `<div class="dayrow" aria-label="Resumo do dia: ${okN} de 4">${tiles.map(x => `<button class="dtile ${x.ok ? 'ok' : ''}" data-act="jump" data-to="${x.id}">${x.ico}<b>${x.n}</b><small>${x.ok ? '✓ ' : ''}${esc(x.v)}</small></button>`).join('')}</div>`}
   <div class="card glow" id="h-nutri">
@@ -826,6 +827,7 @@ views.treino = () => {
   const extras = mySports().filter(id => SPORTS[id].sc.length).map(id => SPORTS[id].n);
   const nx = nextSessionIdx(plan);
   return `<section class="head"><h1>Força</h1><a class="chip" href="#rotinas">Trocar rotina</a></section>
+  ${draftBanner()}
   <div class="card rcard" id="t-rotina">
     <div class="row between"><small class="cat">Minha rotina</small><span class="rbadge">Ativa</span></div>
     <h2>${esc(r.auto ? plan.split : r.name)}</h2>
@@ -909,33 +911,118 @@ views.ver = (idx) => {
   ${d.items.length ? `<a class="btn primary block" href="#sessao-${idx}">Começar este treino</a>` : `<a class="btn block" href="#rotina">Adicionar exercícios</a>`}`;
 };
 
-let draft = null;
+// ---------- Execução do treino ----------
+// rascunho do treino em andamento fica guardado no aparelho (sobrevive a fechar o app no meio da série)
+const DRAFT_KEY = 'ronin:draft';
+let draft = (() => { try { const d = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null'); return d && d.sid && d.sets && typeof d.sets === 'object' ? d : null; } catch (e) { return null; } })();
+function saveDraft() { try { draft ? localStorage.setItem(DRAFT_KEY, JSON.stringify(draft)) : localStorage.removeItem(DRAFT_KEY); } catch (e) { } }
+const lastFor = (ex, beforeId) => { for (let i = S.logs.workouts.length - 1; i >= 0; i--) { const w = S.logs.workouts[i]; if (w.id === beforeId) continue; if (w.sets?.[ex]?.some(s => s && s.reps)) return { sets: w.sets[ex], date: w.date }; } return null; };
+const setsTxt = sets => sets.filter(s => s && s.reps).map(s => `${s.kg ? fmt(s.kg) + '×' : ''}${s.reps}`).join(', ');
+const mmss = sec => `${Math.floor(sec / 60)}:${String(Math.floor(sec % 60)).padStart(2, '0')}`;
+let noteOpen = null;
+const draftDone = () => Object.values(draft?.sets || {}).flat().filter(x => x && x.reps).length;
+const regTxt = () => { const n = draftDone(); return n === 1 ? '1 série registrada' : n + ' séries registradas'; };
+const draftHas = () => !!draft && draftDone() > 0;
+const draftIdx = () => draft ? activePlan().days.findIndex(d => d.sid === draft.sid) : -1;
+const draftBanner = () => draftHas() ? `<a class="card draftban" href="${draftIdx() >= 0 ? '#sessao-' + draftIdx() : '#resumo'}"><span class="grow"><small class="cat">Treino em andamento</small><b>${esc(draft.name)}</b><small>${regTxt()} · toque pra continuar</small></span><span>→</span></a>` : '';
 views.sessao = (idx) => {
   const plan = activePlan();
   const day = plan.days[+idx] || plan.days[0];
   if (!day) { location.hash = '#treino'; return ''; }
-  if (!draft || draft.sid !== day.sid) draft = { idx: day.idx, key: day.key, sid: day.sid, rid: plan.routine.id, name: day.name, date: today(), sets: {} };
-  const lastFor = ex => { for (let i = S.logs.workouts.length - 1; i >= 0; i--) { const w = S.logs.workouts[i]; if (w.sets[ex]?.some(s => s && s.reps)) return w.sets[ex]; } return null; };
-  return `<section class="head"><a href="#treino" class="back">←</a><h1>${esc(day.name)}</h1></section>
-  <p class="note small">Aqueça 5–10 min + 1–2 séries leves no 1º composto. Exercícios de potência primeiro, sempre descansado.</p>
-  ${day.items.map(it => {
-    const e = EXERCISES[it.ex], sg = suggest(it, lastFor(it.ex));
-    const unit = e.u === 's' ? 'seg' : e.u === 'm' ? 'm' : 'reps';
-    const rows = Array.from({ length: it.sets }, (_, s) => {
-      const v = draft.sets[it.ex]?.[s] || {};
-      return `<div class="set ${v.reps ? 'done' : ''}"><span class="mono">${s + 1}</span>
-        ${e.inc ? `<input data-set="${esc(it.ex)}|${s}|kg" inputmode="decimal" placeholder="${esc(sg.kg ?? 'kg')}" value="${esc(v.kg ?? '')}">` : `<span class="muted small">${e.band ? 'elástico' : e.t === 'power' ? 'explosivo' : 'peso corporal'}</span>`}
-        <input data-set="${esc(it.ex)}|${s}|reps" inputmode="numeric" placeholder="${it.lo === it.hi ? it.lo : it.lo + '–' + it.hi}" value="${esc(v.reps ?? '')}">
-        <span class="small muted">${unit}</span></div>`;
+  if (draft && draft.sid !== day.sid && draftHas()) {
+    const di = draftIdx();
+    return `<section class="head"><div><a href="#treino" class="backlink">← Força</a><h1>${esc(day.name)}</h1></div></section>
+    <div class="card panel"><h3>Você tem um treino em andamento</h3><p class="small"><b>${esc(draft.name)}</b> · ${regTxt()}. Termine ou descarte antes de começar outro.</p>
+      ${di >= 0 ? `<a class="btn primary block" href="#sessao-${di}">Continuar ${esc(draft.name)}</a>` : ''}<a class="btn block" href="#resumo">Ver resumo e salvar</a>
+      <button class="linkbtn center-link" data-act="discardWorkout" data-then="${+idx}">Descartar e começar ${esc(day.name)}</button></div>`;
+  }
+  if (!draft || draft.sid !== day.sid) { draft = { idx: day.idx, key: day.key, sid: day.sid, rid: plan.routine.id, name: day.name, date: today(), start: Date.now(), sets: {}, open: 0 }; saveDraft(); }
+  const planned = day.items.reduce((a, b) => a + b.sets, 0);
+  const doneN = day.items.reduce((a, it) => a + (draft.sets[it.ex] || []).filter(x => x?.done).length, 0);
+  return `<section class="head"><div><a href="#treino" class="backlink">← Força</a><h1>${esc(day.name)}</h1></div><a class="chip" href="#ver-${day.idx}">Ver treino</a></section>
+  <div class="card sprog" id="sprog"><div class="row between"><b class="mono">${doneN} de ${planned} séries</b><span class="mono" id="sessClock">⏱ ${mmss((Date.now() - draft.start) / 1000)}</span></div>
+    <div class="kbar"><div style="width:${planned ? Math.round(doneN / planned * 100) : 0}%"></div></div>
+    <small class="muted">Aqueça 5–10 min e faça 1–2 séries leves no primeiro composto. Potência primeiro, sempre descansado.</small></div>
+  ${day.items.map((it, xi) => {
+    const e = EXERCISES[it.ex], last = lastFor(it.ex), sg = suggest(it, last?.sets);
+    const unit = e.u === 's' ? 's' : e.u === 'm' ? 'm' : 'reps';
+    const got = draft.sets[it.ex] || [], dn = got.filter(x => x?.done).length;
+    const open = draft.open === xi;
+    if (!open) return `<div class="card ex mini ${dn >= it.sets ? 'complete' : ''}" id="ex-${xi}"><button class="exhead" data-act="exOpen" data-i="${xi}"><span class="mono exn">${xi + 1}</span><span class="grow"><b>${esc(it.name)}</b><small>${dn >= it.sets ? '✓ ' : ''}${dn} de ${it.sets} séries${dn ? ' · ' + esc(setsTxt(got)) : ''}</small></span><span>▾</span></button></div>`;
+    const rows = Array.from({ length: Math.max(it.sets, got.length) }, (_, s) => {
+      const v = got[s] || {}, extra = s >= it.sets;
+      return `<div class="set ${v.done ? 'done' : ''} ${extra ? 'extra' : ''}"><span class="mono">${s + 1}</span>
+        ${e.inc ? `<input data-set="${esc(it.ex)}|${s}|kg" inputmode="decimal" placeholder="${esc(sg.kg ?? (last ? Math.max(...last.sets.map(x => +x.kg || 0)) || 'kg' : 'kg'))}" value="${esc(v.kg ?? '')}" aria-label="Carga série ${s + 1}">` : `<span class="muted small">${e.band ? 'elástico' : e.t === 'power' ? 'explosivo' : 'peso corporal'}</span>`}
+        <input data-set="${esc(it.ex)}|${s}|reps" inputmode="numeric" placeholder="${repsOf(it)}" value="${esc(v.reps ?? '')}" aria-label="${unit} série ${s + 1}">
+        <button class="sdone" data-act="setDone" data-ex="${esc(it.ex)}" data-s="${s}" data-i="${xi}" aria-label="${v.done ? 'Desmarcar' : 'Concluir'} série ${s + 1}">${v.done ? '✓' : '○'}</button>
+        <button class="snote ${v.note ? 'has' : ''}" data-act="setNote" data-k="${esc(it.ex)}|${s}" aria-label="Observação da série ${s + 1}">✎</button></div>
+        ${noteOpen === `${it.ex}|${s}` ? `<input class="setnote" data-set="${esc(it.ex)}|${s}|note" maxlength="120" placeholder="Observação (ex.: dor no ombro, pegada fechada)" value="${esc(v.note || '')}">` : v.note ? `<small class="muted setnote-t">✎ ${esc(v.note)}</small>` : ''}`;
     }).join('');
     const lv = e.vars ? `<div class="lvl-row"><button class="lvlbtn" data-act="lvl" data-ex="${it.ex}" data-d="-1" ${it.lvl <= 0 ? 'disabled' : ''} aria-label="Mais fácil">‹</button>
-        <span class="small">Nível ${it.lvl + 1}/${e.vars.length}</span><button class="lvlbtn ${sg.up ? 'hot' : ''}" data-act="lvl" data-ex="${it.ex}" data-d="1" ${it.lvl >= e.vars.length - 1 ? 'disabled' : ''} aria-label="Mais difícil">›</button></div>` : '';
-    return `<div class="card ex"><div class="row between"><h3>${esc(it.name)}</h3><span class="chip">${it.sets}×${it.lo === it.hi ? it.lo : it.lo + '–' + it.hi}${e.u && e.u !== 's' && e.u !== 'm' ? e.u : ''}</span></div>
-      ${lv}<p class="small muted">${esc(e.cue)}${it.rir ? ` · RIR ${it.rir} · descanso ${it.rest}` : ''}</p>
-      <p class="small sug">${esc(sg.text)}</p>${rows}</div>`;
+        <span class="small">Nível ${it.lvl + 1} de ${e.vars.length}${it.lvl < e.vars.length - 1 ? ` · próximo: ${esc(e.vars[it.lvl + 1])}` : ' · último nível'}</span><button class="lvlbtn ${sg.up ? 'hot' : ''}" data-act="lvl" data-ex="${it.ex}" data-d="1" ${it.lvl >= e.vars.length - 1 ? 'disabled' : ''} aria-label="Mais difícil">›</button></div>` : '';
+    return `<div class="card ex" id="ex-${xi}"><div class="row between"><h3><span class="mono exn">${xi + 1}</span> ${esc(it.name)}</h3><button class="ibtn" data-act="exOpen" data-i="-1" aria-label="Recolher">▴</button></div>
+      <div class="presc"><small class="cat">Prescrição</small><span><b>${it.sets} séries</b> · <b>${repsOf(it)}</b> ${unit}${e.u && !['s', 'm'].includes(e.u) ? ' ' + esc(e.u) : ''} · descanso <b>${esc(it.rest)}</b>${it.rir ? ` · pare com ${it.rir} na reserva` : ''}</span></div>
+      <p class="small">${esc(e.cue)}${e.req.length ? ` <span class="muted">· ${esc(e.req.map(k => EQUIP[k] || (k === 'gym' ? 'academia' : k)).join(', '))}</span>` : ''}</p>
+      <div class="progbox"><small class="cat">Orientação de progressão</small>
+        <p class="small">Faixa: <b>${repsOf(it)} ${unit}</b>. ${e.vars ? `Quando fizer ${it.hi}+ em todas as séries, avance pro próximo nível.` : e.inc ? `Quando fizer ${it.hi} em todas as séries, suba ${fmt(e.inc)} kg e volte pra ${it.lo}.` : e.t === 'power' ? 'Potência: qualidade acima de cansaço.' : `Quando fizer ${it.hi} em todas as séries, aumente a dificuldade.`}</p>
+        <p class="small sug">${esc(sg.text)}</p>${lv}</div>
+      <div class="realized"><small class="cat">Realizado</small>${last ? `<small class="muted">Última vez (${last.date.split('-').reverse().slice(0, 2).join('/')}): ${esc(setsTxt(last.sets))}</small>` : ''}
+        <div class="sethead"><span>#</span><span>${e.inc ? 'kg' : ''}</span><span>${unit}</span><span></span></div>${rows}
+        <button class="linkbtn" data-act="setAdd" data-ex="${esc(it.ex)}" data-i="${xi}">+ série extra</button></div>
+      ${xi < day.items.length - 1 ? `<button class="btn small block" data-act="exOpen" data-i="${xi + 1}">Próximo: ${esc(day.items[xi + 1].name)} →</button>` : ''}
+    </div>`;
   }).join('')}
-  <button class="btn primary block" data-act="finishWorkout">Finalizar treino</button>`;
+  <button class="btn primary block" data-act="finishWorkout">Finalizar treino</button>
+  <button class="linkbtn center-link" data-act="discardWorkout">Descartar este treino</button>`;
 };
+// resumo antes de salvar
+function workoutStats(w) {
+  let sets = 0, vol = 0, exN = 0;
+  for (const [ex, arr] of Object.entries(w.sets || {})) { const d = (arr || []).filter(x => x && x.reps); if (d.length) exN++; sets += d.length; for (const x of d) if (x.kg) vol += (+x.kg) * (+x.reps); }
+  return { sets, vol, exN };
+}
+const prevSame = (w) => { for (let i = S.logs.workouts.length - 1; i >= 0; i--) { const o = S.logs.workouts[i]; if (o.id !== w.id && o.sid && o.sid === w.sid) return o; } return null; };
+views.resumo = () => {
+  if (!draft) { location.hash = '#treino'; return ''; }
+  const w = { ...draft, sets: cleanSets(draft.sets) }, st = workoutStats(w), pv = prevSame(w), ps = pv ? workoutStats(pv) : null;
+  const dur = Math.round((Date.now() - draft.start) / 60000);
+  const cmp = (a, b, u = '') => b == null ? '' : ` <small class="${a > b ? 'up' : a < b ? 'down' : 'muted'}">${a > b ? '+' : ''}${fmt(a - b, 0)}${u} vs última</small>`;
+  return `<section class="head"><h1>Resumo</h1></section>
+  <div class="card glow"><h3>${esc(draft.name)}</h3>
+    <div class="wstats"><div><small>Exercícios</small><b class="mono">${st.exN}</b></div><div><small>Séries</small><b class="mono">${st.sets}</b>${cmp(st.sets, ps?.sets)}</div><div><small>Duração</small><b class="mono">${dur} min</b></div><div><small>Volume</small><b class="mono">${st.vol ? fmt(st.vol, 0) + ' kg' : '—'}</b>${st.vol && ps?.vol ? cmp(st.vol, ps.vol, ' kg') : ''}</div></div>
+    ${st.vol ? '<small class="muted">Volume = carga × repetições dos exercícios com peso.</small>' : ''}
+    ${pv ? '' : '<small class="muted">Primeira vez nesta sessão: a comparação aparece a partir do próximo treino.</small>'}</div>
+  <div class="card"><ul class="list">${Object.entries(w.sets).map(([ex, arr]) => `<li><div class="grow"><b>${esc(EXERCISES[ex]?.n || ex)}</b><small>${esc(setsTxt(arr))}</small></div></li>`).join('') || '<li class="muted small">Nenhuma série registrada.</li>'}</ul></div>
+  <div class="card"><label>Como foi o treino? <small>(opcional)</small><textarea id="wNote" maxlength="300" rows="3" placeholder="Energia, dor, sono, o que mudar na próxima…">${esc(draft.note || '')}</textarea></label></div>
+  <button class="btn primary block" data-act="saveWorkout" ${st.sets ? '' : 'disabled'}>Salvar treino</button>
+  ${draftIdx() >= 0 ? `<a class="btn block" href="#sessao-${draftIdx()}">Voltar pro treino</a>` : ''}`;
+};
+const cleanSets = sets => Object.fromEntries(Object.entries(sets || {}).map(([k, v]) => [k, (v || []).filter(x => x && (x.reps || x.kg)).map(x => ({ kg: x.kg ?? null, reps: x.reps ?? null, done: !!x.done, ...(x.note ? { note: String(x.note).slice(0, 120) } : {}) }))]).filter(([, v]) => v.length));
+
+// cronômetro de descanso: barra fixa acima da navegação, não some quando a tela redesenha
+const REST = { end: 0, left: 0, total: 0, paused: false, iv: null, label: '' };
+function restStart(sec, label) {
+  if (!sec) return;
+  Object.assign(REST, { total: sec, left: sec, end: Date.now() + sec * 1000, paused: false, label });
+  audio(); restTick(); clearInterval(REST.iv); REST.iv = setInterval(restTick, 250);
+}
+function restStop() { clearInterval(REST.iv); REST.iv = null; REST.end = 0; $('#restbar')?.remove(); document.body.classList.remove('resting'); }
+function restTick() {
+  if (!REST.paused) REST.left = Math.max(0, (REST.end - Date.now()) / 1000);
+  let bar = $('#restbar');
+  if (!bar) { bar = document.createElement('div'); bar.id = 'restbar'; bar.className = 'restbar'; document.body.appendChild(bar); document.body.classList.add('resting'); }
+  const doneNow = REST.left <= 0;
+  bar.classList.toggle('over', doneNow);
+  bar.innerHTML = `<div class="rb-fill" style="width:${REST.total ? (1 - REST.left / REST.total) * 100 : 0}%"></div>
+    <div class="rb-row"><div class="grow"><small>${doneNow ? 'Descanso acabou' : 'Descanso'}${REST.label ? ' · ' + esc(REST.label) : ''}</small><b class="mono">${doneNow ? 'Bora!' : mmss(Math.ceil(REST.left))}</b></div>
+    ${doneNow ? '<button data-act="restSkip">OK</button>' : `<button data-act="restAdj" data-d="-15" aria-label="Menos 15 segundos">−15</button><button data-act="restAdj" data-d="15" aria-label="Mais 15 segundos">+15</button>
+    <button data-act="restPause" aria-label="${REST.paused ? 'Continuar' : 'Pausar'}">${REST.paused ? '▶' : '❚❚'}</button><button data-act="restReset" aria-label="Reiniciar">↺</button><button data-act="restSkip">Pular</button>`}</div>`;
+  const clk = $('#sessClock'); if (clk && draft) clk.textContent = '⏱ ' + mmss((Date.now() - draft.start) / 1000);
+  if (doneNow && REST.iv && !REST.rang) { REST.rang = true; bell(1); }
+  if (!doneNow) REST.rang = false;
+}
+// relógio da sessão mesmo sem descanso rolando
+setInterval(() => { const c = $('#sessClock'); if (c && draft) c.textContent = '⏱ ' + mmss((Date.now() - draft.start) / 1000); }, 1000);
 
 // ---------------- Timer ----------------
 const TM = { phase: 'idle', round: 0, end: 0, left: 0, paused: false, iv: null, warned: false, combo: '', nextCall: 0 };
@@ -1332,7 +1419,7 @@ function render() {
   const ms = mySports();
   const spLabel = ms.length === 1 ? SPORTS[ms[0]].n : 'Esporte';
   const tabs = [['hoje', 'Hoje'], ['nutri', 'Nutrição'], ['treino', 'Força'], ['esporte', spLabel], ['coach', 'Coach']];
-  $('#nav').innerHTML = tabs.map(([id, label]) => `<a href="#${id}" class="${(v === id || ((v === 'sessao' || v === 'rotinas' || v === 'rotina' || v === 'ver') && id === 'treino') || (v === 'cardapio' && id === 'nutri') || ((v === 'tecnica' || v === 'tecnicas') && id === 'esporte')) ? 'on' : ''}"><svg viewBox="0 0 24 24"><path d="${ICONS[id]}"/></svg><span>${esc(label)}</span></a>`).join('');
+  $('#nav').innerHTML = tabs.map(([id, label]) => `<a href="#${id}" class="${(v === id || ((v === 'sessao' || v === 'rotinas' || v === 'rotina' || v === 'ver' || v === 'resumo') && id === 'treino') || (v === 'cardapio' && id === 'nutri') || ((v === 'tecnica' || v === 'tecnicas') && id === 'esporte')) ? 'on' : ''}"><svg viewBox="0 0 24 24"><path d="${ICONS[id]}"/></svg><span>${esc(label)}</span></a>`).join('');
   bindAfter(v, arg);
   if (window.scrollY !== keepY) window.scrollTo(0, keepY);
   if (v === 'esporte') paintTimer();
@@ -1629,11 +1716,45 @@ document.addEventListener('click', async e => {
   if (a === 'delFood') { const id = el.dataset.id; S.logs.food[curDay()] = (S.logs.food[curDay()] || []).filter(x => x.id !== id); S.del[id] = Date.now(); save(); render(); }
   if (a === 'toggleAdaptive') { S.settings.adaptive = el.checked; save(true); render(); }
   if (a === 'finishWorkout') {
-    const n = Object.values(draft?.sets || {}).flat().filter(s => s && s.reps).length;
-    if (!n) { toast('Registre pelo menos uma série.'); return; }
-    S.logs.workouts.push({ ...draft, id: newId(), sets: Object.fromEntries(Object.entries(draft.sets).map(([k, v]) => [k, v.filter(Boolean)])) });
-    draft = null; save(); toast(`Treino salvo: ${n} séries`); location.hash = '#treino';
+    const n = Object.values(draft?.sets || {}).flat().filter(x => x && x.reps).length;
+    if (!n) { toast('Registre pelo menos uma série (carga e repetições).'); return; }
+    location.hash = '#resumo';
   }
+  if (a === 'saveWorkout') {
+    if (!draft) return; const sets = cleanSets(draft.sets), n = Object.values(sets).flat().filter(x => x.reps).length; if (!n) return;
+    const note = ($('#wNote')?.value || '').trim().slice(0, 300);
+    S.logs.workouts.push({ id: newId(), idx: draft.idx, key: draft.key, sid: draft.sid, rid: draft.rid, name: draft.name, date: draft.date, start: draft.start, dur: Math.round((Date.now() - draft.start) / 1000), sets, ...(note ? { note } : {}) });
+    draft = null; saveDraft(); restStop(); save(); toast(`Treino salvo: ${n} séries`); location.hash = '#treino';
+  }
+  if (a === 'discardWorkout') {
+    if (!draft) return;
+    if (rtArm !== 'discard') { rtArm = 'discard'; el.textContent = 'Toque de novo pra descartar'; setTimeout(() => { if (rtArm === 'discard') { rtArm = null; if (el.isConnected) el.textContent = 'Descartar este treino'; } }, 3500); return; }
+    rtArm = null; draft = null; saveDraft(); restStop(); toast('Treino descartado'); if (el.dataset.then != null) render(); else location.hash = '#treino';
+  }
+  if (a === 'exOpen') { if (!draft) return; draft.open = +el.dataset.i; saveDraft(); render(); if (draft.open >= 0) requestAnimationFrame(() => $('#ex-' + draft.open)?.scrollIntoView({ behavior: 'smooth', block: 'start' })); }
+  if (a === 'setDone') {
+    if (!draft) return; const ex = el.dataset.ex, si = +el.dataset.s, it = activePlan().days.find(d => d.sid === draft.sid)?.items.find(x => x.ex === ex); if (!it) return;
+    const arr = (draft.sets[ex] ||= []), v = (arr[si] ||= {});
+    if (v.done) { v.done = false; saveDraft(); render(); return; }
+    // concluir sem digitar: usa o que está escrito no campo (placeholder não conta)
+    const card = el.closest('.set'), kgI = card.querySelector('[data-set$="|kg"]'), rI = card.querySelector('[data-set$="|reps"]');
+    if (kgI && kgI.value) v.kg = num(kgI.value);
+    if (rI && rI.value) v.reps = num(rI.value);
+    if (!v.reps) { toast('Digite as repetições feitas'); rI?.focus(); return; }
+    v.done = true; saveDraft();
+    const doneAll = arr.filter(x => x?.done).length >= it.sets;
+    const day = activePlan().days.find(d => d.sid === draft.sid);
+    if (doneAll && +el.dataset.i < day.items.length - 1) { draft.open = +el.dataset.i + 1; saveDraft(); }
+    render();
+    if (doneAll && draft.open !== +el.dataset.i) requestAnimationFrame(() => $('#ex-' + draft.open)?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+    restStart(it.restS || 90, doneAll ? 'próximo exercício' : `série ${si + 2} de ${it.sets}`);
+  }
+  if (a === 'setAdd') { if (!draft) return; const arr = (draft.sets[el.dataset.ex] ||= []); const it = activePlan().days.find(d => d.sid === draft.sid)?.items.find(x => x.ex === el.dataset.ex); const n = Math.max(arr.length, it?.sets || 0); if (n < 12) { arr[n] = {}; saveDraft(); render(); } }
+  if (a === 'setNote') { noteOpen = noteOpen === el.dataset.k ? null : el.dataset.k; render(); if (noteOpen) $('.setnote')?.focus({ preventScroll: true }); }
+  if (a === 'restAdj') { const d = +el.dataset.d; if (REST.paused) REST.left = Math.max(5, REST.left + d); else REST.end = Math.max(Date.now() + 5000, REST.end + d * 1000); REST.total = Math.max(REST.total, REST.left + d); restTick(); }
+  if (a === 'restPause') { if (REST.paused) { REST.end = Date.now() + REST.left * 1000; REST.paused = false; } else { REST.paused = true; } restTick(); }
+  if (a === 'restReset') restStart(REST.total, REST.label);
+  if (a === 'restSkip') restStop();
   if (a === 'sport') { S.ui.sport = el.dataset.id; save(true); timerReset(); render(); }
   if (a === 'preset') { const p = SPORTS[curSport()].presets.find(x => x.id === el.dataset.id); Object.assign(S.timer, { preset: p.id, rounds: p.rounds, work: p.work, rest: p.rest, program: null }); save(true); timerReset(); render(); }
   if (a === 'tToggle') timerToggle();
@@ -1733,8 +1854,8 @@ document.addEventListener('click', async e => {
 document.addEventListener('input', e => {
   const k = e.target.dataset?.set; if (!k || !draft) return;
   const [ex, i, field] = k.split('|');
-  const arr = (draft.sets[ex] ||= []); arr[+i] = { ...(arr[+i] || {}), [field]: num(e.target.value) };
-  e.target.closest('.set')?.classList.toggle('done', !!arr[+i].reps);
+  const arr = (draft.sets[ex] ||= []); arr[+i] = { ...(arr[+i] || {}), [field]: field === 'note' ? e.target.value.slice(0, 120) : num(e.target.value) };
+  saveDraft();
 });
 
 // ---------------- Início ----------------
