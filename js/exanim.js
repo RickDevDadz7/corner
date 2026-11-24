@@ -547,6 +547,57 @@ def('superman', { ...PAT.superman, cam: 22, tilt: 22 });
   def('seatcrunch', { frames: rep4(up, dn, 800, 1000), steps: ['Sentado, elástico preso atrás no alto, segurando no peito', 'Enrola o tronco pra frente contraindo o abdômen e volta devagar'],
     props: J => [seatBox, { k: 'band', a: mid(J.haL, J.haR), b: [-0.6, 1.7, 0] }] }); }
 
+// ==================== Pranchas laterais vistas de frente (v3.25.1) ====================
+// O esqueleto 3D é de perfil; a prancha lateral acontece no plano da frente. Aqui o boneco é 2D, visto de frente
+// (ombros empilhados, peito virado pra câmera), no mesmo estilo dos outros. Medidas em metros, y pra cima.
+function flatSVG(p, d) {
+  const S = 100, X = v => (8 + (v[0] + 0.75) * S).toFixed(1), Y = v => (178 - v[1] * S).toFixed(1);
+  const seg = (a, b, w, c) => `<line x1="${X(a)}" y1="${Y(a)}" x2="${X(b)}" y2="${Y(b)}" stroke-width="${w}" class="${c}" stroke-linecap="round"/>`;
+  const limb = (pts, w, far) => { let o = '', f = ''; for (let i = 1; i < pts.length; i++) { o += seg(pts[i - 1], pts[i], w + 5, 'fo'); f += seg(pts[i - 1], pts[i], w - 2 * (i - 1), far ? 'fb' : 'fn'); } return o + f; };
+  const poly = (ps, c) => `<polygon points="${ps.map(v => X(v) + ',' + Y(v)).join(' ')}" class="${c}"/>`;
+  const bench = d.bench ? (() => { const [x1, x2, h] = d.bench; return seg([x1 + 0.06, 0], [x1 + 0.06, h], 5, 'prb') + seg([x2 - 0.06, 0], [x2 - 0.06, h], 5, 'prb') + `<rect x="${X([x1, 0])}" y="${Y([0, h + 0.05])}" width="${((x2 - x1) * S).toFixed(1)}" height="${(0.07 * S).toFixed(1)}" rx="2" class="bxt"/>`; })() : '';
+  return `<svg viewBox="0 0 230 200" class="fig" role="img" aria-hidden="true">
+    <line x1="0" y1="178" x2="230" y2="178" class="gr"/>${bench}
+    ${limb([p.Hb, p.Kb, p.Ab], 15, true)}${limb([p.Sb, p.Eb, p.Wb], 12, true)}
+    ${seg(p.N, p.Hd, 9, 'fn')}${poly([p.Sb, p.St, p.Ht, p.Hb], 'tor')}
+    <circle cx="${X(p.Hd)}" cy="${Y(p.Hd)}" r="13" class="hd"/>
+    ${limb([p.Ht, p.Kt, p.At], 16, false)}${poly([p.Hb, p.Ht, p.Pt, p.Pb], 'gf')}${limb([p.St, p.Et, p.Wt], 12, false)}</svg>`;
+}
+// monta a pose de frente a partir de: ombro de baixo (sobre o cotovelo), quadril de baixo e tornozelos
+function flatPose(Sb, Hb, Ab, At, kneeB) {
+  const ax = [Sb[0] - Hb[0], Sb[1] - Hb[1]], L = Math.hypot(...ax), u = [ax[0] / L, ax[1] / L], n = [-u[1], u[0]];
+  const add = (a, v, k) => [a[0] + v[0] * k, a[1] + v[1] * k], mid = (a, b, o) => [(a[0] + b[0]) / 2 + (o?.[0] || 0), (a[1] + b[1]) / 2 + (o?.[1] || 0)];
+  const nn = n[1] < 0 ? [-n[0], -n[1]] : n; // normal sempre pra cima
+  const St = add(Sb, nn, 0.34), Ht = add(Hb, nn, 0.24), Sc = mid(Sb, St), N = add(Sc, u, 0.08);
+  const Pb = add(Hb, u, -0.17), Pt = add(Ht, u, -0.17);
+  return { Sb, St, Hb, Ht, Pb, Pt, N, Hd: add(N, u, 0.14), Eb: [Sb[0] - 0.02, 0.06], Wb: [Sb[0] + 0.1, 0.04],
+    Et: add(add(St, nn, 0.12), u, -0.16), Wt: add(Ht, u, 0.02), Ab, At,
+    Kb: mid(Pb, Ab, kneeB || [0, 0]), Kt: mid(Pt, At, [0, 0.01]) };
+}
+function flatAnimate(el, d, onStep) {
+  const fr = d.flat; let i = 0, t0 = performance.now(), raf = 0, speed = 1, paused = false, pausedAt = 0, last = -1;
+  const ease = t => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+  const frame = now => {
+    let t = (now - t0) / (fr[i].d * speed);
+    while (t >= 1) { t0 += fr[i].d * speed; i = (i + 1) % fr.length; t = (now - t0) / (fr[i].d * speed); }
+    const a = fr[i].p, b = fr[(i + 1) % fr.length].p, k = ease(Math.max(0, t)), pt = {};
+    for (const key in a) pt[key] = [a[key][0] + (b[key][0] - a[key][0]) * k, a[key][1] + (b[key][1] - a[key][1]) * k];
+    el.innerHTML = flatSVG(pt, d);
+    if (onStep && fr[i].step !== last) { last = fr[i].step; onStep(last); }
+    raf = requestAnimationFrame(frame);
+  };
+  raf = requestAnimationFrame(frame);
+  return { stop() { cancelAnimationFrame(raf); paused = true; }, setSpeed(s) { speed = s; }, toggle() { if (paused) { paused = false; t0 += performance.now() - pausedAt; raf = requestAnimationFrame(frame); } else { paused = true; pausedAt = performance.now(); cancelAnimationFrame(raf); } return paused; } };
+}
+{ const Sb = [-0.42, 0.36];
+  // prancha lateral: quadril no chão → corpo em linha reta do pé ao ombro
+  const spDn = flatPose(Sb, [0.12, 0.09], [1.05, 0.05], [1.05, 0.15]), spUp = flatPose(Sb, [0.12, 0.25], [1.05, 0.05], [1.05, 0.15]);
+  PAT.sideplank = { flat: [{ p: spDn, d: 600, step: 0 }, { p: spUp, d: 800, step: 0 }, { p: spUp, d: 1400, step: 1 }, { p: spDn, d: 800, step: 1 }], steps: PAT.sideplank.steps, frames: [] };
+  // Copenhague: tornozelo de cima no banco; a perna de baixo sobe e encosta por baixo do banco
+  const cDn = flatPose(Sb, [0.1, 0.09], [0.82, 0.05], [1.12, 0.47], [0, 0.03]), cUp = flatPose(Sb, [0.1, 0.33], [1.02, 0.3], [1.12, 0.47], [0, -0.02]);
+  PAT.copen = { flat: [{ p: cDn, d: 600, step: 0 }, { p: cUp, d: 800, step: 0 }, { p: cUp, d: 1200, step: 1 }, { p: cDn, d: 800, step: 1 }], bench: [0.92, 1.45, 0.4], steps: PAT.copen.steps, frames: [] };
+}
+
 // exercício → demonstração (sombra explosiva usa o cruzado da aba de luta)
 const ALIAS = { plyopush: 'plyopush' };
 export function hasDemo(ex) { return ex === 'shadowx' || !!PAT[ALIAS[ex] || ex]; }
@@ -565,9 +616,10 @@ function propsFor(d, J, body) {
 }
 export function exThumb(ex, body) {
   const d = demoOf(ex); if (!d) return '';
+  if (d.flat) return flatSVG(d.flat[1].p, d);
   const f = d.frames[Math.min(1, d.frames.length - 1)].p, J = solve(f);
   return draw(J, { gloves: d.gloves, cam: d.cam, ox: d.ox, act: d.act, tilt: d.tilt, zoom: d.zoom, props: propsFor(d, J, body), ...(bodyOpt(body) || {}) });
 }
-export function exFrameSVG(ex, i, body) { const d = demoOf(ex), J = solve(d.frames[i].p); return draw(J, { gloves: d.gloves, cam: d.cam, ox: d.ox, act: d.act, tilt: d.tilt, zoom: d.zoom, props: propsFor(d, J, body), ...(bodyOpt(body) || {}) }); }
-export function exAnimate(el, ex, onStep, body) { const d = demoOf(ex); if (!d) return null; const bo = bodyOpt(body); return animTech(el, bo ? { ...d, props: J => propsFor(d, J, body), body: bo } : d, onStep); }
+export function exFrameSVG(ex, i, body) { const d0 = demoOf(ex); if (d0?.flat) return flatSVG(d0.flat[Math.min(i, d0.flat.length - 1)].p, d0); const d = d0, J = solve(d.frames[i].p); return draw(J, { gloves: d.gloves, cam: d.cam, ox: d.ox, act: d.act, tilt: d.tilt, zoom: d.zoom, props: propsFor(d, J, body), ...(bodyOpt(body) || {}) }); }
+export function exAnimate(el, ex, onStep, body) { const d = demoOf(ex); if (!d) return null; if (d.flat) return flatAnimate(el, d, onStep); const bo = bodyOpt(body); return animTech(el, bo ? { ...d, props: J => propsFor(d, J, body), body: bo } : d, onStep); }
 export const DEMO_IDS = Object.keys(PAT);

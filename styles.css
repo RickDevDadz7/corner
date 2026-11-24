@@ -740,3 +740,5 @@ body.resting #app{padding-bottom:calc(176px + var(--safe-b))}
 .fig .bh-line{stroke:var(--sheet);stroke-width:1;fill:none}
 .fig .mus{stroke:var(--acc);opacity:.6}
 .fig .twl{stroke:#8f8778;stroke-dasharray:4 3}
+.fig .fn{stroke:var(--ink)}.fig .fb{stroke:#a39b8e}.fig .fo{stroke:var(--sheet)}
+:root[data-theme=dark] .fig .fb{stroke:#6d665a}
