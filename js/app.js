@@ -91,7 +91,7 @@ let viewDay = null; // null = hoje
 const curDay = () => viewDay || today();
 function shiftDay(n) { const d = new Date(curDay() + 'T12:00'); d.setDate(d.getDate() + n); const k = dayKey(d); viewDay = k >= today() ? null : k; }
 function dayLabel(k) { const d = new Date(k + 'T12:00'); const diff = Math.round((new Date(today() + 'T12:00') - d) / 864e5); return diff === 0 ? 'Hoje' : diff === 1 ? 'Ontem' : d.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' }); }
-function dayNav() { const k = curDay(); return `<div class="daynav"><button data-act="day" data-d="-1" aria-label="Dia anterior">‹</button><span>${esc(dayLabel(k))}${viewDay ? ` <small class="muted">${k.split('-').reverse().join('/')}</small>` : ''}</span><button data-act="day" data-d="1" ${viewDay ? '' : 'disabled'} aria-label="Próximo dia">›</button>${viewDay ? '<button class="linkbtn" data-act="dayToday">voltar pra hoje</button>' : ''}</div>`; }
+function dayNav() { const k = curDay(); return `<div class="daynav"><button data-act="day" data-d="-1" aria-label="Dia anterior">‹</button><label class="dpick" title="Escolher data"><span>${esc(dayLabel(k))}${viewDay ? ` <small class="muted">${k.split('-').reverse().join('/')}</small>` : ''}</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v14H4zM4 10h16M8 3v5M16 3v5"/></svg><input type="date" class="dayPick" value="${k}" max="${today()}" aria-label="Escolher data"></label><button data-act="day" data-d="1" ${viewDay ? '' : 'disabled'} aria-label="Próximo dia">›</button>${viewDay ? '<button class="linkbtn" data-act="dayToday">voltar pra hoje</button>' : ''}</div>`; }
 const num = v => { const n = parseFloat(String(v).replace(',', '.')); return isNaN(n) ? null : n; };
 function toast(msg) {
   const t = $('#toast'); if (!t) return; t.textContent = msg; t.classList.add('show');
@@ -173,7 +173,7 @@ function macroBar(name, v, max, color) {
     <small class="left">${v >= max && max ? 'meta batida ✓' : `faltam ${fmt(left, 0)} g`}</small></div>`;
 }
 // garrafa de água: enche até o traço do ideal e continua acima dele (sem teto)
-let lastWaterPct = null, wlOpen = false, clearArm = 0;
+let lastWaterPct = null, wlOpen = false, clearArm = 0, comoOpen = false;
 function waterBottle(v, goal) {
   const cap = Math.max(goal * 1.25, v * 1.08), pct = Math.min(100, v / cap * 100), mk = goal / cap * 100;
   const from = lastWaterPct ?? pct; lastWaterPct = pct;
@@ -389,7 +389,7 @@ views.nutri = () => {
     </ul>
     ${t.notes.length || dayHits(curDay()).length ? '' : '<p class="small muted">Nenhum alerta: seus dados não indicam nada fora da faixa.</p>'}
   </div>
-  <details class="card" id="n-como"><summary><h3>Como cheguei nesse número</h3></summary>
+  <details class="card" id="n-como" ${comoOpen ? 'open' : ''}><summary><h3>Como cheguei nesse número</h3></summary>
     <small class="cat">Seus dados usados</small>
     <p class="small">${p.sex === 'f' ? 'Mulher' : 'Homem'}, ${esc(p.age)} anos, ${esc(p.height)} cm, <b>${fmt(p.weight)} kg</b>${p.bf ? `, ${fmt(p.bf, 0)}% de gordura` : ''} · ${esc(NEAT[p.neat] || 'fator ' + p.neat)} · ${actDays} treinos/semana · ${esc(GOALS[p.goal] || p.goal)}${p.goal === 'cut' ? ` (${fmt(p.rate || 0.5, 2)}%/semana)` : ''}</p>
     ${Math.abs(wDiff) >= 0.5 ? `<div class="note small">Seu último peso registrado é <b>${fmt(lw)} kg</b>, mas as metas usam ${fmt(p.weight)} kg do perfil.
@@ -518,6 +518,13 @@ async function scanFound(code) {
     addFood({ n: p.n, g, u: p.u, st: g <= 60 ? g : 10, k: p.k * m, p: p.p * m, c: p.c * m, f: p.f * m, fb: p.fb * m, x: p.x, bc: p.code });
   });
 }
+// calendário do seletor de dia (Hoje e Nutrição)
+document.addEventListener('change', e => {
+  if (!e.target.classList?.contains('dayPick')) return;
+  const v = e.target.value; if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return;
+  viewDay = v >= today() ? null : v; render();
+});
+document.addEventListener('click', e => { const i = e.target.closest?.('.dayPick'); if (i && i.showPicker) { try { i.showPicker(); } catch (er) { } } });
 document.addEventListener('visibilitychange', () => { if (document.hidden && scanStop) { try { scanStop(); } catch (e) { } scanStop = null; if ($('#scanbox')) { $('#scanView').hidden = true; scanMsg('Câmera pausada.'); $('#scanRes').innerHTML = `<button class="btn small block" data-act="scanRetry">Ligar a câmera de novo</button>`; } } });
 window.addEventListener('hashchange', closeScan);
 
@@ -1044,6 +1051,7 @@ function bindAfter(v, arg) {
     $('#h-sci')?.addEventListener('toggle', e => { if (e.target.open && S.ui.sci !== today()) { S.ui.sci = today(); save(true); const tl = document.querySelector('[data-to="h-sci"]'); if (tl) { tl.classList.add('ok'); tl.querySelector('small').textContent = '✓ Lida'; } } });
   }
   if (v === 'nutri') {
+    $('#n-como')?.addEventListener('toggle', e => { comoOpen = e.target.open; });
     const inp = $('#foodSearch'), res = $('#foodResults');
     const show = () => {
       if (!res) return;

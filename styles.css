@@ -471,3 +471,10 @@ details>summary.small{font-weight:900;margin-top:8px;color:var(--acc)}
 .scancard #scanCode input{flex:1;min-width:0}
 .scancard .pick{display:flex;flex-direction:column;gap:6px}
 .scancard .rwarn{margin:0}
+/* calendário no seletor de dia */
+.daynav .dpick{position:relative;display:flex;align-items:center;gap:8px;cursor:pointer;padding:4px 8px;border:2px dashed transparent}
+.daynav .dpick:hover,.daynav .dpick:focus-within{border-color:rgba(245,239,226,.4)}
+.daynav .dpick svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2.2;flex:none}
+.daynav .dayPick{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;border:0;padding:0;margin:0}
+.daynav .dayPick::-webkit-calendar-picker-indicator{position:absolute;inset:0;width:100%;height:100%;cursor:pointer}
+.daynav .dpick{min-width:150px;justify-content:center}.daynav .dpick span{min-width:0}
