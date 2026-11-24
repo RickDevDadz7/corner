@@ -5,7 +5,10 @@ import { FOODS } from './data.js';
 const BY = new Map(FOODS.map(f => [f.n, f]));
 export const foodByName = n => BY.get(n);
 
-export const MEAL_SHARE = { cafe: 0.25, almoco: 0.35, lanche: 0.15, jantar: 0.25 };
+export const MEAL_SHARE = { cafe: 0.25, almoco: 0.35, lanche: 0.15, jantar: 0.25, ceia: 0.12 };
+// proteína: a ceia leva uma fatia maior (30–40 g antes de dormir ajudam a recuperação)
+const P_SHARE = { ...MEAL_SHARE, ceia: 0.2 };
+// ceia: proteína de digestão lenta (laticínio) + carbo/fruta opcional; só entra quando o perfil pede (ctx.ceia)
 // s = como o gramas é decidido: P (bate proteína), C (bate carbo), F (bate gordura), fix (porção padrão)
 const LUNCH = m => [
   { k: 'veg', roles: ['veg'], m, s: 'fix' },
@@ -31,8 +34,15 @@ export const SLOTS = {
     { k: 'pao', roles: ['pao'], m: 'l', s: 'C', opt: true, big: true },
     { k: 'gord', roles: ['gord'], m: 'l', s: 'F', opt: true }
   ],
-  jantar: LUNCH('j')
+  jantar: LUNCH('j'),
+  ceia: [
+    { k: 'lat', roles: ['lat'], m: 'n', s: 'fix', opt: true, pmax: 8 },
+    { k: 'prot', roles: ['lat', 'prot'], m: 'n', s: 'P', pmin: 8 },
+    { k: 'base', roles: ['pao', 'fruta'], m: 'n', s: 'C', opt: true },
+    { k: 'gord', roles: ['gord'], m: 'n', s: 'F', opt: true }
+  ]
 };
+export const mealKeys = ceia => Object.keys(SLOTS).filter(k => k !== 'ceia' || ceia);
 
 // o que é comum no prato brasileiro aparece mais; fígado e afins, de vez em quando
 const COMMON = new Set(['Arroz branco cozido', 'Arroz integral cozido', 'Feijão carioca cozido', 'Feijão preto cozido', 'Peito de frango grelhado', 'Patinho grelhado', 'Carne moída (patinho) refogada', 'Tilápia grelhada', 'Ovo cozido (1 un ≈ 50 g)', 'Ovo frito (1 un ≈ 50 g)', 'Omelete simples (2 ovos)', 'Pão francês (1 un ≈ 50 g)', 'Pão integral (fatia ≈ 25 g)', 'Tapioca (1 disco ≈ 50 g de goma)', 'Cuscuz de milho cozido', 'Leite integral (ml)', 'Leite desnatado (ml)', 'Iogurte natural', 'Queijo minas frescal', 'Banana prata', 'Maçã', 'Mamão papaia', 'Laranja', 'Batata-doce cozida', 'Salada (alface e tomate)', 'Brócolis cozido', 'Cenoura crua', 'Tomate', 'Alface', 'Azeite de oliva', 'Aveia em flocos', 'Whey protein (varia por marca)']);
@@ -73,26 +83,27 @@ const ZERO = { k: 0, p: 0, c: 0, f: 0, fb: 0 };
 
 // candidatos de uma vaga, do melhor pro pior
 export function candidates(meal, slot, ctx, used = new Set(), seed = 0, avoid = new Set()) {
-  let list = FOODS.filter(f => f.r && slot.roles.includes(f.r) && f.ml?.includes(slot.m) && ctx.ok(f.n) && ctx.pantry?.[f.n] !== 'nao');
+  let list = FOODS.filter(f => f.r && slot.roles.includes(f.r) && f.ml?.includes(slot.m) && !(slot.pmin && f.p < slot.pmin) && !(slot.pmax && f.p >= slot.pmax) && ctx.ok(f.n) && ctx.pantry?.[f.n] !== 'nao');
   if (ctx.strict) { const mine = list.filter(f => ['tem', 'comprar'].includes(ctx.pantry?.[f.n])); if (mine.length) list = mine; }
   const score = f => rnd(`${seed}|${meal}|${slot.k}|${f.n}`) + (ctx.pantry?.[f.n] === 'tem' ? 0.6 : ctx.pantry?.[f.n] === 'comprar' ? 0.45 : 0) - (used.has(f.n) ? 2 : 0) - (avoid.has(f.n) && ROTATE.has(f.r) ? 0.8 : 0)
-    + (COMMON.has(f.n) ? 0.35 : 0) + (meal === 'almoco' && /^(Arroz|Feijão)/.test(f.n) ? 0.6 : 0) - (RARE.has(f.n) ? 0.45 : 0) + (meal === 'lanche' && slot.k === 'base' && f.r === 'fruta' ? 0.3 : 0) - (slot.s === 'P' && f.p > 0 && f.f / f.p > 0.5 ? 0.5 : 0);
+    + (COMMON.has(f.n) ? 0.35 : 0) + (meal === 'almoco' && /^(Arroz|Feijão)/.test(f.n) ? 0.6 : 0) - (RARE.has(f.n) ? 0.45 : 0) + (meal === 'lanche' && slot.k === 'base' && f.r === 'fruta' ? 0.3 : 0) + (meal === 'ceia' && f.r === 'lat' ? 0.5 : 0) - (slot.s === 'P' && f.p > 0 && f.f / f.p > 0.5 ? 0.5 : 0);
   return list.map(f => [f, score(f)]).sort((a, b) => b[1] - a[1]).map(x => x[0]);
 }
 
 // escolhe os alimentos do dia (só nomes; os gramas são calculados à parte, então mudam junto com as metas)
+export function pickMeal(meal, ctx, seed, used = new Set(), avoid = new Set()) {
+  const pick = {};
+  for (const slot of SLOTS[meal]) {
+    if (slot.big && !ctx.big) continue; // pão extra no lanche só pra quem come muito
+    if (slot.k === 'gord' && rnd(`${seed}|opt|${meal}|${slot.k}`) < (meal === 'ceia' ? 0.6 : 0.35)) continue; // oleaginosa nem sempre
+    const c = candidates(meal, slot, ctx, used, seed, avoid).filter(f => !(slot.k === 'veg2' && clash(f.n, pick.veg)) && !(slot.k === 'carb2' && sameCarb(f.n, pick.carb)));
+    if (c.length) { pick[slot.k] = c[0].n; used.add(c[0].n); }
+  }
+  return { pick, done: false };
+}
 export function pickDay(ctx, seed, avoid = new Set()) {
   const used = new Set(), meals = {};
-  for (const meal of Object.keys(SLOTS)) {
-    const pick = {};
-    for (const slot of SLOTS[meal]) {
-      if (slot.big && !ctx.big) continue; // pão extra no lanche só pra quem come muito
-      if (slot.k === 'gord' && rnd(`${seed}|opt|${meal}|${slot.k}`) < 0.35) continue; // oleaginosa nem sempre
-      const c = candidates(meal, slot, ctx, used, seed, avoid).filter(f => !(slot.k === 'veg2' && clash(f.n, pick.veg)) && !(slot.k === 'carb2' && sameCarb(f.n, pick.carb)));
-      if (c.length) { pick[slot.k] = c[0].n; used.add(c[0].n); }
-    }
-    meals[meal] = { pick, done: false };
-  }
+  for (const meal of mealKeys(ctx.ceia)) meals[meal] = pickMeal(meal, ctx, seed, used, avoid);
   return meals;
 }
 
@@ -136,11 +147,14 @@ function solveMeal(meal, pick, tgt, sc) {
 
 // o dia todo: cada refeição mira no que falta do dia (o que uma refeição não alcança passa pras seguintes)
 export function solveDay(meals, dt) {
-  const out = {}, keys = Object.keys(SLOTS), sc = Math.min(1.8, Math.max(1, dt.kcal / 2300));
+  const out = {}, keys = Object.keys(SLOTS).filter(k => meals[k]), sc = Math.min(1.8, Math.max(1, dt.kcal / 2300));
   let eaten = { ...ZERO };
   keys.forEach((meal, i) => {
     const restShare = keys.slice(i).reduce((a, k) => a + MEAL_SHARE[k], 0), r = MEAL_SHARE[meal] / restShare;
-    const tgt = { k: (dt.kcal - eaten.k) * r, p: Math.max(0, dt.p - eaten.p) * r, c: Math.max(0, dt.c - eaten.c) * r, f: Math.max(0, dt.f - eaten.f) * r };
+    const ps = k => k === 'ceia' && !meals.ceia?.pick?.prot ? 0 : P_SHARE[k]; // ceia sem proteína: não reserva
+    const rp = ps(meal) / (keys.slice(i).reduce((a, k) => a + ps(k), 0) || 1);
+    const tgt = { k: (dt.kcal - eaten.k) * r, p: Math.max(0, dt.p - eaten.p) * rp, c: Math.max(0, dt.c - eaten.c) * r, f: Math.max(0, dt.f - eaten.f) * r };
+    if (meal === 'ceia') tgt.p = Math.max(tgt.p, Math.min(30, dt.p * 0.15)); // ceia que vale a pena: ~25–30 g
     out[meal] = solveMeal(meal, meals[meal]?.pick || {}, tgt, sc);
     eaten = add(eaten, out[meal].tot);
   });

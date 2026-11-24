@@ -6,7 +6,7 @@ import { hasDemo, exThumb, exAnimate, demoSteps } from './exanim.js';
 import { cloud } from './cloud.js';
 import { startScan, lookupBarcode } from './scan.js';
 import { SPLIT_DEFS, genRoutine, recommend, cleanRoutine, alternatives, library, musclesOf, fmtRest, repsOf, restOf } from './routine.js';
-import { pickDay, solveDay, dayTargets, measure, shoppingList, shopQty, swapPick, foodByName, SLOTS, candidates, sameCarb } from './menu.js';
+import { pickDay, pickMeal, mealKeys, solveDay, dayTargets, measure, shoppingList, shopQty, swapPick, foodByName, SLOTS, candidates, sameCarb } from './menu.js';
 import * as sync from './sync.js';
 import { TGOALS, INJURIES, FOCUS_MUSCLES, tgoalOf, injuriesOf, focusOf, careOf, goalParams, cycleInfo, blockInfo, readiness, weeklyTargets, planFor, fitVolume, sessionMin, stagnant, swapOptions } from './periodize.js';
 import { CONDITIONS, COND_GROUPS, BODY, condsOf, condFlag, condRestr, bodyOf, caps, bodyLabel, bodyCare, bodyNA, bodyFig } from './health.js';
@@ -230,6 +230,20 @@ function toast(msg) {
 }
 function foodTotals() { const out = {}; for (const [d, items] of Object.entries(S.logs.food)) out[d] = items.reduce((a, i) => a + i.k, 0); return out; }
 function T() { return targets(S.profile, S.settings.adaptive ? adaptiveTDEE(S.logs.weights, foodTotals()) : null); }
+// ceia: só quando o perfil pede. Comer de 3 em 3 h não tem base; o que tem é dividir a proteína em 4+ refeições
+// de ~0,4–0,55 g/kg (Schoenfeld & Aragon 2018) e proteína antes de dormir ajudar a recuperação (Snijders 2015)
+function ceiaInfo(p = S.profile || {}) {
+  if (p.ceia === 'on') return { on: true, why: 'Ligada no seu perfil.' };
+  if (p.ceia === 'off') return { on: false, why: 'Desligada no seu perfil.' };
+  if (!S.profile) return { on: false, why: '' };
+  const t = T();
+  if (p.goal === 'bulk') return { on: true, why: 'Objetivo de ganhar massa: uma refeição leve a mais facilita bater as calorias sem pratos enormes.' };
+  if (t.kcal >= 3000) return { on: true, why: `Meta de ${fmt(t.kcal, 0)} kcal: em 4 refeições cada prato fica grande demais.` };
+  if (p.weight && t.protein > 2.4 * p.weight) return { on: true, why: `${t.protein} g de proteína: em 4 refeições passaria de ~0,6 g/kg por refeição.` };
+  return { on: false, why: 'Suas metas cabem bem em 4 refeições.' };
+}
+// refeições do dia: a ceia aparece se estiver ligada ou se já tiver algo registrado nela
+const mealsFor = (d = curDay()) => { const on = ceiaInfo().on, it = S.logs.food[d] || []; return MEALS.filter(m => !m.opt || on || it.some(x => x.m === m.id)); };
 function dayFood(d = curDay()) { return (S.logs.food[d] || []).reduce((a, i) => ({ k: a.k + i.k, p: a.p + i.p, c: a.c + i.c, f: a.f + i.f, fb: a.fb + (i.fb || 0) }), { k: 0, p: 0, c: 0, f: 0, fb: 0 }); }
 // restrições alimentares ativas (perfil) e o que cada registro fere
 function restrOfProfile(p = S.profile) {
@@ -357,6 +371,18 @@ function waterBottle(v, goal) {
     <path d="M30 6h20v12c0 4 14 8 14 20v104c0 6-4 10-10 10H26c-6 0-10-4-10-10V38c0-12 14-16 14-20z" class="b-line"/>
     <rect x="28" y="1" width="24" height="7" rx="1" class="b-cap"/></svg>`;
 }
+// água demais: o rim saudável elimina ~0,8–1 L por hora; acima disso o sódio do sangue pode diluir (hiponatremia)
+function waterWarn(wl, w, goal) {
+  const cond = Array.isArray(S.profile?.cond) ? S.profile.cond : [], out = [];
+  const lim = cond.includes('renal') ? 'doença renal' : cond.includes('cardiopatia') ? 'doença do coração' : '';
+  if (lim && w > 0) out.push(`Com ${lim} pode existir limite de líquidos. Vale o valor que o seu médico passar, não o ideal daqui.`);
+  const ev = wl.filter(x => typeof x.t === 'number').sort((a, b) => a.t - b.t);
+  let peak = 0;
+  for (const x of ev) peak = Math.max(peak, ev.filter(y => y.t <= x.t && y.t > x.t - 36e5).reduce((a, y) => a + (+y.ml || 0), 0));
+  if (peak > 1000) out.push(`<b>Devagar com a água.</b> Foram ${fmt(peak / 1000, 1)} L em menos de 1 hora. O rim elimina cerca de 1 L por hora; beber mais rápido que isso pode diluir o sódio do sangue (hiponatremia). Espalhe ao longo do dia.`);
+  else if (!lim && w > Math.max(goal * 1.5, goal + 1500)) out.push(`<b>Já passou bastante do necessário.</b> ${fmt(w / 1000, 1)} L é ${fmt(w / goal, 1)}× o seu ideal. Beber além disso não traz benefício: daqui pra frente, só se tiver sede (ou se suou muito no calor ou num treino longo).`);
+  return out.map(m => `<p class="care h2o small">${m}</p>`).join('');
+}
 // ciência do dia: alterna assuntos (só os esportes que a pessoa pratica)
 function scienceOfDay() {
   const sportCats = { boxe: 'Boxe', muaythai: 'Muay thai', jiu: 'Jiu-jitsu', mma: 'MMA', corrida: 'Corrida' };
@@ -408,6 +434,7 @@ views.onboarding = () => {
     <label>% de gordura <small>(opcional, melhora a precisão)</small><input name="bf" inputmode="decimal" value="${esc(p.bf ?? '')}" placeholder="ex.: 15"></label>
     <label>Dia a dia fora do treino ${sel('neat', NEAT, p.neat || 1.3)}</label>
     <label>Objetivo ${sel('goal', GOALS, p.goal || 'recomp')}</label>
+    <label>Ceia (antes de dormir) ${sel('ceia', { '': 'Automático (pelo objetivo e metas)', on: 'Sempre', off: 'Nunca' }, p.ceia || '')}</label>
     <label class="cut-only">Ritmo de perda ${sel('rate', { 0.5: '0,5% do peso/semana (recomendado)', 0.75: '0,75%/semana', 1: '1%/semana (agressivo)' }, p.rate || 0.5)}</label>
     <label>Experiência de treino ${sel('experience', { iniciante: 'Iniciante (< 1 ano)', intermediario: 'Intermediário (1–3 anos)', avancado: 'Avançado (3+ anos)' }, p.experience || 'intermediario')}</label>
 
@@ -467,7 +494,7 @@ views.hoje = () => {
   const wl = S.logs.water[curDay()] || [];
   const cs = curSport(), SP = SPORTS[cs], spMin = sportsOf(S.profile)[cs]?.min || 60;
   const items = S.logs.food[curDay()] || [], mealsDone = new Set(items.map(i => i.m || 'extra'));
-  const nMeals = MEALS.filter(m => m.id !== 'extra' && mealsDone.has(m.id)).length;
+  const mealsMain = mealsFor().filter(m => m.id !== 'extra'), nMeals = mealsMain.filter(m => mealsDone.has(m.id)).length;
   const doneTrain = todayS.length + todayW.length;
   // treino sugerido: força se ainda não fez força ontem/hoje (ou se não tem esporte); senão o esporte
   const lift = next && (plan.routine.auto ? (S.profile.liftDays ?? 2) > 0 : true) && next.items.length;
@@ -483,7 +510,7 @@ views.hoje = () => {
   const alt = primary === 'forca' && hasSport ? sportCard : primary === 'esporte' && liftCard && !liftToday ? liftCard : null;
   const tiles = [
     { id: 'h-treino', ico: ICO.treino, n: 'Treino', v: doneTrain ? `${doneTrain} feito${doneTrain > 1 ? 's' : ''}` : 'Pendente', ok: doneTrain > 0 },
-    { id: 'h-nutri', ico: ICO.comida, n: 'Refeições', v: `${nMeals} de ${MEALS.length - 1}`, ok: f.k >= t.kcal * 0.9 },
+    { id: 'h-nutri', ico: ICO.comida, n: 'Refeições', v: `${nMeals} de ${mealsMain.length}`, ok: f.k >= t.kcal * 0.9 },
     { id: 'h-agua', ico: ICO.agua, n: 'Água', v: `${fmt(w / 1000, 1)} / ${fmt(t.water / 1000, 1)} L`, ok: w >= t.water },
     { id: 'h-sci', ico: ICO.ciencia, n: 'Ciência', v: S.ui.sci === today() ? 'Lida' : '1 nova', ok: S.ui.sci === today() }
   ];
@@ -498,7 +525,7 @@ views.hoje = () => {
       <div class="grow">${macroBar('Proteína', f.p, t.protein, 'var(--acc)')}${macroBar('Carboidrato', f.c, t.carbs, 'var(--cyan)')}${macroBar('Gordura', f.f, t.fat, 'var(--amber)')}</div>
     </div>
     <p class="kcalline small"><b class="mono">${fmt(f.k, 0)}</b> de <b class="mono">${fmt(t.kcal, 0)}</b> kcal consumidas</p>
-    <div class="mealrow">${MEALS.map(m => `<a href="#nutri" class="mchip ${mealsDone.has(m.id) ? 'on' : ''}" title="${esc(m.n)}"><span>${m.ico}</span><small>${esc(m.n.split(' ')[0])}</small></a>`).join('')}</div>
+    <div class="mealrow">${mealsFor().map(m => `<a href="#nutri" class="mchip ${mealsDone.has(m.id) ? 'on' : ''}" title="${esc(m.n)}"><span>${m.ico}</span><small>${esc(m.n.split(' ')[0])}</small></a>`).join('')}</div>
     <a class="btn small block" href="#nutri">+ Registrar refeição</a>
   </div>
   <div class="card" id="h-agua">
@@ -515,6 +542,7 @@ views.hoje = () => {
         <form id="waterForm" class="row gap"><input name="ml" inputmode="numeric" placeholder="outra (ml)" aria-label="Outra quantidade em ml"><button class="btn small ghost" type="submit">ok</button></form>
       </div>
     </div>
+    ${waterWarn(wl, w, t.water)}
     ${wl.length ? `<details class="wlist" ${wlOpen ? 'open' : ''}><summary class="small">Histórico ${viewDay ? 'do dia' : 'de hoje'} (${wl.length})</summary><ul class="list">${wl.map(x => `<li><span class="small mono">${x.t ? new Date(x.t).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '—'}</span><span class="small grow">${x.ml > 0 ? '+' : ''}${x.ml} ml</span><button class="x" data-act="delWater" data-id="${x.id}" aria-label="Apagar">×</button></li>`).join('')}</ul>
       <button class="linkbtn wclear" data-act="clearWater">Apagar todo o histórico</button></details>` : ''}
   </div>
@@ -595,19 +623,20 @@ views.nutri = () => {
       <tr><td>Carboidrato: o que sobra das calorias</td><td>${t.carbs} g</td></tr>
       <tr><td>Fibras: 14 g por 1.000 kcal</td><td>${t.fiber} g</td></tr>
       <tr><td>Água: 35 ml/kg + 500 ml por hora de treino</td><td>${fmt(t.water / 1000)} L</td></tr>
+      <tr><td>Refeições: ${esc(ceiaInfo().why)}</td><td>${ceiaInfo().on ? '5 (com ceia)' : '4'}</td></tr>
     </table>
     <p class="small muted">${ad.ready ? `Pelos seus registros: ingestão média ${fmt(ad.avgIn, 0)} kcal e peso variando ${fmt(ad.slopeWeek, 2)} kg/semana → gasto real ≈ ${fmt(ad.tdee, 0)} kcal.` : `Modo adaptativo: com ≥ 8 pesagens e ≥ 10 dias de comida registrados nos últimos 28 dias, o app calcula seu gasto REAL. Agora: ${ad.weighIns} ${ad.weighIns === 1 ? "pesagem" : "pesagens"}, ${ad.foodDays} ${ad.foodDays === 1 ? "dia" : "dias"}.`}</p>
     <label class="switch"><input type="checkbox" data-act="toggleAdaptive" ${S.settings.adaptive ? 'checked' : ''}> Usar ajuste adaptativo</label>
     <a class="btn small ghost block" href="#perfil">Mudou algo? Editar meus dados</a>
   </details>
   <small class="cat pad">Refeições</small>
-  ${MEALS.map(m => mealCard(m, items.filter(it => (it.m || 'extra') === m.id))).join('')}
+  ${mealsFor().map(m => mealCard(m, items.filter(it => (it.m || 'extra') === m.id))).join('')}
   <p class="muted small pad">Valores aproximados (base TACO/USDA; besteiras = média de mercado). Confira o rótulo quando tiver.</p>`;
 };
 // ---------------- Cardápio sugerido ----------------
-const MENU_MEALS = ['cafe', 'almoco', 'lanche', 'jantar'];
+const menuMeals = () => mealKeys(ceiaInfo().on);
 const trainDaysWeek = () => (S.profile?.liftDays || 0) + sportDays(S.profile || {});
-const menuCtx = () => ({ ok: n => !hitsOf(n).length, pantry: S.ui.pantry || {}, strict: !!S.ui.pStrict, big: T().kcal > 2400 });
+const menuCtx = () => ({ ok: n => !hitsOf(n).length, pantry: S.ui.pantry || {}, strict: !!S.ui.pStrict, big: T().kcal > 2400, ceia: ceiaInfo().on });
 const shortName = n => n.replace(/\s*\([^)]*(≈|ml|varia|lata, |sem pele)[^)]*\)/g, '').trim();
 function menuTrain(d = curDay()) {
   const v = S.ui.mtrain?.[d]; if (typeof v === 'boolean') return v;
@@ -619,13 +648,18 @@ function menuOf(d = curDay()) {
   if (!m || typeof m !== 'object' || !m.meals || typeof m.meals !== 'object') return null;
   if (typeof m.seed !== 'number') m.seed = 1;
   const ctx = menuCtx();
-  for (const meal of Object.keys(m.meals)) if (!MENU_MEALS.includes(meal)) delete m.meals[meal];
-  for (const meal of MENU_MEALS) { // primeiro arruma o formato de todas as refeições
+  const MM = menuMeals();
+  for (const meal of Object.keys(m.meals)) if (!MM.includes(meal)) delete m.meals[meal];
+  if (MM.includes('ceia') && !m.meals.ceia) { // ceia ligada depois: entra sem mexer no resto do dia
+    const used = new Set(Object.values(m.meals).flatMap(x => Object.values(x?.pick || {})));
+    m.meals.ceia = pickMeal('ceia', ctx, m.seed, used);
+  }
+  for (const meal of MM) { // primeiro arruma o formato de todas as refeições
     const mm = m.meals[meal]; if (!mm || typeof mm !== 'object') { m.meals[meal] = { pick: {}, done: false }; continue; }
     if (!mm.pick || typeof mm.pick !== 'object' || Array.isArray(mm.pick)) mm.pick = {};
     mm.done = mm.done === true;
   }
-  for (const meal of MENU_MEALS) { // depois troca o que deixou de valer
+  for (const meal of MM) { // depois troca o que deixou de valer
     const mm = m.meals[meal];
     for (const [k, n] of Object.entries(mm.pick)) {
       if (!SLOTS[meal].some(x => x.k === k) || typeof n !== 'string' || !foodByName(n) || !ctx.ok(n) || ctx.pantry[n] === 'nao') {
@@ -667,7 +701,7 @@ function menuCard() {
   autoMenu();
   const m = solvedMenu();
   return `<a class="card link menucard" href="#cardapio" id="n-menu"><small class="cat">Cardápio do dia</small>
-    ${m ? `<h3>${fmt(m.sol.tot.k, 0)} kcal em 4 refeições</h3><p class="small muted">${MENU_MEALS.filter(x => m.plan.meals[x]?.done).length} de 4 registradas · ${menuTrain() ? 'dia de treino' : 'dia de descanso'}</p>`
+    ${m ? `<h3>${fmt(m.sol.tot.k, 0)} kcal em ${menuMeals().length} refeições</h3><p class="small muted">${menuMeals().filter(x => m.plan.meals[x]?.done).length} de ${menuMeals().length} registradas · ${menuTrain() ? 'dia de treino' : 'dia de descanso'}</p>`
       : `<h3>Montar meu cardápio</h3><p class="small muted">Sugestão que fecha suas metas, respeita suas restrições e usa o que você tem em casa.</p>`}
     <span class="go">Abrir →</span></a>`;
 }
@@ -736,7 +770,7 @@ views.cardapio = () => {
     <div class="ctgt">${[['kcal', dt.kcal, m?.sol.tot.k, ''], ['Proteína', dt.p, m?.sol.tot.p, 'g'], ['Carbo', dt.c, m?.sol.tot.c, 'g'], ['Gordura', dt.f, m?.sol.tot.f, 'g']].map(([l, tg, v, u]) => `<div><small>${l}</small><b class="mono">${m ? fmt(v, 0) : '—'}</b><i>/ ${fmt(tg, 0)}${u}${m ? ` · ${pct(v, tg)}%` : ''}</i></div>`).join('')}</div>
     ${m ? '' : `<button class="btn primary block" data-act="menuMake">Montar cardápio${viewDay ? ' desse dia' : ' de hoje'}</button>`}
   </div>
-  ${m ? MENU_MEALS.map(mealHTML).join('') + `<div class="row gap cactions"><button class="btn small" data-act="menuMake">↻ Gerar outro</button><button class="btn small" data-act="menuWeek">Planejar 7 dias + lista</button></div>` : ''}
+  ${m ? menuMeals().map(mealHTML).join('') + `<div class="row gap cactions"><button class="btn small" data-act="menuMake">↻ Gerar outro</button><button class="btn small" data-act="menuWeek">Planejar 7 dias + lista</button></div>` : ''}
   ${shopBox()}
   ${pantryBox()}
   <p class="muted small pad">Sugestão automática feita com as suas metas, restrições e despensa. Não substitui um nutricionista.</p>`;
@@ -745,7 +779,7 @@ views.cardapio = () => {
 const FOOD_CATS = { '': 'Todos', proteina: 'Proteínas', base: 'Refeição', verdura: 'Verduras', fruta: 'Frutas', lanche: 'Lanches', besteira: 'Besteiras' };
 let addMeal = null, foodCat = '';
 const mealShut = new Set(); // refeições que a pessoa recolheu (abertas por padrão)
-const defaultMeal = () => { const h = new Date().getHours(); return h >= 4 && h <= 10 ? 'cafe' : h <= 14 ? 'almoco' : h <= 17 ? 'lanche' : h <= 21 ? 'jantar' : 'extra'; };
+const defaultMeal = () => { const h = new Date().getHours(); return h >= 4 && h <= 10 ? 'cafe' : h <= 14 ? 'almoco' : h <= 17 ? 'lanche' : h <= 21 ? 'jantar' : h <= 23 && ceiaInfo().on ? 'ceia' : 'extra'; };
 const amtOf = it => it.g ?? it.q ?? 1;
 const unitOf = it => it.u || (it.g != null ? 'g' : 'porção');
 const stepOf = it => it.st || (unitOf(it) === 'porção' ? 1 : 10);
@@ -961,9 +995,7 @@ views.treino = () => {
   <div class="card panel"><h3>Você marcou 0 dias de força</h3>
     <p class="small">Tudo certo focar no seu esporte. Mas 2 sessões curtas de força por semana (25–40 min, dá pra fazer em casa só com peso corporal) aumentam potência e reduzem lesões.</p>
     <button class="btn primary" data-act="addStrength">Quero 2 sessões de calistenia</button>
-    <a class="btn small ghost block" href="#rotinas">Ver as divisões de treino</a></div>
-  <small class="cat pad">Base científica</small>
-  ${['forca-lesao', 'calistenia', 'soco', 'concorrente'].map(id => evCard(ev(id))).join('')}`;
+    <a class="btn small ghost block" href="#rotinas">Ver as divisões de treino</a></div>`;
   const vols = Object.entries(plan.vol).filter(([m]) => m !== 'pescoco');
   const extras = mySports().filter(id => SPORTS[id].sc.length).map(id => SPORTS[id].n);
   const todayW = S.logs.workouts.filter(w => w.date === today()).pop(), nx = todayW ? -1 : nextSessionIdx(plan);
@@ -989,9 +1021,7 @@ views.treino = () => {
   ${weekCard(plan)}
   ${volumeCard(plan)}
   ${historyCard()}
-  ${evoCard()}
-  <small class="cat pad">Base científica</small>
-  ${EVIDENCE.filter(e => e.cat === 'Musculação').map(e => evCard(e)).join('')}`;
+  ${evoCard()}`;
 };
 
 // ---------- Acompanhamento: semana, volume real, histórico, evolução ----------
@@ -1771,7 +1801,7 @@ function bindAfter(v, arg) {
       const sports = {};
       for (const id of SPORT_IDS) if (g('sp_' + id)) sports[id] = { days: num(g('sd_' + id)) || 1, min: num(g('sm_' + id)) || 60, type: g('st_' + id), where: g('sw_' + id) };
       const p = {
-        sex: g('sex'), age: num(g('age')), height: num(g('height')), weight: num(g('weight')), bf: num(g('bf')), neat: num(g('neat')), goal: g('goal'), rate: num(g('rate')),
+        sex: g('sex'), age: num(g('age')), height: num(g('height')), weight: num(g('weight')), bf: num(g('bf')), neat: num(g('neat')), goal: g('goal'), rate: num(g('rate')), ceia: ['on', 'off'].includes(g('ceia')) ? g('ceia') : '',
         experience: g('experience'), liftDays: num(g('liftDays')) ?? 0, liftMin: Math.max(15, Math.min(180, num(g('liftMin')) || 40)), env: g('env'), equip: fd.getAll('equip'), sports,
         cond: fd.getAll('cond').filter(k => CONDITIONS[k]), body: fd.getAll('body').filter(k => BODY[k]), bodyFig: !!g('bodyFig'), healthOk: g('healthOk') ? (S.profile?.healthOk || today()) : '',
         tgoal: TGOALS[g('tgoal')] ? g('tgoal') : '', inj: fd.getAll('inj').filter(k => INJURIES[k]), focus: fd.getAll('focus').filter(m => FOCUS_MUSCLES.includes(m)).slice(0, 3), autoVol: !!g('autoVol')
@@ -2000,7 +2030,7 @@ document.addEventListener('click', async e => {
     for (let i = 0; i < 7; i++) {
       const d = new Date(start + 'T12:00'); d.setDate(d.getDate() + i); const k = dayKey(d);
       const cur = menuOf(k);
-      if (!cur || !(cur.edited === true || MENU_MEALS.some(x => cur.meals[x]?.done))) makeMenu(k); // mantém o que a pessoa escolheu ou já comeu
+      if (!cur || !(cur.edited === true || menuMeals().some(x => cur.meals[x]?.done))) makeMenu(k); // mantém o que a pessoa escolheu ou já comeu
       prev = new Set(Object.values(S.ui.menu[k].meals).flatMap(x => Object.values(x.pick || {})));
     }
     S.ui.shop = { from: start, done: {} }; shopOpen = true; save(true); render(); toast('7 dias planejados');
