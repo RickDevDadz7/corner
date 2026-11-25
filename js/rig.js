@@ -41,9 +41,10 @@ export function solve(P) {
   const py = (P.py ?? -40) * D, cy = (P.cy ?? -45) * D, lean = (P.lean ?? 8) * D, tw = (P.tw ?? 0) * D;
   const pel = P.p || [0, 0.92, 0];
   const Fp = fwdY(py), Lp = leftY(py);
-  const frame = yaw => {
+  const ext = (P.ext || 0) * D; // ext: coluna curva (extensão torácica, °): a metade de cima inclina pra trás
+  const frame = (yaw, ln = lean - ext) => {
     let F = fwdY(yaw), U = [0, 1, 0], L = leftY(yaw);
-    F = rot(F, L, lean); U = rot(U, L, lean);
+    F = rot(F, L, ln); U = rot(U, L, ln);
     F = rot(F, U, tw); L = rot(L, U, tw);
     return [F, U, L];
   };
@@ -51,8 +52,10 @@ export function solve(P) {
   // mãos miram no adversário (ay = direção do golpe), não pra onde o peito aponta
   const [Fa, Ua, La] = frame((P.ay ?? (P.tw ? P.cy ?? 0 : 0)) * D);
   const B = BONES;
-  const chest = add(pel, mul(U, B.spine));
+  const U0 = ext ? frame(cy, lean)[1] : U, mid = add(pel, mul(U0, B.spine * 0.6));
+  const chest = ext ? add(mid, mul(U, B.spine * 0.4)) : add(pel, mul(U, B.spine));
   const J = { pel, chest };
+  if (ext) { J.mid = mid; J.midL = add(mid, mul(L, 0.16)); J.midR = add(mid, mul(L, -0.16)); }
   J.hipL = add(pel, mul(Lp, B.hip)); J.hipR = add(pel, mul(Lp, -B.hip));
   const shU = -0.03 + (P.shrug || 0) * 0.07; // shrug: ombros sobem (encolhimento)
   J.shL = add(add(chest, mul(L, B.sh)), mul(U, shU)); J.shR = add(add(chest, mul(L, -B.sh)), mul(U, shU));
@@ -105,8 +108,13 @@ const W = { th: 17, sn: 13, ua: 13, fa: 11, foot: 9 };
 // missing: membros ausentes ('armL','armR','handL','handR','legL','legR'); prosthesis: perna ausente desenhada como prótese
 // parceiro: segundo boneco (short e luvas azuis) com pose própria, girado 180° e a d metros à frente
 // partner = { J (já posicionado no mundo, ver placePartner), gloves, front: desenha na frente do principal }
+// duas vistas do mesmo quadro lado a lado (ex.: de lado + de cima)
+export function dual(a, b) {
+  const inner = (s, x) => s.replace('<svg ', `<svg x="${x}" y="0" width="230" height="200" `).replace(' class="fig"', '');
+  return `<svg viewBox="0 0 460 200" class="fig dual" role="img" aria-hidden="true">${inner(a, 0)}${inner(b, 230)}<line x1="230" y1="14" x2="230" y2="186" class="sep"/></svg>`;
+}
 export function placePartner(J2, d = 1.1, dz = 0) { const o = {}; for (const k in J2) { const v = J2[k]; o[k] = [d - v[0], v[1], dz - v[2]]; } return o; }
-export function draw(J, { gloves = true, hi = [], trail = null, burst = null, cam = 30, ox = 0, oy = 0, noshadow = false, act = [], tilt = 0, zoom = 1, target = null, path = null, props = null, missing = null, prosthesis = false, partner = null } = {}) {
+export function draw(J, { gloves = true, hi = [], trail = null, trail2 = null, burst = null, cam = 30, ox = 0, oy = 0, noshadow = false, act = [], tilt = 0, zoom = 1, target = null, path = null, props = null, missing = null, prosthesis = false, partner = null } = {}) {
   CAM = cam * D; TILT = tilt * D; ZOOM = zoom; NOSH = noshadow;
   const F1 = figParts(J, { gloves, act, missing, prosthesis });
   let p2 = '';
@@ -117,7 +125,7 @@ export function draw(J, { gloves = true, hi = [], trail = null, burst = null, ca
   let pBack = '', pFront = '';
   // selo fixo no canto (ex.: posição da mão)
   let badge = '';
-  for (const it of props || []) if (it && it.k === 'badge') badge += badgeSVG(it, -ox);
+  for (const it of props || []) if (it && it.k === 'badge') badge += badgeSVG(it, -ox, -oy);
   if (props) for (const it of propSVG(props)) { if (it.layer === 'back' || (it.layer !== 'front' && it.z > zMid + 0.02)) pBack += it.svg; else pFront += it.svg; }
   const { back, gBack, torso, frontLegs, trunks, head, front, gFront, shadow } = F1;
   return composeSVG();
@@ -131,6 +139,10 @@ export function draw(J, { gloves = true, hi = [], trail = null, burst = null, ca
   if (trail && trail.length > 1) {
     const pts = trail.map(t => proj(t));
     for (let i = 1; i < pts.length; i++) fx += `<line x1="${pts[i - 1][0].toFixed(1)}" y1="${pts[i - 1][1].toFixed(1)}" x2="${pts[i][0].toFixed(1)}" y2="${pts[i][1].toFixed(1)}" stroke-width="${(3 + 9 * i / pts.length).toFixed(1)}" opacity="${(0.08 + 0.4 * i / pts.length).toFixed(2)}" class="trl"/>`;
+  }
+  if (trail2 && trail2.length > 1) { // rastro do golpe do parceiro (azul)
+    const pts = trail2.map(t => proj(t));
+    for (let i = 1; i < pts.length; i++) fx += `<line x1="${pts[i - 1][0].toFixed(1)}" y1="${pts[i - 1][1].toFixed(1)}" x2="${pts[i][0].toFixed(1)}" y2="${pts[i][1].toFixed(1)}" stroke-width="${(3 + 9 * i / pts.length).toFixed(1)}" opacity="${(0.1 + 0.45 * i / pts.length).toFixed(2)}" class="trl trl2"/>`;
   }
   if (burst) {
     const c = proj(burst.p), r1 = 9 * burst.s, r2 = 22 * burst.s;
@@ -181,7 +193,8 @@ function figParts(J, { gloves = true, act = [], missing = null, prosthesis = fal
     return `<path d="M${q.map(p => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join('L')}Z" class="${cls}"/><circle cx="${s.a[0].toFixed(1)}" cy="${s.a[1].toFixed(1)}" r="${w1.toFixed(1)}" class="${cls}"/><circle cx="${s.b[0].toFixed(1)}" cy="${s.b[1].toFixed(1)}" r="${w2.toFixed(1)}" class="${cls}"/>`;
   };
   const pt = k => `${P[k][0].toFixed(1)},${P[k][1].toFixed(1)}`;
-  const torso = `<line x1="${P.neck[0].toFixed(1)}" y1="${(P.neck[1] + 6).toFixed(1)}" x2="${P.pel[0].toFixed(1)}" y2="${(P.pel[1] - 4).toFixed(1)}" stroke-width="25" class="lf"/><polygon points="${pt('shL')} ${pt('shR')} ${pt('hipR')} ${pt('hipL')}" class="tor"/><line x1="${P.neck[0].toFixed(1)}" y1="${P.neck[1].toFixed(1)}" x2="${P.chest[0].toFixed(1)}" y2="${P.chest[1].toFixed(1)}" stroke-width="9" class="lf"/>`;
+  const torso = (P.mid ? `<polyline points="${P.neck[0].toFixed(1)},${(P.neck[1] + 6).toFixed(1)} ${pt('mid')} ${P.pel[0].toFixed(1)},${(P.pel[1] - 4).toFixed(1)}" stroke-width="25" class="lf" fill="none" stroke-linejoin="round"/><polygon points="${pt('shL')} ${pt('shR')} ${pt('midR')} ${pt('hipR')} ${pt('hipL')} ${pt('midL')}" class="tor"/>`
+    : `<line x1="${P.neck[0].toFixed(1)}" y1="${(P.neck[1] + 6).toFixed(1)}" x2="${P.pel[0].toFixed(1)}" y2="${(P.pel[1] - 4).toFixed(1)}" stroke-width="25" class="lf"/><polygon points="${pt('shL')} ${pt('shR')} ${pt('hipR')} ${pt('hipL')}" class="tor"/>`) + `<line x1="${P.neck[0].toFixed(1)}" y1="${P.neck[1].toFixed(1)}" x2="${P.chest[0].toFixed(1)}" y2="${P.chest[1].toFixed(1)}" stroke-width="9" class="lf"/>`;
   const mid = (a, b, t) => [P[a][0] + (P[b][0] - P[a][0]) * t, P[a][1] + (P[b][1] - P[a][1]) * t];
   const tL = mid('hipL', 'knL', 0.42), tR = mid('hipR', 'knR', 0.42);
   const waistL = mid('hipL', 'shL', 0.12), waistR = mid('hipR', 'shR', 0.12);
@@ -242,8 +255,8 @@ function propSVG(list) {
 }
 
 // selo com a posição da mão: palma pra você (supinada), dorso pra você (pronada) ou de lado (neutra)
-function badgeSVG(it, x0) {
-  const x = x0 + 4, y = 4, w = 104, t = String(it.text || '').replace(/[<>&"]/g, '');
+function badgeSVG(it, x0, y0 = 0) {
+  const x = x0 + 4, y = y0 + 4, w = 104, t = String(it.text || '').replace(/[<>&"]/g, '');
   const hand = it.palm ? `<g transform="translate(${x + 16},${y + 20}) rotate(${it.palm === 'neutral' ? -90 : 0})">
     <rect x="-7" y="-2" width="14" height="13" rx="3" class="${it.palm === 'in' ? 'bh-in' : 'bh-out'}"/>
     ${[-6, -2.2, 1.6, 5.4].map(fx => `<rect x="${fx - 1.6}" y="-12" width="3.2" height="11" rx="1.6" class="${it.palm === 'in' ? 'bh-in' : 'bh-out'}"/>`).join('')}

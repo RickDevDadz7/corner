@@ -25,7 +25,7 @@ export const INJURIES = {
   punho: { n: 'Punho', avoid: ['pushup', 'plyopush', 'diamond', 'pike', 'plankrot', 'abwheel', 'chairdip'], care: ['bp', 'incbp', 'bbcurl', 'skull'] },
   lombar: { n: 'Lombar', avoid: ['dl', 'gm', 'row', 'tbar', 'kbswing', 'russian', 'superman', 'medslam'], care: ['rdl', 'dbrdl', 'sq', 'ohp', 'hipext', 'singlerdl'] },
   joelho: { n: 'Joelho', avoid: ['jump', 'broad', 'skater', 'pogo', 'afundo', 'walklunge', 'bul', 'ext', 'sled'], care: ['sq', 'hack', 'lp', 'stepup', 'sumo', 'bwsq'] },
-  quadril: { n: 'Quadril / virilha', avoid: ['sumo', 'skater', 'copen', 'bul'], care: ['sq', 'afundo', 'walklunge', 'abd'] },
+  quadril: { n: 'Quadril / virilha', avoid: ['sumo', 'skater', 'copen', 'bul'], care: ['sq', 'afundo', 'walklunge', 'abd', 'addu'] },
   tornozelo: { n: 'Tornozelo', avoid: ['jump', 'broad', 'skater', 'pogo'], care: ['calf', 'calfbw', 'afundo', 'stepup'] },
   pescoco: { n: 'Pescoço', avoid: ['neck', 'shrug'], care: ['ohp', 'hlr'] }
 };

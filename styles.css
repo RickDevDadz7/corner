@@ -242,7 +242,7 @@ input:focus,select:focus,textarea:focus{box-shadow:3px 3px 0 var(--acc)}
 .tabs{margin:0}
 .fig .lb{fill:#a39b8e}
 .fig .lf{fill:var(--ink)}
-.fig line.lf{stroke:var(--ink);stroke-linecap:round}
+.fig line.lf{stroke:var(--ink);stroke-linecap:round}.fig polyline.lf{fill:none;stroke:var(--ink);stroke-linecap:round}.fig .sep{stroke:var(--ink);stroke-opacity:.18;stroke-width:1.5;stroke-dasharray:4 4}
 .fig .tor{fill:var(--ink);stroke:var(--ink);stroke-width:10;stroke-linejoin:round}
 .fig .tko{stroke:var(--ink)}.fig .tkf{stroke:var(--acc)}
 .fig .blt{stroke:var(--sheet);stroke-width:3}
@@ -253,7 +253,7 @@ input:focus,select:focus,textarea:focus{box-shadow:3px 3px 0 var(--acc)}
 .fig .gr{stroke:var(--ink);stroke-width:2.5}
 .fig .sh{fill:rgba(var(--ink-rgb),.16)}
 .fig .hi{fill:rgba(195,19,27,.16);stroke:var(--acc);stroke-width:2.5;stroke-dasharray:4 3}
-.fig .trl{stroke:var(--acc);stroke-linecap:round}
+.fig .trl{stroke:var(--acc);stroke-linecap:round}.fig .trl2{stroke:var(--p2)}
 .fig .bst{fill:var(--sheet);stroke:var(--ink);stroke-width:2.5;stroke-linejoin:round}
 .fig .bsl{stroke:var(--ink);stroke-width:2.2;stroke-linecap:round}
 .techgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
@@ -263,7 +263,7 @@ input:focus,select:focus,textarea:focus{box-shadow:3px 3px 0 var(--acc)}
 .tech-thumb svg{width:100%;height:100%}
 .techfig{width:100%;max-width:380px;aspect-ratio:1.1;margin:0 auto;background:
   repeating-conic-gradient(from 0deg at 55% 45%,rgba(var(--ink-rgb),.07) 0 1deg,transparent 1deg 7deg)}
-.techfig svg{width:100%;height:100%}
+.techfig svg{width:100%;height:100%}.techfig:has(.dual){aspect-ratio:2.3;width:min(92vw,560px)}
 .center-row{justify-content:center;flex-wrap:wrap;margin:8px 0}
 .hi-dot{display:inline-block;width:12px;height:12px;border-radius:50%;border:2px solid var(--acc);background:rgba(195,19,27,.18);vertical-align:-1px}
 .steps{padding-left:20px;margin:8px 0}

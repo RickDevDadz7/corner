@@ -372,6 +372,7 @@ export const EXERCISES = {
   nordic:   { n: 'Flexão nórdica', m: { post: 1 }, t: 'comp', req: [], r: [3, 8], vars: ['Nórdico só na descida (cai nas mãos)', 'Nórdico com elástico ajudando', 'Nórdico completo'], cue: 'Pés presos, corpo reto do joelho à cabeça, desce o mais devagar que conseguir.' },
   hipext:   { n: 'Extensão lombar no banco romano', m: { post: 1, glut: 1 }, t: 'iso', req: ['gym'], inc: 5, r: [10, 15], cue: 'Dobra no quadril, sobe apertando o glúteo até alinhar. Não hiperestenda.' },
   abd:      { n: 'Cadeira abdutora', m: { glut: 1 }, t: 'iso', req: ['gym'], inc: 5, r: [12, 20], cue: 'Abre os joelhos com controle, tronco levemente à frente pega mais glúteo.' },
+  addu:     { n: 'Cadeira adutora', m: { glut: 0.25 }, t: 'iso', req: ['gym'], inc: 5, r: [12, 20], cue: 'Fecha os joelhos com controle. Trabalha o adutor (parte de dentro da coxa).' },
   cablekick:{ n: 'Glúteo na polia (coice)', m: { glut: 1 }, t: 'iso', req: ['gym'], inc: 2.5, u: '/perna', r: [10, 15], cue: 'Perna vai pra trás sem arquear a lombar.' },
   seatcalf: { n: 'Panturrilha sentado', m: { pant: 1 }, t: 'iso', req: ['gym'], inc: 5, r: [12, 20], cue: 'Pega o sóleo: pausa embaixo, sobe tudo.' },
   kbswing:  { n: 'Kettlebell swing', m: { post: 1, glut: 1 }, t: 'comp', req: ['kettlebell'], inc: 4, r: [10, 20], cue: 'É quadril, não braço: joga o quadril pra frente e o peso flutua.' },
@@ -458,7 +459,7 @@ export const SLOTS = {
   biceps: ['curl', 'bbcurl', 'chin', 'bandcurl'], biceps2: ['ham', 'preacher', 'conc', 'bandcurl'], triceps: ['tri', 'skull', 'ohtri', 'kick', 'bandtri', 'diamond', 'wcdip'],
   core_anti: ['pal', 'sideplank', 'abwheel', 'plankrot', 'birddog', 'suitcase'], core_rot: ['lmr', 'woodchop', 'hlr', 'russian', 'crunchcable', 'legraiseb', 'hollow', 'seatcrunch'],
   carry: ['farm', 'suitcase'], neck: ['neck'], er: ['er', 'ytw', 'bandpull'], lowback: ['hipext', 'superman', 'birddog'],
-  grip: ['hang', 'farm', 'towelgrip'], adductor: ['copen'], pogo: ['pogo']
+  grip: ['hang', 'farm', 'towelgrip'], adductor: ['copen', 'addu'], pogo: ['pogo']
 };
 
 // Modelos de treino: [slot, séries, repsMin, repsMax]

@@ -110,7 +110,7 @@ export const NEEDS = {
   ytw: N(1, 0, 0, 1), bwsq: N(0, 2, 1), afundo: N(0, 2, 1), slide: N(0, 1, 0, 1), sgb: N(0, 1, 0, 1), calfbw: N(0, 1, 1), hollow: N(0, 0, 0, 1),
   plankrot: N(2, 2, 0, 1), hang: N(2, 0), towelgrip: N(2, 0), copen: N(1, 2, 0, 1), pogo: N(0, 2, 1), neck: N(1, 0),
   ext: N(0, 1), hack: N(0, 2, 1), dl: N(2, 2, 1), sumo: N(1, 2, 1), walklunge: N(0, 2, 1), stepup: N(0, 2, 1), singlerdl: N(1, 1, 1),
-  nordic: N(0, 2, 0, 1), hipext: N(0, 2), abd: N(0, 2), cablekick: N(1, 2, 1), seatcalf: N(0, 1), kbswing: N(1, 2, 1), incbp: N(2, 0, 0, 1),
+  nordic: N(0, 2, 0, 1), hipext: N(0, 2), abd: N(0, 2), addu: N(0, 2), cablekick: N(1, 2, 1), seatcalf: N(0, 1), kbswing: N(1, 2, 1), incbp: N(2, 0, 0, 1),
   fly: N(1, 0, 0, 1), cross: N(1, 0), pecdeck: N(1, 0), seatrow: N(1, 0), tbar: N(2, 2, 1), pullover: N(1, 0, 1), dbpullover: N(1, 0, 0, 1),
   shrug: N(1, 0), arnold: N(1, 0), landpress: N(1, 0), cablelat: N(1, 0), rdelt: N(1, 0), bandpull: N(2, 0), skull: N(1, 0, 0, 1),
   ohtri: N(1, 0), kick: N(1, 0), bbcurl: N(2, 0), preacher: N(1, 0), conc: N(1, 0), abwheel: N(2, 2, 0, 1), crunchcable: N(1, 2, 0, 1),
