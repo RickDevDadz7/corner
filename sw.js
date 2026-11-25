@@ -1,5 +1,5 @@
 // Service worker: app funciona offline. Mude VERSION a cada publicação.
-const VERSION = 'ronin-v3.30.3';
+const VERSION = 'ronin-v3.30.4';
 const FILES = ['./', 'index.html', 'styles.css', 'manifest.webmanifest', 'js/app.js', 'js/calc.js', 'js/data.js', 'js/sports.js', 'js/techniques.js', 'js/cloud.js', 'js/sync.js', 'js/rig.js', 'js/scan.js', 'js/menu.js', 'js/routine.js', 'js/exanim.js', 'js/periodize.js', 'js/health.js', 'js/spine.js', 'js/schedule.js', 'js/tour.js', 'js/theme.js',
   'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png'];
 
