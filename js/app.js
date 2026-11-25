@@ -1166,10 +1166,10 @@ views.treino = () => {
     <h2>${esc(r.auto ? plan.split : r.name)}</h2>
     <p class="small muted">${plan.freq} ${plan.freq === 1 ? 'treino' : 'treinos'} por semana${plan.freq > plan.days.length ? ` · ${esc(plan.days.map(d => d.name.split(' ').pop()).join(' e '))} alternando` : ''}${r.auto ? ' · recomendada pelo seu perfil, se ajusta sozinha' : r.split !== 'custom' ? ' · ' + esc(SPLIT_DEFS[r.split].n) : ''}${plan.home ? ' · em casa' : ''}</p>
     ${cycleBox(plan)}
-    ${plan.days.length ? `<ul class="rsess">${plan.days.map((d, i) => { const last = lastDoneOf(d.sid), mus = musclesOf(d.items).slice(0, 3); return `<li class="${i === nx ? 'next' : ''}">
+    ${plan.days.length ? `<ul class="rsess">${(rec => plan.days.map((d, i) => { const last = lastDoneOf(d.sid), mus = musclesOf(d.items).slice(0, 3); return `<li class="${i === nx ? 'next' : ''}">
       <span class="rday">DIA ${i + 1}</span>
-      <div class="grow"><b>${esc(d.name)}</b><small>${esc(mus.join(', ') || 'sem exercícios')} · ${d.items.length} exerc. · ~${d.min} min · ${last ? 'última: ' + last.split('-').reverse().slice(0, 2).join('/') : 'ainda não feita'}</small></div>
-      <a class="btn small ghost" href="#ver-${i}">Ver</a>${!d.items.length ? '' : todayW ? (todayW.sid === d.sid ? `<a class="btn small donebtn" href="#wk-${esc(todayW.id)}">✓ Hoje</a>` : '<span class="btn small off" aria-disabled="true">Amanhã</span>') : `<a class="btn small ${i === nx ? 'primary' : ''}" href="#sessao-${i}">Começar</a>`}</li>`; }).join('')}</ul>
+      <div class="grow"><b>${esc(d.name)}</b>${!todayW && d.items.length && overlapOf(d, rec).length ? `<small class="early">⚠ ${esc(overlapOf(d, rec).slice(0, 2).map(m => MUSCLES[m].toLowerCase()).join(' e '))} ainda descansando</small>` : ''}<small>${esc(mus.join(', ') || 'sem exercícios')} · ${d.items.length} exerc. · ~${d.min} min · ${last ? 'última: ' + last.split('-').reverse().slice(0, 2).join('/') : 'ainda não feita'}</small></div>
+      <a class="btn small ghost" href="#ver-${i}">Ver</a>${!d.items.length ? '' : todayW ? (todayW.sid === d.sid ? `<a class="btn small donebtn" href="#wk-${esc(todayW.id)}">✓ Hoje</a>` : '<span class="btn small off" aria-disabled="true">Amanhã</span>') : `<a class="btn small ${i === nx ? 'primary' : ''}" href="#sessao-${i}">Começar</a>`}</li>`; }).join(''))(recentMuscles())}</ul>
     ${todayW ? '<p class="small muted">Força de hoje feita. A próxima sessão libera amanhã: músculo cresce no descanso.</p>' : ''}`
       : '<p class="small">Essa rotina ainda não tem sessões.</p>'}
     <div class="row gap"><a class="btn small block" href="#rotina">Editar rotina</a></div>
@@ -1406,6 +1406,30 @@ const regTxt = () => { const n = draftDone(); return n === 1 ? '1 série registr
 const draftHas = () => !!draft && draftDone() > 0;
 const draftIdx = () => draft ? activePlan().days.findIndex(d => d.sid === draft.sid) : -1;
 const draftBanner = () => draftHas() ? `<a class="card draftban" href="${draftIdx() >= 0 ? '#sessao-' + draftIdx() : '#resumo'}"><span class="grow"><small class="cat">Treino em andamento</small><b>${esc(draft.name)}</b><small>${regTxt()} · toque pra continuar</small></span><span>→</span></a>` : '';
+// ---------- músculo cedo demais: o mesmo grupo pesado com menos de 48 h (Schoenfeld 2016: 48–72 h entre sessões do mesmo músculo) ----------
+const SKIP_M = new Set(['core', 'pescoco']);
+function musLoad(items) { const m = {}; for (const it of items || []) { const e = EXERCISES[it.ex]; if (!e || e.t === 'prehab') continue; for (const [k, f] of Object.entries(e.m)) if (!SKIP_M.has(k)) m[k] = (m[k] || 0) + (+it.sets || (Array.isArray(it) ? it.length : 0)) * f; } return m; }
+// grupos treinados pesado (3+ séries) nas últimas 48 h → horas desde então
+function recentMuscles() {
+  const out = {}, now = Date.now();
+  for (const w of S.logs.workouts) {
+    if (typeof w?.date !== 'string' || !w.sets || typeof w.sets !== 'object') continue;
+    const at = typeof w.start === 'number' && w.start > 0 ? w.start + (+w.dur || 0) * 1000 : new Date(w.date + 'T18:00').getTime(), h = (now - at) / 36e5;
+    if (!(h >= 0 && h < 48)) continue;
+    const items = Object.entries(w.sets).filter(([ex]) => EXERCISES[ex]).map(([ex, arr]) => ({ ex, sets: (Array.isArray(arr) ? arr : []).filter(x => x && x.done && +x.reps > 0).length }));
+    for (const [m, v] of Object.entries(musLoad(items))) if (v >= 3 && (out[m] == null || h < out[m])) out[m] = h;
+  }
+  return out;
+}
+function overlapOf(day, rec = recentMuscles()) { const l = musLoad(day.items); return Object.keys(l).filter(m => l[m] >= 2 && rec[m] != null).sort((a, b) => l[b] - l[a]); }
+const whenTxt = h => h < 18 ? 'hoje' : h < 36 ? 'ontem' : 'há 2 dias';
+function earlyWarn(plan, day) {
+  const rec = recentMuscles(), ov = overlapOf(day, rec); if (!ov.length) return '';
+  const best = plan.days.filter(d => d.items.length && d.sid !== day.sid).map(d => ({ d, n: overlapOf(d, rec).length })).sort((a, b) => a.n - b.n)[0];
+  const names = ov.slice(0, 3).map(m => MUSCLES[m].toLowerCase()), h = Math.min(...ov.map(m => rec[m]));
+  return `<div class="card care small" id="s-early"><b>${esc((t => t[0].toUpperCase() + t.slice(1))(names.join(', ').replace(/, ([^,]*)$/, ' e $1')))} ${ov.length > 1 ? 'treinaram' : 'treinou'} ${whenTxt(h)}.</b> O músculo precisa de uns 2 dias pra render de novo; treinar antes disso costuma render menos e aumenta o risco de dor e lesão.
+    ${best && best.n < ov.length ? `<a class="btn small block" href="#sessao-${best.d.idx}">Fazer ${esc(best.d.name)} hoje${best.n ? '' : ' (descansado)'}</a>` : ''}<small class="muted">Se quiser seguir com este, tudo bem: vá mais leve.</small></div>`;
+}
 views.sessao = (idx) => {
   const plan = activePlan();
   const day = plan.days[+idx] || plan.days[0];
@@ -1429,6 +1453,7 @@ views.sessao = (idx) => {
     <div class="kbar"><div style="width:${planned ? Math.round(doneN / planned * 100) : 0}%"></div></div>
     <small class="muted">Aqueça 5–10 min e faça 1–2 séries leves no primeiro composto. Potência primeiro, sempre descansado.</small>
     ${plan.auto && plan.ci.deload ? '<p class="small note">Semana leve: metade das séries e ~10% menos carga. Saia do treino com energia sobrando.</p>' : ''}${preTrainTips()}</div>
+  ${doneN ? '' : earlyWarn(plan, day)}
   ${day.items.map((it, xi) => {
     const e = EXERCISES[it.ex], last = lastFor(it.ex), sg = suggest(it, last?.sets);
     const unit = e.u === 's' ? 's' : e.u === 'm' ? 'm' : 'reps';

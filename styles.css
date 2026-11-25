@@ -813,3 +813,4 @@ body.resting #app{padding-bottom:calc(176px + var(--safe-b))}
 .tr-n{color:var(--muted);font-weight:700;letter-spacing:.06em;text-transform:uppercase;font-size:11px}
 .tr-btns{display:flex;gap:8px;align-items:center}.tr-btns span{flex:1}
 body.touring{overflow:hidden}
+.rsess small.early{color:var(--acc);font-weight:700}
