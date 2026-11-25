@@ -350,7 +350,7 @@ def('walklunge', { frames: PAT.afundo.frames, steps: ['Passo longo à frente, de
   def('cablelat', { cam: 72, frames: rep4(dn, up, 900, 1000), steps: ['Cabo vindo do lado oposto, cruzando na frente do corpo', 'Sobe até a linha do ombro e desce devagar'], props: J => [{ k: 'line', a: J.haL, b: [0, 0.06, 0.5], w: 2, c: 'pr' }] }); }
 { const dn = P(ST, { p: [-0.2, 0.84, 0], lean: 72, fL: [0.03, 0, -0.15], fR: [0.03, 0, 0.15], kL: [1, 0, -0.15], kR: [1, 0, 0.15], wL: [0.25, 0.46, -0.25], wR: [0.25, 0.46, 0.25], eL: [-0.4, -0.2, 1], eR: [-0.4, -0.2, -1] });
   const up = P(dn, { wL: [0.27, 0.9, -0.74], wR: [0.27, 0.9, 0.74] });
-  def('rdelt', { cam: 76, tilt: 10, frames: rep4(dn, up, 900, 1000), steps: ['Tronco inclinado, abre os braços pro lado com o cotovelo levemente dobrado', 'Desce devagar, sem embalar'], props: dbs() }); }
+  def('rdelt', { cam: 90, tilt: 22, zoom: 1.15, frames: rep4(dn, up, 900, 1000), steps: ['Tronco inclinado, abre os braços pro lado com o cotovelo levemente dobrado', 'Desce devagar, sem embalar'], props: dbs() }); }
 { const s0 = P(STD, { hL: [0.52, 0.0, 0.1], hR: [0.52, 0.0, -0.1], eL: [-0.3, -1, 0.3], eR: [-0.3, -1, -0.3] }), s1 = P(s0, { hL: [0.1, 0.0, 0.72], hR: [0.1, 0.0, -0.72] });
   def('bandpull', { cam: 60, frames: rep4(s0, s1, 700, 900), steps: ['Braços esticados na frente segurando o elástico', 'Abre até encostar no peito, aperta as escápulas e volta'], props: J => [{ k: 'band', a: J.haL, b: J.haR }] }); }
 // Braços
@@ -714,8 +714,8 @@ const trailOn = (fr, j) => fr.map(f => ({ ...f, fx: j })); // rastro vermelho se
   const a = { py: 0, cy: 0, p: [0.0, 0.44, 0], lean: 58, fL: [0.5, 0, -0.2], kL: [1, 0.5, -0.3], tL: [1, 0, 0], fR: [-0.62, 0.03, 0.14], kR: [0.4, -1, 0], tR: [1, -0.7, 0], wL: [0.56, 0.02, -0.04], wR: [0.52, 0.02, 0.14], eL: [-1, 0, 0.4], eR: [-1, 0, -0.4] };
   const b = P(a, { p: [0.02, 0.4, 0], lean: 70, wL: [0.46, 0.12, -0.1], eL: [1, -0.6, 0.2] });
   const c = P(a, { lean: 50, tw: -60, wL: [0.3, 1.25, -0.32], eL: [-0.3, 0, 1] });
-  mdef('mgs', { cam: 14, tilt: 10, ox: 25, steps: ['Passo largo, mãos no chão por dentro do pé da frente', 'Cotovelo desce até o pé, depois o braço gira pro teto'], props: () => [{ k: 'badge', text: 'Cotovelo no chão,|depois braço pro teto' }],
-    frames: [F(a, 500, 0), F(b, 800, 0), F(b, 500, 0), F(a, 500, 1), F(c, 900, 1), F(c, 700, 1), F(a, 700, 1)] }); }
+  mdef('mgs', { cam: 26, tilt: 12, ox: 25, steps: ['Passo largo, mãos no chão por dentro do pé da frente', 'Cotovelo desce até o pé, depois o braço gira pro teto'], props: () => [{ k: 'badge', text: 'Cotovelo no chão,|depois braço pro teto' }],
+    frames: [F(a, 500, 0), F(b, 800, 0), F(b, 500, 0), F(a, 500, 1), F(c, 900, 1), F(c, 700, 1), F(a, 700, 1)].map(f => ({ ...f, hi: ['elL', 'haL'] })) }); }
 { // skipping
   const a = P(STD, { p: [0.02, 0.95, 0], fL: [0.28, 0.52, -0.13], kL: [1, 0.2, 0], tL: [1, -0.4, 0], fR: [0.03, 0.06, 0.13], tR: [1, -0.8, 0], hR: [0.32, -0.15, -0.2], hL: [-0.15, -0.4, 0.24] });
   const b = P(STD, { p: [0.02, 0.95, 0], fR: [0.28, 0.52, 0.13], kR: [1, 0.2, 0], tR: [1, -0.4, 0], fL: [0.03, 0.06, -0.13], tL: [1, -0.8, 0], hL: [0.32, -0.15, 0.2], hR: [-0.15, -0.4, -0.24] });

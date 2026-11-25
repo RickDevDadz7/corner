@@ -601,8 +601,6 @@ function fitView(t) {
 }
 for (const t of TECHNIQUES) { const x = DUO[t.id]; if (!x) continue; t.partner = x.o; t.cam = x.o.cam ?? 12; t.ox = x.o.ox ?? -Math.round((x.o.d ?? 1.1) * 46); t.zoom = x.o.zoom ?? 0.92; if (x.o.tilt) t.tilt = x.o.tilt; if (x.o.props) t.props = x.o.props; t.frames.forEach((f, i) => { if (x.q[i]) f.q = x.q[i]; }); if (x.o.fit) fitView(t); }
 // revisão v3.34: enquadramento automático também nas técnicas solo refeitas
-// pêndulo: segunda vista (de frente), enquadrada à parte
-{ const t = TECHNIQUES.find(x => x.id === 'pendulo'), v = { ...t, cam: 85, tilt: 10 }; fitView(v); t.view2 = { cam: v.cam, tilt: v.tilt, zoom: v.zoom, ox: v.ox, oy: v.oy }; }
 for (const t of TECHNIQUES) if (['overhand', 'pivo', 'chuteesq', 'cotoveladasobe', 'kizami', 'passos'].includes(t.id)) fitView(t);
 for (const t of TECHNIQUES) if (['pivo', 'kizami', 'passos', 'esquiva'].includes(t.id)) t.noshadow = true;
 
