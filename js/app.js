@@ -200,6 +200,8 @@ function save(prefs = false) {
   try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { toast('Não consegui salvar no aparelho.'); }
   if (cloud.user()) { clearTimeout(syncTimer); syncTimer = setTimeout(() => doSync(true), 5000); }
 }
+// modo de teste (chave própria do dono do app, até o servidor do Tairen ficar pronto): localStorage 'ronin:dev' = '1'
+const devMode = () => { try { return localStorage.getItem('ronin:dev') === '1'; } catch (e) { return false; } };
 function getKey() { try { return localStorage.getItem(KEY_API) || localStorage.getItem(OLD_API) || ''; } catch (e) { return ''; } }
 function setKey(v) { try { localStorage.removeItem(OLD_API); v ? localStorage.setItem(KEY_API, v) : localStorage.removeItem(KEY_API); } catch (e) { } }
 
@@ -2584,14 +2586,13 @@ function offlineAnswer(q) {
   const words = norm(q).split(/\W+/).filter(w => w.length > 2 && !STOP.has(w));
   const scored = EVIDENCE.map(e => { const hay = norm(e.tags.join(' ') + ' ' + e.title + ' ' + e.do); return [e, words.reduce((s, w) => s + (hay.includes(w) ? 1 : 0), 0)]; })
     .filter(([, s]) => s > 0).sort((a, b) => b[1] - a[1]).slice(0, 2);
-  if (!scored.length) return { text: 'Sem a IA ligada eu respondo só com as cartas de evidência e não achei nenhuma sobre isso. Tente palavras como proteína, sono, soco, chute, corrida ou creatina, ou ative a IA em Perfil.' };
-  return { text: 'Modo offline: o que a base científica diz.', cards: scored.map(([e]) => e.id) };
+  if (!scored.length) return { text: 'Não achei nada sobre isso na base de ciência. Tenta com outras palavras: proteína, sono, soco, chute, corrida, creatina…' };
+  return { text: 'Olha o que a ciência diz sobre isso:', cards: scored.map(([e]) => e.id) };
 }
 views.coach = () => {
   const hasKey = !!getKey();
   const sugg = { boxe: 'Cansei no 3º round', muaythai: 'Como chutar mais forte?', jiu: 'Minha pegada acaba rápido', mma: 'Como defender queda?', karate: 'Como chegar antes no kumite?', corrida: 'Como melhorar meu ritmo?' };
-  return `<section class="tai-head"><img class="tai-face" src="img/tairen/${S.chat.length ? 'smile' : 'thumbs'}.webp" alt="" width="84" height="84"><div><h1>Tairen</h1><p class="small">Seu treinador virtual (IA)</p><span class="chip ${hasKey ? 'on' : ''}">${hasKey ? 'Online' : 'Offline'}</span></div></section>
-  ${hasKey ? '' : `<p class="note small">Sem chave de API, o coach responde com as cartas de evidência. Pra conversar de verdade, adicione sua chave da API Anthropic em <a href="#perfil">Perfil</a>.</p>`}
+  return `<section class="tai-head"><img class="tai-face" src="img/tairen/${S.chat.length ? 'smile' : 'thumbs'}.webp" alt="" width="84" height="84"><div><h1>Tairen</h1><p class="small">Seu treinador virtual (IA)</p></div></section>
   <div id="chat" class="chat">${S.chat.length ? S.chat.map(m => msgHTML(m)).join('') : `<div class="tai-empty"><img src="img/tairen/pointing.webp" alt="" width="150" height="150"><p><b>Manda a dúvida.</b><br>Treino, luta, corrida ou comida.</p></div>`}</div>
   <div class="chips">${[...mySports().map(id => sugg[id]), 'O que comer antes do treino?', 'Tô estagnado na força'].slice(0, 4).map(s => `<button class="chipbtn" data-act="ask" data-q="${esc(s)}">${esc(s)}</button>`).join('')}</div>
   <form id="chatForm" class="chatbar"><textarea name="q" rows="1" placeholder="Fale com o Tairen…"></textarea><button class="btn primary" type="submit" aria-label="Enviar">➤</button></form>
@@ -2620,7 +2621,7 @@ async function askCoach(q) {
     if (!res.ok) throw new Error(data?.error?.message || ('HTTP ' + res.status));
     pending.text = data.content.map(c => c.text || '').join('').trim();
   } catch (e) {
-    pending.text = 'Não consegui falar com a IA: ' + e.message + '. Confira a chave e o modelo em Perfil. Enquanto isso, a base offline:';
+    pending.text = 'Fiquei sem conexão agora. Enquanto isso, o que a ciência diz:';
     Object.assign(pending, { cards: offlineAnswer(q).cards });
   }
   pending.pending = false; save(); render(); scrollChat();
@@ -2697,12 +2698,12 @@ views.perfil = () => `<section class="head"><h1>Perfil e ajustes</h1></section>
     <div class="segs small" id="themeSeg">${[['auto', 'Automático'], ['light', 'Claro'], ['dark', 'Escuro']].map(([v, n]) => `<button class="${(window.roninTheme?.get() || 'auto') === v ? 'on' : ''}" data-act="themeSet" data-v="${v}">${n}</button>`).join('')}</div></div>
   ${views.onboarding().replace('<section class="head"><h1>Perfil</h1></section>', '')}
   <div class="card row between"><h3>Tutorial</h3><button class="btn small" data-act="tour">Ver o tutorial</button></div>
-  <div class="card form"><h3>Coach com IA</h3>
+  ${getKey() || devMode() ? `  <div class="card form"><h3>Coach com IA</h3>
     <p class="small muted">Chave da API Anthropic (console.anthropic.com). Cobrança por uso, separada da assinatura do Claude. Fica só neste aparelho e fora dos backups e da sincronização.</p>
     <input id="apiKey" type="password" placeholder="sk-ant-…" value="${getKey() ? '••••••••' : ''}" autocomplete="off">
     <label>Modelo<input id="apiModel" value="${esc(S.settings.model)}"></label>
     <div class="row gap"><button class="btn small" data-act="saveKey">Salvar chave</button>${getKey() ? '<button class="btn small ghost" data-act="delKey">Remover</button>' : ''}</div>
-  </div>
+  </div>` : ''}
   <div class="card"><h3>Seus dados</h3>
     <div class="row gap wrap"><button class="btn small" data-act="export">Exportar backup</button><label class="btn small ghost">Restaurar<input type="file" accept="application/json" id="importFile" hidden></label><button class="btn small danger" data-act="reset">Apagar tudo</button></div>
   </div>
