@@ -1007,3 +1007,9 @@ details.focus[open]>summary{margin-bottom:6px}
 .gbadge{font-size:34px}
 .logo-big{display:flex;align-items:center;justify-content:center;gap:16px}
 .logo-big .gbadge.big{width:64px;height:64px;font-size:40px;flex:none}
+/* Coach: barra de escrever presa embaixo, logo acima da navegação */
+body.coachv #app{padding-bottom:calc(178px + var(--safe-b))}
+body.coachv .chatbar{position:fixed;left:50%;transform:translateX(-50%);width:min(532px,calc(100% - 28px));box-sizing:border-box;bottom:calc(92px + var(--safe-b));z-index:25}
+.tai-head .tai-face{width:64px;height:64px}
+.tai-head h1{font-size:28px}
+body.coachv .toast{bottom:calc(172px + var(--safe-b))}

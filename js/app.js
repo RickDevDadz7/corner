@@ -2591,10 +2591,8 @@ function offlineAnswer(q) {
 }
 views.coach = () => {
   const hasKey = !!getKey();
-  const sugg = { boxe: 'Cansei no 3º round', muaythai: 'Como chutar mais forte?', jiu: 'Minha pegada acaba rápido', mma: 'Como defender queda?', karate: 'Como chegar antes no kumite?', corrida: 'Como melhorar meu ritmo?' };
-  return `<section class="tai-head"><img class="tai-face" src="img/tairen/${S.chat.length ? 'smile' : 'thumbs'}.webp" alt="" width="84" height="84"><div><h1>Tairen</h1><p class="small">Seu treinador virtual (IA)</p></div></section>
-  <div id="chat" class="chat">${S.chat.length ? S.chat.map(m => msgHTML(m)).join('') : `<div class="tai-empty"><img src="img/tairen/pointing.webp" alt="" width="150" height="150"><p><b>Manda a dúvida.</b><br>Treino, luta, corrida ou comida.</p></div>`}</div>
-  <div class="chips">${[...mySports().map(id => sugg[id]), 'O que comer antes do treino?', 'Tô estagnado na força'].slice(0, 4).map(s => `<button class="chipbtn" data-act="ask" data-q="${esc(s)}">${esc(s)}</button>`).join('')}</div>
+  return `<section class="tai-head"><img class="tai-face" src="img/tairen/smile.webp" alt="" width="84" height="84"><div><h1>Tairen</h1><p class="small">Seu treinador virtual (IA)</p></div></section>
+  <div id="chat" class="chat">${S.chat.map(m => msgHTML(m)).join('')}</div>
   <form id="chatForm" class="chatbar"><textarea name="q" rows="1" placeholder="Fale com o Tairen…"></textarea><button class="btn primary" type="submit" aria-label="Enviar">➤</button></form>
   ${S.chat.length ? '<button class="btn ghost small" data-act="clearChat">Limpar conversa</button>' : ''}`;
 };
@@ -2738,6 +2736,7 @@ function render() {
   $('#nav').innerHTML = tabs.map(([id, label]) => `<a href="#${id}" class="${(v === id || ((v === 'sessao' || v === 'rotinas' || v === 'rotina' || v === 'ver' || v === 'resumo' || v === 'wk' || v === 'evo' || v === 'demo' || v === 'coluna') && id === 'treino') || (v === 'cardapio' && id === 'nutri') || ((v === 'tecnica' || v === 'tecnicas' || v === 'corrida') && id === 'esporte')) ? 'on' : ''}"><svg viewBox="0 0 24 24"><path d="${ICONS[id]}"/></svg><span>${esc(label)}</span></a>`).join('');
   bindAfter(v, arg);
   if (window.scrollY !== keepY) window.scrollTo(0, keepY);
+  document.body.classList.toggle('coachv', v === 'coach');
   if (v === 'esporte') paintTimer();
   if (v === 'corrida') bindCorrida(arg);
   if (v === 'perfil' && arg === 'conta') requestAnimationFrame(() => $('#conta')?.scrollIntoView({ behavior: 'smooth' }));
