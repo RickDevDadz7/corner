@@ -76,7 +76,7 @@ const JJ_THEMES = {
 export const SPORTS = {
   boxe: {
     n: 'Boxe', mark: '拳', combat: true,
-    types: { tecnica: { n: 'Técnica / sombra', met: 4.0 }, saco: { n: 'Saco / manopla', met: 5.5 }, sparring: { n: 'Sparring', met: 7.8 }, condic: { n: 'Condicionamento', met: 8.0 }, luta: { n: 'Luta (ringue)', met: 12.8 } },
+    types: { tecnica: { n: 'Técnica / sombra', met: 4.0 }, saco: { n: 'Saco', met: 5.5 }, manopla: { n: 'Manopla', met: 5.5 }, sparring: { n: 'Sparring', met: 7.8 }, condic: { n: 'Condicionamento', met: 8.0 }, luta: { n: 'Luta (ringue)', met: 12.8 } },
     defaultType: 'tecnica', round: [180, 60], roundIni: [120, 60],
     presets: [{ id: 'amador', n: 'Amador 3×3', rounds: 3, work: 180, rest: 60 }, { id: 'saco', n: 'Saco 6×3', rounds: 6, work: 180, rest: 60 }, { id: 'pro', n: 'Pro 12×3', rounds: 12, work: 180, rest: 60 }, { id: 'hiit', n: 'HIIT 30/30', rounds: 10, work: 30, rest: 30 }],
     combos: COMBOS, themes: BOX_THEMES, weak: BOX_WEAK,
@@ -92,7 +92,7 @@ export const SPORTS = {
   },
   muaythai: {
     n: 'Muay thai', mark: '脚', combat: true,
-    types: { tecnica: { n: 'Técnica / sombra', met: 5.0 }, saco: { n: 'Saco / aparador', met: 7.0 }, sparring: { n: 'Sparring', met: 9.4 }, condic: { n: 'Condicionamento', met: 8.0 } },
+    types: { tecnica: { n: 'Técnica / sombra', met: 5.0 }, saco: { n: 'Saco', met: 7.0 }, aparador: { n: 'Aparador / manopla', met: 7.0 }, sparring: { n: 'Sparring', met: 9.4 }, condic: { n: 'Condicionamento', met: 8.0 } },
     defaultType: 'tecnica', round: [180, 60], roundIni: [120, 60],
     presets: [{ id: 'mt3', n: 'Amador 3×3', rounds: 3, work: 180, rest: 60 }, { id: 'mtpro', n: 'Pro 5×3/2', rounds: 5, work: 180, rest: 120 }, { id: 'mtsaco', n: 'Saco 5×3', rounds: 5, work: 180, rest: 60 }],
     legend: true, combos: MT_COMBOS, themes: MT_THEMES,

@@ -1,7 +1,7 @@
 import { EVIDENCE, EXERCISES, FOODS, MUSCLES, EQUIP, PUNCHES, MEALS, RESTR, RESTR_GROUPS, restrOf, SLOTS as XSLOTS } from './data.js';
 import { NEAT, GOALS, targets, adaptiveTDEE, buildPlan as plan_, suggest, dayKey, fmt, sessionKcal, movingAvg, equipment, comboPool, comboSpeech, sportsOf, sportDays, WEEKDAYS, wdOk, hOk, weekOf, weekdayOf } from './calc.js';
 import { SPORTS, SPORT_IDS, combatSession, runSession, paceTxt, paceKmh, parsePace, typesOf, metOf } from './sports.js';
-import { TECHNIQUES, TIRED, CATS, animate, thumbSVG } from './techniques.js';
+import { TECHNIQUES, TIRED, tiredFor, CATS, animate, thumbSVG } from './techniques.js';
 import { hasDemo, exThumb, exAnimate, demoSteps } from './exanim.js';
 import { cloud } from './cloud.js';
 import { startScan, lookupBarcode } from './scan.js';
@@ -85,7 +85,7 @@ function blockBanner(plan) {
     <button class="btn primary block" data-act="blockNew">App monta o próximo bloco</button>
     <a class="btn block" href="#rotinas">Quero montar o meu</a>
     ${bk.over ? '<button class="linkbtn center-link" data-act="blockSnooze">Continuar mais 2 semanas</button>' : ''}
-    ${r.auto ? '' : '<small class="muted">"App monta" troca da sua rotina pra recomendada. A sua continua salva.</small>'}</div>`;
+    </div>`;
 }
 // ---------- Ciclo e explicação do plano ----------
 const MN = m => MUSCLES[m] || m;
@@ -417,6 +417,14 @@ const ICO = {
   ciencia: '<svg viewBox="0 0 24 24"><path d="M3 5h7a2 2 0 0 1 2 2v13a2 2 0 0 0-2-2H3zM21 5h-7a2 2 0 0 0-2 2v13a2 2 0 0 1 2-2h7z"/></svg>'
 };
 const levelBadge = l => `<span class="lvl lvl-${l}" title="Nível de evidência">${l}</span>`;
+// 1–2 cards de ciência pra página do esporte: os dos objetivos marcados primeiro, depois os do esporte; corte de peso só pra quem está cortando
+// card de ciência de outra arte marcial não aparece como base de uma diferente
+const EV_SPORT = { mt: 'muaythai', jj: 'jiu', mma: 'mma', karate: 'karate' };
+const evOk = (e, id) => { const k = EV_SPORT[e.split('-')[0]]; return !k || k === id; };
+function evFor(id, weak, p) {
+  const SP = SPORTS[id], ids = [...SP.weak.filter(w => weak.includes(w.id)).flatMap(w => w.ev || []), ...SP.ev];
+  return [...new Set(ids)].filter(e => ev(e) && evOk(e, id) && (e !== 'corte-peso' || p.goal === 'cut')).slice(0, 2);
+}
 function evCard(e, open = false) {
   if (!e) return '';
   return `<details class="card ev" ${open ? 'open' : ''}><summary><div><small class="cat">${esc(e.cat)}</small><h3>${esc(e.title)}</h3></div>${levelBadge(e.level)}</summary>
@@ -438,8 +446,7 @@ function agendaCard() {
   return `<details class="card" id="h-agenda" ${S.ui.agOpen ? 'open' : ''}><summary><h3>Seu dia, hora a hora</h3><small class="muted">${hab.n ? 'com os horários em que você costuma comer' : 'sugestão pelo seu plano'}</small></summary>
     <ol class="agenda">${items.map(x => `<li class="ag-${x.k}"><span class="mono">${hm(x.m)}</span><span class="agi" aria-hidden="true"></span><span>${esc(x.t)}${x.usual ? ' <small class="muted">(seu horário de costume)</small>' : ''}</span></li>`).join('')}</ol>
     ${!wk.explicit ? '<p class="small muted">Marque seus dias e horários de treino em Perfil › Minha semana pra encaixar pré e pós-treino.</p>' : noTime ? '<p class="small muted">Coloque o horário dos treinos em Perfil › Minha semana pra encaixar pré e pós-treino.</p>' : ''}
-    ${hab.n < 3 ? '<p class="small muted">Registrando refeições e água na hora, o app aprende seus horários e ajusta a sugestão.</p>' : ''}
-    <p class="small muted">Os horários são guia, não regra: o total do dia importa mais que o relógio.</p></details>`;
+    ${hab.n < 3 ? '<p class="small muted">Registrando refeições e água na hora, o app aprende seus horários e ajusta a sugestão.</p>' : ''}</details>`;
 }
 // ---------- Perfil: seções recolhíveis e Minha semana ----------
 // perfil novo: tudo aberto; editando: fechado com resumo de uma linha
@@ -455,7 +462,7 @@ function weekSummary(p) {
 function weekEditor(p) {
   const w = weekOf(S.profile ? p : { ...p, liftDays: 2 }).days, sp = sportsOf(p), on = id => id === 'forca' ? (S.profile ? (+p.liftDays || 0) > 0 : true) : !!sp[id];
   const has = (id, d) => w[d].some(x => x.a === id), hOf = id => id === 'forca' ? hOk(p.liftH) : hOk(sp[id]?.h);
-  return `<p class="small muted">Toque no que você faz e marque os dias. O app usa isso pro treino do dia, o gasto, o cardápio e os horários.</p>
+  return `<p class="small muted">Toque no que você faz e marque os dias.</p>
     <div class="actchips">${ACTS().map(([id, n]) => `<label class="chipbtn ${on(id) ? 'on' : ''}"><input type="checkbox" name="${id === 'forca' ? 'lift_on' : 'sp_' + id}" ${on(id) ? 'checked' : ''} data-wrow="${id}">${id === 'forca' ? '' : `<b class="mk">${SPORTS[id].mark}</b>`}${esc(n)}</label>`).join('')}</div>
     <table class="wkgrid"><tr><th></th>${WEEKDAYS.map(d => `<th>${d}</th>`).join('')}</tr>
       ${ACTS().map(([id, n]) => `<tr class="wrow ${on(id) ? 'on' : ''}" data-row="${id}"><th>${esc(n)}</th>${WEEKDAYS.map((_, d) => `<td><label class="wcell"><input type="checkbox" name="wd_${id}" value="${d}" ${on(id) && has(id, d) ? 'checked' : ''} aria-label="${esc(n)} ${WEEKDAYS[d]}"><span></span></label></td>`).join('')}</tr>`).join('')}
@@ -505,8 +512,7 @@ views.onboarding = () => {
       ${Object.entries(INJURIES).map(([k, v]) => `<label class="check"><input type="checkbox" name="inj" value="${k}" ${(p.inj || []).includes(k) ? 'checked' : ''}><span>${esc(v.n)}</span></label>`).join('')}
       <small class="muted">Marque no dia em que doer: o treino troca na hora o que piora a região. Desmarcou, volta ao normal. Não substitui fisioterapeuta.</small></fieldset>
     <fieldset class="equip"><legend>Prioridade (até 3 músculos)</legend>
-      ${FOCUS_MUSCLES.map(m => `<label class="check"><input type="checkbox" name="focus" value="${m}" ${(p.focus || []).includes(m) ? 'checked' : ''}><span>${esc(MUSCLES[m])}</span></label>`).join('')}
-      <small class="muted">Começam com mais séries e sobem mais rápido no ciclo.</small></fieldset>
+      ${FOCUS_MUSCLES.map(m => `<label class="check"><input type="checkbox" name="focus" value="${m}" ${(p.focus || []).includes(m) ? 'checked' : ''}><span>${esc(MUSCLES[m])}</span></label>`).join('')}</fieldset>
     <label class="check"><input type="checkbox" name="autoVol" ${p.autoVol === false ? '' : 'checked'}><span>Subir o volume sozinho em ciclos (com semana leve)</span></label>`)}
     ${healthBox(p)}
     ${restrBox(restrOfProfile(p))}
@@ -753,7 +759,7 @@ function menuCard() {
   const m = solvedMenu();
   return `<a class="card link menucard" href="#cardapio" id="n-menu"><small class="cat">Cardápio do dia</small>
     ${m ? `<h3>${fmt(m.sol.tot.k, 0)} kcal em ${menuMeals().length} refeições</h3><p class="small muted">${menuMeals().filter(x => m.plan.meals[x]?.done).length} de ${menuMeals().length} registradas · ${menuTrain() ? 'dia de treino' : 'dia de descanso'}</p>`
-      : `<h3>Montar meu cardápio</h3><p class="small muted">Sugestão que fecha suas metas, respeita suas restrições e usa o que você tem em casa.</p>`}
+      : `<h3>Montar meu cardápio</h3>`}
     <span class="go">Abrir →</span></a>`;
 }
 let pantryOpen = false, shopOpen = false, menuChoose = null;
@@ -1172,7 +1178,7 @@ views.treino = () => {
       <span class="rday">DIA ${i + 1}</span>
       <div class="grow"><b>${esc(d.name)}</b>${!todayW && d.items.length && overlapOf(d, rec).length ? `<small class="early">⚠ ${esc(overlapOf(d, rec).slice(0, 2).map(m => MUSCLES[m].toLowerCase()).join(' e '))} ainda descansando</small>` : ''}<small>${esc(mus.join(', ') || 'sem exercícios')} · ${d.items.length} exerc. · ~${d.min} min · ${last ? 'última: ' + last.split('-').reverse().slice(0, 2).join('/') : 'ainda não feita'}</small></div>
       <a class="btn small ghost" href="#ver-${i}">Ver</a>${!d.items.length ? '' : todayW ? (todayW.sid === d.sid ? `<a class="btn small donebtn" href="#wk-${esc(todayW.id)}">✓ Hoje</a>` : '<span class="btn small off" aria-disabled="true">Amanhã</span>') : `<a class="btn small ${i === nx ? 'primary' : ''}" href="#sessao-${i}">Começar</a>`}</li>`; }).join(''))(recentMuscles())}</ul>
-    ${todayW ? '<p class="small muted">Força de hoje feita. A próxima sessão libera amanhã: músculo cresce no descanso.</p>' : ''}`
+    ${todayW ? '<p class="small muted">Força de hoje feita.</p>' : ''}`
       : '<p class="small">Essa rotina ainda não tem sessões.</p>'}
     <div class="row gap"><a class="btn small block" href="#rotina">Editar rotina</a></div>
   </div>
@@ -1513,7 +1519,6 @@ views.resumo = () => {
   return `<section class="head"><h1>Resumo</h1></section>
   <div class="card glow"><h3>${esc(draft.name)}</h3>
     <div class="wstats"><div><small>Exercícios</small><b class="mono">${st.exN}</b></div><div><small>Séries</small><b class="mono">${st.sets}</b>${cmp(st.sets, ps?.sets)}</div><div><small>Duração</small><b class="mono">${dur} min</b></div><div><small>Volume</small><b class="mono">${st.vol ? fmt(st.vol, 0) + ' kg' : '—'}</b>${st.vol && ps?.vol ? cmp(st.vol, ps.vol, ' kg') : ''}</div></div>
-    ${st.vol ? '<small class="muted">Volume = carga × repetições dos exercícios com peso.</small>' : ''}
     ${pv ? '' : '<small class="muted">Primeira vez nesta sessão: a comparação aparece a partir do próximo treino.</small>'}</div>
   <div class="card"><ul class="list">${Object.entries(w.sets).map(([ex, arr]) => `<li><div class="grow"><b>${esc(EXERCISES[ex]?.n || ex)}</b><small>${esc(setsTxt(arr))}</small></div></li>`).join('') || '<li class="muted small">Nenhuma série registrada.</li>'}</ul></div>
   <div class="card"><label>Como foi o treino? <small>(opcional)</small><textarea id="wNote" maxlength="300" rows="3" placeholder="Energia, dor, sono, o que mudar na próxima…">${esc(draft.note || '')}</textarea></label></div>
@@ -1711,11 +1716,9 @@ views.esporte = arg => {
   ${techs.length ? `<a class="card link panel" href="#tecnicas"><small class="cat">Biblioteca</small><h3>${techs.length} técnicas de ${esc(SP.n.toLowerCase())}</h3>
     <div class="techgrid mini">${techs.slice(0, 3).map(t => `<span class="tech"><span class="tech-thumb">${thumbSVG(t)}</span><b>${esc(t.n)}</b></span>`).join('')}</div>
     <p class="small muted">${[...new Set(techs.map(t => t.cat))].join(' · ')}</p><span class="go">Abrir →</span></a>` : ''}
-  ${SP.combat ? `<details class="card tired"><summary><h3>${esc(TIRED.title)}</h3></summary><p class="small muted">${esc(TIRED.sub)}</p>
-    <ol class="furos">${TIRED.items.map(([a, b, e]) => `<li><b>${esc(a)}</b><span>${esc(b)}</span>${e ? `<small class="muted">Base: ${esc(ev(e)?.title)}</small>` : ''}</li>`).join('')}</ol></details>` : ''}
   ${SP.legend ? numTable(id) : ''}
 
-  <div class="card" id="e-goals"><h3>${SP.combat ? 'Seus objetivos na luta' : 'Onde você quer evoluir?'}</h3><p class="small muted">Marque o que quer melhorar: cada objetivo traz drills, muda os rounds do gerador e o que o coach sugere.</p>
+  <div class="card" id="e-goals"><h3>${SP.combat ? 'Seus objetivos na luta' : 'Onde você quer evoluir?'}</h3><p class="small muted">Marque o que quer melhorar.</p>
     <div class="chips">${SP.weak.map(w => `<button class="chipbtn ${S.weak.includes(w.id) ? 'on' : ''}" data-act="weak" data-id="${w.id}">${esc(w.n)}</button>`).join('')}</div>
     ${SP.weak.filter(w => S.weak.includes(w.id)).map(w => { const lifts = (w.lift || []).map(l => XSLOTS[l[0]]?.map(x => EXERCISES[x]?.n).filter(Boolean)[0]).filter(Boolean), fl = ['luta'].includes(tgoalOf(S.profile)) || S.profile.tgoal2 === 'luta';
       return `<div class="focus"><h4>${esc(w.n)}</h4>
@@ -1725,18 +1728,21 @@ views.esporte = arg => {
       <p class="small muted">Base: ${w.ev.map(e => esc(ev(e)?.title)).filter(Boolean).join(' · ')}</p></div>`; }).join('')}
   </div>
 
+  ${SP.combat ? '<small class="cat pad">Aprender</small>' : ''}
+  ${SP.combat ? (() => { const T = tiredFor(id, level(), S.weak), cards = evFor(id, S.weak, S.profile); return `<details class="card tired"><summary><h3>${esc(TIRED.title)}</h3></summary><p class="small muted">${esc(TIRED.sub)}</p>
+    <ol class="furos">${T.map(([a, b, e]) => `<li><b>${esc(a)}</b><span>${esc(b)}</span>${e && evOk(e, id) ? `<small class="muted">Base: ${esc(ev(e)?.title)}</small>` : ''}</li>`).join('')}</ol></details>
+  ${cards.map(e => evCard(ev(e))).join('')}`; })() : ''}
+  <small class="cat pad">Registro e semana</small>
   <form id="sessForm" class="card form"><h3>Registrar sessão manual</h3>
     <fieldset class="equip tchips"><legend>O que você fez <small>(quantos quiser)</small></legend>${Object.entries(SP.types).map(([k, t]) => `<label class="check"><input type="checkbox" name="type" value="${k}" ${typesOf(id, sportsOf(S.profile)[id]).includes(k) ? 'checked' : ''}><span>${esc(t.n)}</span></label>`).join('')}</fieldset>
     <div class="grid2"><label>Minutos<input name="min" inputmode="numeric" value="${sportsOf(S.profile)[id]?.min || 60}"></label>
     ${id === 'corrida' ? '<label>Distância (km) <small>opcional</small><input name="km" inputmode="decimal" placeholder="ex.: 5"></label>' : ''}</div>
-    ${id === 'corrida' ? '<p class="small muted">Com minutos e distância, o app calcula seu ritmo.</p>' : ''}
     <button class="btn small" type="submit">Salvar sessão</button></form>
 
   <div class="card"><h3>Semana modelo</h3>
     <table class="tbl small">${SP.week.map(([d, x]) => `<tr><td>${d}</td><td>${esc(x)}</td></tr>`).join('')}</table>
     <p class="small muted">Treino técnico e intenso nos dias mais descansados; força depois do esporte ou em outro horário (≥ 6 h).</p></div>
-  <small class="cat pad">Base científica</small>
-  ${SP.ev.map(e => evCard(ev(e))).join('')}`;
+`;
 };
 
 let anim = null, techCat = '', spineNext = false;
@@ -1923,11 +1929,10 @@ async function afterLogin() {
 
 views.perfil = () => `<section class="head"><h1>Perfil e ajustes</h1></section>
   ${accountCard()}
-  <div class="card"><div class="row between"><h3>Aparência</h3><small class="muted">só neste aparelho</small></div>
-    <div class="segs small" id="themeSeg">${[['auto', 'Automático'], ['light', 'Claro'], ['dark', 'Escuro']].map(([v, n]) => `<button class="${(window.roninTheme?.get() || 'auto') === v ? 'on' : ''}" data-act="themeSet" data-v="${v}">${n}</button>`).join('')}</div>
-    <small class="muted">Automático segue o modo do celular. Atalho: o botão de lua/sol no topo.</small></div>
+  <div class="card"><h3>Aparência</h3>
+    <div class="segs small" id="themeSeg">${[['auto', 'Automático'], ['light', 'Claro'], ['dark', 'Escuro']].map(([v, n]) => `<button class="${(window.roninTheme?.get() || 'auto') === v ? 'on' : ''}" data-act="themeSet" data-v="${v}">${n}</button>`).join('')}</div></div>
   ${views.onboarding().replace('<section class="head"><h1>Perfil</h1></section>', '')}
-  <div class="card row between"><div><h3>Tutorial</h3><small class="muted">O passo a passo pelas telas do app.</small></div><button class="btn small" data-act="tour">Ver o tutorial</button></div>
+  <div class="card row between"><h3>Tutorial</h3><button class="btn small" data-act="tour">Ver o tutorial</button></div>
   <div class="card form"><h3>Coach com IA</h3>
     <p class="small muted">Chave da API Anthropic (console.anthropic.com). Cobrança por uso, separada da assinatura do Claude. Fica só neste aparelho e fora dos backups e da sincronização.</p>
     <input id="apiKey" type="password" placeholder="sk-ant-…" value="${getKey() ? '••••••••' : ''}" autocomplete="off">

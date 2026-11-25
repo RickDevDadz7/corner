@@ -614,6 +614,21 @@ export const TIRED = {
     ['Tanque vazio', 'Pouco carboidrato ou pouco sono derrubam o desempenho mais do que parece.', 'carb-combate']
   ]
 };
+// versão da pessoa: muda a linguagem pelo esporte, a ordem pelo nível e pelo objetivo; mostra os 4 que mais importam
+export function tiredFor(sport, level = 'intermediario', weak = []) {
+  const it = Object.fromEntries(TIRED.items.map(x => [x[0], [...x]]));
+  if (sport === 'jiu') {
+    it['Prende a respiração'] = ['Prende a respiração', 'Solte o ar quando fizer força (ponte, pegada, explosão). No rola, respirar travado esvazia o tanque.', null];
+    it['Tensão o tempo todo'] = ['Aperta tudo o tempo todo', 'Segure só o que importa e use quadril e peso. Pegada apertada sem parar queima o antebraço.', null];
+    it['Começa rápido demais'] = ['Explode sem parar', 'Escapar no desespero cansa e não funciona: escolha o momento da explosão.', null];
+  } else if (sport === 'karate') {
+    it['Começa rápido demais'] = ['Fica parado no calcanhar', 'No kumite, ficar na ponta dos pés mantém a reação rápida; parado no calcanhar, cada entrada custa o dobro.', null];
+  }
+  let order = ['Prende a respiração', 'Tensão o tempo todo', 'Começa rápido demais', 'Base aeróbia fraca', 'Tanque vazio'];
+  if (level === 'avancado') order = ['Base aeróbia fraca', 'Tanque vazio', 'Começa rápido demais', 'Tensão o tempo todo', 'Prende a respiração'];
+  if (weak.some(w => /gas/.test(w))) order = ['Base aeróbia fraca', ...order.filter(k => k !== 'Base aeróbia fraca')];
+  return order.map(k => it[k]).filter(Boolean).slice(0, 4);
+}
 
 // pose de impacto (miniatura)
 export function peak(t) { return (t.frames.find(f => f.hit) || t.frames[Math.min(2, t.frames.length - 1)]).p; }
