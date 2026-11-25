@@ -12,6 +12,7 @@ import { TGOALS, INJURIES, FOCUS_MUSCLES, usable, avoidSet, tgoalOf, injuriesOf,
 import { CONDITIONS, COND_GROUPS, BODY, condsOf, condFlag, condRestr, bodyOf, caps, bodyLabel, bodyCare, bodyNA, bodyFig } from './health.js';
 import { habits, daySchedule, hm } from './schedule.js';
 import { startTour, tourSeen, touring } from './tour.js';
+import * as RT from './rtimer.js';
 import { VERT, VY, VR, SAG0, spineOf, spineEmpty, dragSpine, spineSummary, complements, spineTips } from './spine.js';
 const buildPlan = p => plan_(p, S.prog);
 // trocas feitas pela pessoa (exercício estagnado) na rotina recomendada: {de: para}
@@ -1532,9 +1533,19 @@ const REST = { end: 0, left: 0, total: 0, paused: false, iv: null, label: '' };
 function restStart(sec, label) {
   if (!sec) return;
   Object.assign(REST, { total: sec, left: sec, end: Date.now() + sec * 1000, paused: false, label });
-  audio(); restTick(); clearInterval(REST.iv); REST.iv = setInterval(restTick, 250);
+  audio(); clearInterval(REST.iv); REST.iv = setInterval(restTick, 250); restTick(); restPersist();
 }
-function restStop() { clearInterval(REST.iv); REST.iv = null; REST.end = 0; $('#restbar')?.remove(); document.body.classList.remove('resting'); }
+// descanso salvo no aparelho: fechar o app no meio não perde o tempo
+const REST_KEY = 'ronin:rest';
+function restPersist() { try { if (REST.iv) localStorage.setItem(REST_KEY, JSON.stringify({ end: REST.end, left: REST.left, total: REST.total, paused: REST.paused, label: REST.label })); else localStorage.removeItem(REST_KEY); } catch (e) { } }
+function restRestore() {
+  try { const r = JSON.parse(localStorage.getItem(REST_KEY) || 'null'); if (!r || typeof r.end !== 'number' || !(r.total > 0 && r.total < 3600)) return;
+    if (!r.paused && Date.now() - r.end > 10 * 60e3) { localStorage.removeItem(REST_KEY); return; }
+    Object.assign(REST, { end: r.end, left: +r.left || 0, total: r.total, paused: !!r.paused, label: String(r.label || '').slice(0, 80), rang: !r.paused && Date.now() > r.end });
+    clearInterval(REST.iv); REST.iv = setInterval(restTick, 250); restTick();
+  } catch (e) { }
+}
+function restStop() { clearInterval(REST.iv); REST.iv = null; REST.end = 0; restPersist(); $('#restbar')?.remove(); document.body.classList.remove('resting'); }
 function restTick() {
   if (!REST.paused) REST.left = Math.max(0, (REST.end - Date.now()) / 1000);
   let bar = $('#restbar');
@@ -1553,9 +1564,12 @@ function restTick() {
 setInterval(() => { const c = $('#sessClock'); if (c && draft) c.textContent = clockTxt(); }, 1000);
 
 // ---------------- Timer ----------------
-const TM = { phase: 'idle', round: 0, end: 0, left: 0, paused: false, iv: null, warned: false, combo: '', nextCall: 0 };
+// Motor em rtimer.js (conta pelo relógio e salva no aparelho). Aqui ficam som, voz e a tela do treino em andamento.
+let RUN = RT.restore();
+const TM = { iv: null, warned: -1, cd: -1, combo: '', nextCall: 0, endArm: 0, min: false };
 let AC = null, wakeLock = null, VOICE = null;
 function audio() { if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { } } if (AC?.state === 'suspended') AC.resume(); return AC; }
+const vib = p => { if (S.timer.vib === false) return; try { navigator.vibrate?.(p); } catch (e) { } };
 function bell(times = 1) {
   const ac = audio(); if (!ac) return;
   for (let k = 0; k < times; k++) {
@@ -1566,7 +1580,13 @@ function bell(times = 1) {
       o.connect(v).connect(ac.destination); o.start(t0); o.stop(t0 + 1.7);
     });
   }
-  try { navigator.vibrate?.(times > 1 ? [300, 150, 300, 150, 300] : 400); } catch (e) { }
+  vib(times > 1 ? [300, 150, 300, 150, 300] : 400);
+}
+function beep(hi = false) {
+  const ac = audio(); if (!ac) return;
+  const o = ac.createOscillator(), v = ac.createGain(), t0 = ac.currentTime;
+  o.type = 'square'; o.frequency.value = hi ? 1320 : 880; v.gain.setValueAtTime(0.12, t0); v.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.15);
+  o.connect(v).connect(ac.destination); o.start(t0); o.stop(t0 + 0.16); vib(60);
 }
 function clap() {
   const ac = audio(); if (!ac) return;
@@ -1576,6 +1596,7 @@ function clap() {
     for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 3);
     const s = ac.createBufferSource(), g = ac.createGain(); g.gain.value = 0.9; s.buffer = buf; s.connect(g).connect(ac.destination); s.start(t0);
   }
+  vib([80, 60, 80]);
 }
 function say(text) {
   if (!S.timer.voice || !('speechSynthesis' in window)) return;
@@ -1588,80 +1609,134 @@ function say(text) {
 }
 async function lockScreen(on) {
   try {
-    if (on && 'wakeLock' in navigator && !wakeLock) wakeLock = await navigator.wakeLock.request('screen');
+    if (on && 'wakeLock' in navigator && !wakeLock) { wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener?.('release', () => { wakeLock = null; }); }
     if (!on && wakeLock) { await wakeLock.release(); wakeLock = null; }
   } catch (e) { }
 }
-const prog = () => S.timer.program;
-function cfgRound(r) { const P = prog(); return P ? P[Math.max(0, Math.min(P.length - 1, r - 1))] : { work: S.timer.work, rest: S.timer.rest, calls: S.timer.calls && !!SPORTS[curSport()].combos, t: '', sport: curSport() }; }
+const prog = () => RUN?.meta?.program || S.timer.program;
+function cfgRound(r) { const P = prog(); return P ? P[Math.max(0, Math.min(P.length - 1, r - 1))] : { work: RUN?.meta?.work ?? S.timer.work, rest: RUN?.meta?.rest ?? S.timer.rest, calls: RUN ? !!RUN.meta.calls : S.timer.calls && !!SPORTS[curSport()].combos, t: '', sport: RUN?.meta?.sport || curSport() }; }
 const totalRounds = () => prog() ? prog().length : S.timer.rounds;
-function startPhase(phase, secs) { TM.phase = phase; TM.end = Date.now() + secs * 1000; TM.left = secs; TM.warned = false; TM.combo = ''; TM.nextCall = Date.now() + 2500; }
+const runSport = () => RUN?.meta?.sport || curSport();
 function callCombo() {
-  const c = cfgRound(TM.round);
+  const c = cfgRound(RT.cur(RUN).r);
   if (!c.calls) return;
-  const pool = comboPool(level(), c, c.sport || curSport());
+  const pool = comboPool(level(), c, c.sport || runSport());
   let pick; do { pick = pool[Math.floor(Math.random() * pool.length)]; } while (pool.length > 1 && pick === TM.combo);
   TM.combo = pick; say(comboSpeech(pick));
   const gap = level() === 'iniciante' ? [5000, 8000] : [3500, 6500];
   TM.nextCall = Date.now() + gap[0] + Math.random() * (gap[1] - gap[0]);
 }
+function onPhase(p, quiet) {
+  TM.combo = ''; TM.warned = -1; TM.cd = -1; TM.nextCall = Date.now() + 2500;
+  if (p.k === 'done') { runFinish(); return; }
+  if (quiet) { bell(1); return; } // voltou depois de várias fases: um sinal só, já no ponto certo
+  if (p.k === 'round') { bell(1); const c = cfgRound(p.r); if (c.t) setTimeout(() => say(c.t), 1600); }
+  if (p.k === 'rest') { bell(2); const nx = cfgRound(p.r); if (nx.t) setTimeout(() => say('Próximo: ' + nx.t), 1800); }
+}
 function tick() {
-  if (TM.paused || TM.phase === 'idle' || TM.phase === 'done') return;
-  TM.left = Math.max(0, Math.ceil((TM.end - Date.now()) / 1000));
-  const c = cfgRound(TM.round);
-  if (TM.phase === 'round') {
-    if (TM.left === 10 && !TM.warned && c.work > 20) { TM.warned = true; clap(); if (c.calls) { say('Dez segundos! Solta tudo!'); TM.combo = 'SOLTA TUDO!'; TM.nextCall = Infinity; } }
-    else if (TM.left > 10 && Date.now() >= TM.nextCall) callCombo();
+  if (!RUN) return;
+  const ev = RT.catchUp(RUN);
+  if (ev.length) onPhase(ev[ev.length - 1], ev.length > 1);
+  if (RUN && !RUN.done && !RUN.paused) {
+    const p = RT.cur(RUN), left = RT.leftOf(RUN), c = cfgRound(p.r);
+    if (p.k === 'round') {
+      if (left === 10 && TM.warned !== RUN.i && c.work > 20) { TM.warned = RUN.i; clap(); if (c.calls) { say('Dez segundos! Solta tudo!'); TM.combo = 'SOLTA TUDO!'; TM.nextCall = Infinity; } }
+      else if (left > 10 && Date.now() >= TM.nextCall) callCombo();
+    } else if (left <= 3 && left >= 1 && TM.cd !== left) { TM.cd = left; beep(); } // 3-2-1 antes de começar o round
   }
-  if (TM.left <= 0) {
-    if (TM.phase === 'prep') { TM.round = 1; startPhase('round', cfgRound(1).work); bell(1); announce(); }
-    else if (TM.phase === 'round') {
-      if (TM.round >= totalRounds()) { TM.phase = 'done'; bell(3); clearInterval(TM.iv); lockScreen(false); say('Fim do treino. Bom trabalho.'); finishProgram(); }
-      else if (c.rest > 0) { startPhase('rest', c.rest); bell(2); const nx = cfgRound(TM.round + 1); if (nx.t) setTimeout(() => say('Próximo: ' + nx.t), 1800); }
-      else { TM.round++; startPhase('round', cfgRound(TM.round).work); bell(1); announce(); }
-    } else if (TM.phase === 'rest') { TM.round++; startPhase('round', cfgRound(TM.round).work); bell(1); announce(); }
-  }
-  paintTimer();
+  paintRun(); paintTimer();
 }
-function announce() { const c = cfgRound(TM.round); if (c.t) setTimeout(() => say(c.t), 1600); }
-function finishProgram() {
-  if (!prog()) return;
-  const P = prog(), sport = P[0].sport || curSport(), SP = SPORTS[sport];
-  const mins = Math.round(P.reduce((a, r) => a + r.work + r.rest, 0) / 60);
-  const type = sport === 'corrida' ? (P.some(r => r.rest) ? 'intervalado' : 'leve') : P.some(r => r.saco) ? (SP.types.saco ? 'saco' : SP.defaultType) : (SP.types.solo && !P.some(r => r.id === 'jj_rola') ? 'solo' : SP.defaultType);
-  S.logs.sessions.push({ id: newId(), sport, date: today(), type, min: mins, kcal: sessionKcal(SP.types[type].met, latestWeight(), mins) });
-  save(); toast(`Sessão registrada: ${mins} min`);
+function runLoop(on) { clearInterval(TM.iv); TM.iv = on ? setInterval(tick, 250) : null; }
+// sessão do cronômetro vai pro histórico sozinha (uma vez só)
+function runSave() {
+  if (!RUN || RUN.saved) return;
+  const mins = RT.minutesDone(RUN); if (mins < 1) return;
+  const P = prog(), sport = runSport(), SP = SPORTS[sport];
+  const type = sport === 'corrida' ? (P?.some(r => r.rest) ? 'intervalado' : 'leve')
+    : P ? (P.some(r => r.saco) ? (SP.types.saco ? 'saco' : SP.defaultType) : (SP.types.solo && !P.some(r => r.id === 'jj_rola') ? 'solo' : SP.defaultType))
+    : (/saco/.test(RUN.meta.preset || '') && SP.types.saco ? 'saco' : SP.defaultType);
+  S.logs.sessions.push({ id: newId(), sport, date: today(), type, types: [type], min: mins, rounds: RT.roundsDone(RUN), src: 'timer', kcal: sessionKcal(SP.types[type]?.met || 6, latestWeight(), mins) });
+  RUN.saved = true; RT.persist(RUN); save(); toast(`Sessão registrada: ${mins} min`);
 }
-function paintTimer() {
-  const el = $('#timer'); if (!el) return;
-  const c = cfgRound(TM.round || 1), N = totalRounds();
-  const total = TM.phase === 'round' ? c.work : TM.phase === 'rest' ? c.rest : TM.phase === 'prep' ? 10 : 1;
-  const left = TM.phase === 'idle' ? cfgRound(1).work : TM.left;
-  const mm = Math.floor(left / 60), ss = String(left % 60).padStart(2, '0');
-  const r = 120, circ = 2 * Math.PI * r, pct = TM.phase === 'idle' || TM.phase === 'done' ? 1 : left / total;
-  const word = prog() && prog()[0].sport === 'corrida' ? 'Bloco' : 'Round';
-  const lab = { idle: 'Pronto', prep: 'Prepare-se', round: `${word} ${TM.round}/${N}`, rest: `Descanso · próximo ${TM.round + 1}/${N}`, done: 'Fim. Queimou tudo.' }[TM.phase];
-  el.className = 'timer ph-' + TM.phase + (TM.phase === 'round' && left <= 10 ? ' last10' : '');
-  el.querySelector('.t-arc').style.strokeDasharray = circ;
-  el.querySelector('.t-arc').style.strokeDashoffset = circ * (1 - pct);
-  el.querySelector('.t-time').textContent = `${mm}:${ss}`;
-  el.querySelector('.t-lab').textContent = TM.paused ? 'Pausado' : lab;
-  const info = $('#tInfo');
-  if (info) { const showR = TM.phase === 'rest' ? cfgRound(TM.round + 1) : c; info.innerHTML = prog() && TM.phase !== 'done' ? `<b>${esc(showR.t)}</b><span>${esc(showR.f || '')}</span>` : ''; }
-  const cb = $('#tCombo'); if (cb) cb.textContent = TM.phase === 'round' ? TM.combo : '';
-  const st = $('#tStart'); if (st) st.textContent = TM.phase === 'idle' || TM.phase === 'done' ? 'Iniciar' : TM.paused ? 'Continuar' : 'Pausar';
+function runFinish() { bell(3); say('Fim do treino. Bom trabalho.'); runLoop(false); lockScreen(false); runSave(); paintRun(); }
+function runStart() {
+  audio();
+  if (S.timer.voice && 'speechSynthesis' in window) { try { speechSynthesis.getVoices(); say('Prepare-se'); } catch (e) { } }
+  const sport = curSport(), P = S.timer.program;
+  const meta = { sport, preset: S.timer.preset, program: P || null, work: S.timer.work, rest: S.timer.rest, calls: !P && S.timer.calls && !!SPORTS[sport].combos };
+  RUN = RT.start(RT.phasesOf(P ? P.length : S.timer.rounds, r => P ? P[r - 1] : { work: S.timer.work, rest: S.timer.rest }), meta);
+  Object.assign(TM, { min: false, endArm: 0, combo: '', warned: -1, cd: -1 });
+  lockScreen(true); runLoop(true); paintRun(); paintTimer();
 }
 function timerToggle() {
-  audio();
-  if (S.timer.voice && 'speechSynthesis' in window) { try { speechSynthesis.getVoices(); if (TM.phase === 'idle') say('Prepare-se'); } catch (e) { } }
-  if (TM.phase === 'idle' || TM.phase === 'done') {
-    TM.round = 0; TM.paused = false; startPhase('prep', 10);
-    clearInterval(TM.iv); TM.iv = setInterval(tick, 200); lockScreen(true);
-  } else if (TM.paused) { TM.paused = false; TM.end = Date.now() + TM.left * 1000; TM.nextCall = Date.now() + 2000; lockScreen(true); }
-  else { TM.paused = true; try { speechSynthesis.cancel(); } catch (e) { } }
-  paintTimer();
+  if (!RUN || RUN.done) { runStart(); return; }
+  TM.min = false; paintRun();
 }
-function timerReset() { clearInterval(TM.iv); Object.assign(TM, { phase: 'idle', round: 0, paused: false, combo: '' }); lockScreen(false); try { speechSynthesis.cancel(); } catch (e) { } paintTimer(); }
+function runPause() {
+  if (!RUN || RUN.done) return;
+  if (RUN.paused) { RT.resume(RUN); TM.nextCall = Date.now() + 2000; lockScreen(true); }
+  else { RT.pause(RUN); try { speechSynthesis.cancel(); } catch (e) { } }
+  paintRun(); paintTimer();
+}
+function runClose() { RUN = null; RT.persist(null); runLoop(false); lockScreen(false); try { speechSynthesis.cancel(); } catch (e) { } $('#run')?.remove(); $('#runbar')?.remove(); document.body.classList.remove('running', 'runmin'); paintTimer(); }
+function runEnd() {
+  if (RUN?.done) { runClose(); return; }
+  if (Date.now() - TM.endArm > 3000) { TM.endArm = Date.now(); paintRun(); return; }
+  if (RT.roundsDone(RUN) >= 1) runSave();
+  runClose();
+}
+function timerReset() { if (!RUN) paintTimer(); }
+// tela do treino em andamento: ocupa a tela toda, sem rolagem; minimizada vira uma barra fixa
+function paintRun() {
+  let el = $('#run'), bar = $('#runbar');
+  if (!RUN) { el?.remove(); bar?.remove(); document.body.classList.remove('running', 'runmin'); return; }
+  document.body.classList.toggle('running', !TM.min); document.body.classList.toggle('runmin', TM.min);
+  const p = RT.cur(RUN), N = RT.roundsTotal(RUN), left = RT.leftOf(RUN), SP = SPORTS[runSport()];
+  const word = runSport() === 'corrida' ? 'Bloco' : 'Round', rd = RT.roundsDone(RUN);
+  const lab = RUN.done ? 'Fim do treino' : RUN.paused ? 'Pausado' : p.k === 'prep' ? 'Prepare-se' : p.k === 'rest' ? `Descanso · próximo ${p.r}/${N}` : `${word} ${p.r}/${N}`;
+  if (TM.min) {
+    el?.remove();
+    if (!bar) { bar = document.createElement('button'); bar.id = 'runbar'; bar.className = 'runbar'; bar.dataset.act = 'runOpen'; document.body.appendChild(bar); }
+    bar.className = 'runbar ph-' + (RUN.done ? 'done' : p.k);
+    bar.innerHTML = `<span>${esc(lab)}</span><b class="mono">${mmss(left)}</b><span aria-hidden="true">▴</span>`;
+    return;
+  }
+  bar?.remove();
+  if (!el) { el = document.createElement('div'); el.id = 'run'; el.className = 'run'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', 'Treino em andamento'); document.body.appendChild(el); }
+  const c = cfgRound(p.r), showR = p.k === 'rest' ? cfgRound(p.r) : c, total = p.d, r = 120, circ = 2 * Math.PI * r;
+  const pct = RUN.done ? 1 : left / total, tl = RT.totalLeft(RUN), restN = Math.max(0, N - rd - (p.k === 'round' ? 1 : 0));
+  const segs = RUN.phases.filter(x => x.k === 'round').map(x => `<i class="${RUN.done || x.r < p.r ? 'ok' : x.r === p.r && p.k === 'round' ? 'on' : ''}"></i>`).join('');
+  el.className = 'run ph-' + (RUN.done ? 'done' : p.k) + (p.k === 'round' && left <= 10 && !RUN.done ? ' last10' : '');
+  el.innerHTML = `<div class="run-top"><button class="linkbtn" data-act="runMin" aria-label="Minimizar">▾ ${esc(SP?.n || '')}</button>
+      <span class="small mono">${RUN.done ? `${rd} ${word.toLowerCase()}s · ${RT.minutesDone(RUN)} min` : `${restN} ${restN === 1 ? 'restante' : 'restantes'} · ${mmss(tl)} no total`}</span></div>
+    <div class="run-segs" aria-hidden="true">${segs}</div>
+    <div class="timer run-timer"><svg viewBox="0 0 260 260"><circle cx="130" cy="130" r="${r}" class="t-bg"/><circle cx="130" cy="130" r="${r}" class="t-arc" style="stroke-dasharray:${circ};stroke-dashoffset:${circ * (1 - pct)}"/></svg>
+      <div class="t-center"><div class="t-time mono">${mmss(left)}</div><div class="t-lab">${esc(lab)}</div></div></div>
+    <div class="combo run-combo" aria-live="polite">${p.k === 'round' && !RUN.done ? esc(TM.combo) : ''}</div>
+    <div class="tinfo run-info">${prog() && !RUN.done && showR.t ? `<b>${esc(showR.t)}</b><span>${esc(showR.f || '')}</span>` : ''}</div>
+    <div class="run-ctl">${RUN.done ? `<button class="btn primary block" data-act="runEnd">Fechar</button>`
+      : `<button class="btn primary run-main" data-act="runPause">${RUN.paused ? '▶ Continuar' : '❚❚ Pausar'}</button>
+      <div class="row gap">${p.k === 'round' ? `<button class="btn grow" data-act="runNext"${p.r >= N ? ' disabled' : ''}>Próximo round ⏭</button>` : `<button class="btn grow" data-act="runSkip">${p.k === 'prep' ? 'Começar já' : 'Pular descanso'} ⏭</button>`}
+      <button class="btn grow ${TM.endArm && Date.now() - TM.endArm < 3000 ? 'danger' : 'ghost'}" data-act="runEnd">${TM.endArm && Date.now() - TM.endArm < 3000 ? 'Encerrar?' : 'Encerrar'}</button></div>
+      <div class="row gap run-sw"><label class="switch"><input type="checkbox" data-act="voiceToggle" ${S.timer.voice ? 'checked' : ''}> Voz</label><label class="switch"><input type="checkbox" data-act="vibToggle" ${S.timer.vib !== false ? 'checked' : ''}> Vibrar</label></div>`}</div>`;
+}
+// cartão da página do esporte (só mostra o estado; o treino roda na tela própria)
+function paintTimer() {
+  const el = $('#timer'); if (!el) return;
+  const p = RUN && RT.cur(RUN), left = RUN ? RT.leftOf(RUN) : cfgRound(1).work, N = RUN ? RT.roundsTotal(RUN) : totalRounds();
+  const r = 120, circ = 2 * Math.PI * r, pct = !RUN || RUN.done ? 1 : left / p.d;
+  const lab = !RUN ? 'Pronto' : RUN.done ? 'Fim do treino' : RUN.paused ? 'Pausado' : p.k === 'prep' ? 'Prepare-se' : p.k === 'rest' ? 'Descanso' : `Round ${p.r}/${N}`;
+  el.className = 'timer ph-' + (!RUN ? 'idle' : RUN.done ? 'done' : p.k);
+  el.querySelector('.t-arc').style.strokeDasharray = circ;
+  el.querySelector('.t-arc').style.strokeDashoffset = circ * (1 - pct);
+  el.querySelector('.t-time').textContent = mmss(left);
+  el.querySelector('.t-lab').textContent = lab;
+  const st = $('#tStart'); if (st) st.textContent = RUN && !RUN.done ? 'Abrir o treino' : 'Iniciar';
+}
+// voltou pro app: confere o relógio na hora, religa a tela acesa
+document.addEventListener('visibilitychange', () => { if (!document.hidden && RUN) { tick(); if (!RUN?.done && !RUN?.paused) lockScreen(true); } });
+setTimeout(restRestore, 400);
+if (RUN) { if (RUN.done) { RUN = null; RT.persist(null); } else { runLoop(true); setTimeout(() => { tick(); paintRun(); }, 300); } }
 
 // ---------------- Esporte ----------------
 let genSession = null, genFor = null;
@@ -1691,7 +1766,7 @@ views.esporte = arg => {
     </div>
     ${SP.combos ? `<label class="switch"><input type="checkbox" data-act="callsToggle" ${c.calls ? 'checked' : ''}> Chamar combinações no modo livre</label>` : ''}`}
     <label class="switch"><input type="checkbox" data-act="voiceToggle" ${c.voice ? 'checked' : ''}> Voz (fala ${SP.combos ? 'as combinações e ' : ''}os rounds em português)</label>
-    <div class="row gap mt"><button id="tStart" class="btn primary grow" data-act="tToggle">Iniciar</button><button class="btn ghost" data-act="tReset">Zerar</button></div>
+    <div class="row gap mt"><button id="tStart" class="btn primary grow" data-act="tToggle">Iniciar</button></div>
   </div>
 
   <div class="card">
@@ -1869,7 +1944,7 @@ function wipeLocal() {
   S = blank();
   try { for (const k of [KEY, OLD_KEY, KEY_API, OLD_API, 'ronin-sync-last']) localStorage.removeItem(k); } catch (e) { }
   draft = null; viewDay = null; genSession = null; techCat = '';
-  try { timerReset(); } catch (e) { }
+  try { if (RUN) runClose(); } catch (e) { }
 }
 const GATE = { tab: 'in', email: '', msg: null, confirm: false, recovery: false, busy: false };
 // "Continuar sem conta" vale só até fechar o app: ao abrir de novo, a tela de login aparece outra vez
@@ -2138,7 +2213,7 @@ function bindAfter(v, arg) {
       save(); toast('Sessão salva'); render();
     });
     document.querySelectorAll('[data-tm]').forEach(i => i.addEventListener('change', () => {
-      const n = Math.max(1, Math.round(num(i.value) || 1)); S.timer[i.dataset.tm] = n; S.timer.preset = 'custom'; save(); if (TM.phase === 'idle') paintTimer();
+      const n = Math.max(1, Math.round(num(i.value) || 1)); S.timer[i.dataset.tm] = n; S.timer.preset = 'custom'; save(); if (!RUN) paintTimer();
     }));
   }
   if (v === 'demo' && hasDemo(arg)) anim = exAnimate($('#techFig'), arg, i => document.querySelectorAll('#techSteps li').forEach(li => li.classList.toggle('on', +li.dataset.i === i)), myFig());
@@ -2345,8 +2420,8 @@ document.addEventListener('click', async e => {
   }
   if (a === 'setAdd') { if (!draft) return; const arr = (draft.sets[el.dataset.ex] ||= []); const it = activePlan().days.find(d => d.sid === draft.sid)?.items.find(x => x.ex === el.dataset.ex); const n = Math.max(arr.length, it?.sets || 0); if (n < 12) { arr[n] = {}; saveDraft(); render(); } }
   if (a === 'setNote') { noteOpen = noteOpen === el.dataset.k ? null : el.dataset.k; render(); if (noteOpen) $('.setnote')?.focus({ preventScroll: true }); }
-  if (a === 'restAdj') { const d = +el.dataset.d; if (REST.paused) REST.left = Math.max(5, REST.left + d); else REST.end = Math.max(Date.now() + 5000, REST.end + d * 1000); REST.total = Math.max(REST.total, REST.left + d); restTick(); }
-  if (a === 'restPause') { if (REST.paused) { REST.end = Date.now() + REST.left * 1000; REST.paused = false; } else { REST.paused = true; } restTick(); }
+  if (a === 'restAdj') { const d = +el.dataset.d; if (REST.paused) REST.left = Math.max(5, REST.left + d); else REST.end = Math.max(Date.now() + 5000, REST.end + d * 1000); REST.total = Math.max(REST.total, REST.left + d); restTick(); restPersist(); }
+  if (a === 'restPause') { if (REST.paused) { REST.end = Date.now() + REST.left * 1000; REST.paused = false; } else { REST.paused = true; } restTick(); restPersist(); }
   if (a === 'restReset') restStart(REST.total, REST.label);
   if (a === 'restSkip') restStop();
   if (a === 'blockNew') {
@@ -2375,6 +2450,13 @@ document.addEventListener('click', async e => {
   if (a === 'sport') { S.ui.sport = el.dataset.id; save(true); timerReset(); render(); }
   if (a === 'preset') { const p = SPORTS[curSport()].presets.find(x => x.id === el.dataset.id); Object.assign(S.timer, { preset: p.id, rounds: p.rounds, work: p.work, rest: p.rest, program: null }); save(true); timerReset(); render(); }
   if (a === 'tToggle') timerToggle();
+  if (a === 'runPause') runPause();
+  if (a === 'runSkip' && RUN) { RT.skipRest(RUN); onPhase(RT.cur(RUN)); tick(); }
+  if (a === 'runNext' && RUN) { RT.nextRound(RUN); onPhase(RUN.done ? { k: 'done' } : RT.cur(RUN)); tick(); }
+  if (a === 'runEnd') runEnd();
+  if (a === 'runMin') { TM.min = true; paintRun(); }
+  if (a === 'runOpen') { TM.min = false; paintRun(); }
+  if (a === 'vibToggle') { S.timer.vib = el.checked; save(true); if (el.checked) vib(200); }
   if (a === 'tReset') timerReset();
   if (a === 'loadProg' && genSession) { S.timer.program = genSession; save(); timerReset(); render(); window.scrollTo({ top: 0, behavior: 'smooth' }); toast('Treino no timer. Aperta Iniciar.'); }
   if (a === 'unloadProg') { S.timer.program = null; save(); timerReset(); render(); }

@@ -822,3 +822,32 @@ body.touring{overflow:hidden}
 .fig .p2 .lb,.fig .p2 .hb{fill:var(--p2far)}
 .fig .p2 .tko{stroke:var(--p2ink)}.fig .p2 .tkf{stroke:var(--p2)}
 .fig .p2 .gf{fill:var(--p2);stroke:var(--p2ink)}.fig .p2 .gb{fill:var(--p2d);stroke:var(--p2ink)}
+/* treino em andamento (v3.36): tela cheia, sem rolagem; minimizado vira barra */
+.run{position:fixed;inset:0;z-index:60;background:var(--paper);display:flex;flex-direction:column;gap:8px;padding:calc(10px + env(safe-area-inset-top)) 16px calc(14px + var(--safe-b));overflow:hidden;transition:background .2s,color .2s}
+.run-top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.run-top .linkbtn{font-weight:900;font-size:15px;color:inherit}
+.run-segs{display:flex;gap:3px}
+.run-segs i{flex:1;height:8px;border:2px solid var(--ink);background:transparent}
+.run-segs i.ok{background:var(--ink)}
+.run-segs i.on{background:var(--acc);border-color:var(--acc)}
+.run .run-timer{width:min(78vw,46vh,330px);margin:2px auto}
+.run .t-time{font-size:clamp(52px,14vw,76px)}
+.run-combo{min-height:1.3em;text-align:center}
+.run-info{text-align:center;min-height:2.6em}
+.run-info b{display:block}.run-info span{font-size:13px;opacity:.8}
+.run-ctl{margin-top:auto;display:flex;flex-direction:column;gap:10px}
+.run-main{font-size:20px;padding:16px}
+.run-sw{justify-content:center;gap:18px}
+.run.ph-round{background:var(--sheet)}
+.run.last10{background:var(--ink);color:var(--sheet)}
+.run.last10 .run-segs i{border-color:var(--sheet)}
+.run.last10 .run-segs i.ok{background:var(--sheet)}
+.run.last10 .t-bg{stroke:rgba(247,242,230,.15)}
+.run.last10 .btn{background:var(--sheet);color:var(--ink)}
+body.running{overflow:hidden}
+body.running #restbar{display:none}
+.runbar{position:fixed;left:12px;right:12px;bottom:calc(84px + var(--safe-b));z-index:41;display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--ink);color:var(--sheet);border:2.5px solid var(--ink);box-shadow:4px 4px 0 var(--acc);font:800 13px var(--font);cursor:pointer;text-align:left}
+.runbar span:first-child{flex:1}
+.runbar b{font-size:22px}
+.runbar.ph-round{background:var(--acc);border-color:var(--acc);box-shadow:4px 4px 0 var(--ink)}
+body.runmin #app{padding-bottom:calc(150px + var(--safe-b))}
