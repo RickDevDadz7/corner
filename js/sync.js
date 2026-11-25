@@ -39,7 +39,7 @@ export function payloadOf(S) {
 // Segurança: tudo que chega da nuvem passa por aqui antes de virar tela.
 // id só com letras/números/-/_ e campos numéricos viram número de verdade (bloqueia HTML injetado).
 const ID_OK = /^[A-Za-z0-9_-]{1,64}$/, RT_OK = /^[\x3f-\x7e]{0,200000}$/;
-const NUMS = ['k', 'p', 'c', 'f', 'fb', 'g', 'q', 'st', 't', 'ml', 'kg', 'min', 'rpe', 'kcal', 'rounds', 'sets', 'reps', 'load', 'dur', 'start', 'km', 'sec', 'up', 'gkm', 'tot', 'mx'];
+const NUMS = ['k', 'p', 'c', 'f', 'fb', 'g', 'q', 'st', 't', 'ml', 'kg', 'min', 'rpe', 'kcal', 'rounds', 'sets', 'reps', 'load', 'dur', 'start', 'km', 'sec', 'up', 'gkm', 'tot', 'mx', 'part'];
 function clean(it) {
   if (!it || typeof it !== 'object' || typeof it.id !== 'string' || !ID_OK.test(it.id)) return null;
   const o = { ...it };

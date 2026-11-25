@@ -107,7 +107,8 @@ function cycleBox(plan) {
     return `<tr class="${v + 0.5 < t && !plan.uncovered.includes(m) ? 'short' : ''}"><td>${esc(MN(m))}${f ? ' ★' : ''}</td><td class="mono">${fmt(t, 0)}</td><td class="mono">${fmt(v, 1)}</td><td class="small muted">${plan.uncovered.includes(m) ? 'sem exercício direto' : lim.includes(m) ? 'não coube no tempo' : v + 0.5 >= t ? 'ok' : ''}</td></tr>`; }).join('');
   const inj = injuriesOf(p), mins = Math.round(+p.liftMin) || 45;
   const bk = plan.bk, na = bodyNA(p), cs = condsOf(p), bd = bodyOf(p);
-  return `<p class="small blkline"><b>Treino válido até ${esc(bk.until.split('-').reverse().slice(0, 2).join('/'))}</b> · bloco ${bk.n}, semana ${bk.week} de ${bk.len}</p>
+  const begun = S.logs.workouts.some(w => typeof w?.date === 'string' && w.date >= bk.start);
+  return `<p class="small blkline">${begun ? `<b>Troca de treino prevista ~${esc(bk.until.split('-').reverse().slice(0, 2).join('/'))}</b> · bloco ${bk.n}, semana ${bk.week} de ${bk.len} <span class="muted">(só semanas treinadas contam)</span>` : `<b>Bloco ${bk.n} · ${bk.len} semanas</b> · começa a contar no seu primeiro treino`}</p>
   <div class="cyc ${ci.deload ? 'dl' : ''}"><div class="row between"><b>Ciclo ${ci.cycle} · semana ${ci.week} de ${ci.total}</b><span class="cyctag">${esc(tag)}</span></div>
     <div class="cycbar">${bar}</div><small>${esc(msg)}</small></div>
   <details class="howplan"><summary>Como o app montou seu treino</summary>
@@ -281,7 +282,13 @@ function cleanStreak() {
 const dayWater = (d = curDay()) => (S.logs.water[d] || []).reduce((a, w) => a + (w.ml || 0), 0);
 function latestWeight() { const ks = Object.keys(S.logs.weights).sort(); return ks.length ? S.logs.weights[ks[ks.length - 1]] : S.profile?.weight; }
 const mySports = () => Object.keys(sportsOf(S.profile || {})).filter(id => SPORTS[id]);
-function curSport() { const m = mySports(); return m.includes(S.ui.sport) ? S.ui.sport : (m[0] || 'boxe'); }
+// esporte da aba: o que a pessoa escolheu hoje; senão o esporte marcado pra hoje na semana; senão o último aberto
+function curSport() {
+  const m = mySports(), pk = S.ui.sportDay;
+  if (pk && pk.d === today() && m.includes(pk.id)) return pk.id;
+  if (m.length > 1) { try { const td = weekOf(S.profile).days[weekdayOf(today())] || [], hit = td.map(x => x.a).find(a => m.includes(a)); if (hit) return hit; } catch (e) { } }
+  return m.includes(S.ui.sport) ? S.ui.sport : (m[0] || 'boxe');
+}
 const level = () => S.profile.experience === 'avancado' ? 'avancado' : S.profile.experience === 'iniciante' ? 'iniciante' : 'intermediario';
 const allWeak = () => SPORT_IDS.flatMap(id => SPORTS[id].weak.map(w => ({ ...w, sport: id })));
 
@@ -1258,10 +1265,14 @@ function volumeCard(plan) {
   </details>`;
 }
 let histAll = false;
+// apagar um registro (força, esporte, mobilidade): dois toques; deixa lápide pra não voltar pela sincronização
+let logArm = '';
+const LOGK = { workouts: 1, sessions: 1, mob: 1 };
+const xDel = (k, id) => `<button class="x ${logArm === k + ':' + id ? 'armed' : ''}" data-act="logDel" data-k="${k}" data-id="${esc(id)}" aria-label="Apagar">${logArm === k + ':' + id ? 'Apagar?' : '×'}</button>`;
 function historyCard() {
   const all = S.logs.workouts.slice().sort(byWhen).reverse(), list = histAll ? all.slice(0, 60) : all.slice(0, 6);
   return `<div class="card" id="t-hist"><h3>Histórico</h3>
-    ${all.length ? `<ul class="list hlist">${list.map(w => { const st = workoutStats(w), pr = Object.keys(prsOf(w)).length; return `<li><a href="#wk-${esc(w.id)}"><div class="grow"><b>${esc(w.name || 'Treino')}</b><small>${esc(fmtDay(w.date))} · ${st.sets} séries${+w.dur ? ' · ' + Math.round(w.dur / 60) + ' min' : ''}${st.vol ? ' · ' + fmt(st.vol, 0) + ' kg' : ''}</small></div>${pr ? `<span class="prtag">${pr} PR</span>` : ''}<span>›</span></a></li>`; }).join('')}</ul>
+    ${all.length ? `<ul class="list hlist">${list.map(w => { const st = workoutStats(w), pr = Object.keys(prsOf(w)).length; return `<li><a href="#wk-${esc(w.id)}"><div class="grow"><b>${esc(w.name || 'Treino')}</b><small>${esc(fmtDay(w.date))} · ${st.sets} séries${+w.dur ? ' · ' + Math.round(w.dur / 60) + ' min' : ''}${st.vol ? ' · ' + fmt(st.vol, 0) + ' kg' : ''}</small></div>${pr ? `<span class="prtag">${pr} PR</span>` : ''}<span>›</span></a>${xDel('workouts', w.id)}</li>`; }).join('')}</ul>
       ${all.length > 6 ? `<button class="linkbtn" data-act="histAll">${histAll ? 'Mostrar menos' : `Ver todos (${all.length})`}</button>` : ''}`
     : '<p class="small muted">Nenhum treino registrado ainda. Comece uma sessão da sua rotina: cada série concluída aparece aqui, com detalhes e recordes.</p>'}</div>`;
 }
@@ -1659,7 +1670,7 @@ function runSave() {
   const type = sport === 'corrida' ? (P?.some(r => r.rest) ? 'intervalado' : 'leve')
     : P ? (P.some(r => r.saco) ? (SP.types.saco ? 'saco' : SP.defaultType) : (SP.types.solo && !P.some(r => r.id === 'jj_rola') ? 'solo' : SP.defaultType))
     : (/saco/.test(RUN.meta.preset || '') && SP.types.saco ? 'saco' : SP.defaultType);
-  S.logs.sessions.push({ id: newId(), sport, date: today(), type, types: [type], min: mins, rounds: RT.roundsDone(RUN), src: 'timer', kcal: sessionKcal(SP.types[type]?.met || 6, latestWeight(), mins) });
+  S.logs.sessions.push({ id: newId(), sport, date: today(), type, types: [type], min: mins, rounds: RT.roundsDone(RUN), src: 'timer', ...(RUN.done ? {} : { part: 1 }), kcal: sessionKcal(SP.types[type]?.met || 6, latestWeight(), mins) });
   RUN.saved = true; RT.persist(RUN); save(); toast(`Sessão registrada: ${mins} min`);
 }
 function runFinish() { bell(3); say('Fim do treino. Bom trabalho.'); runLoop(false); lockScreen(false); runSave(); paintRun(); }
@@ -1686,7 +1697,7 @@ function runClose() { RUN = null; RT.persist(null); runLoop(false); lockScreen(f
 function runEnd() {
   if (RUN?.done) { runClose(); return; }
   if (Date.now() - TM.endArm > 3000) { TM.endArm = Date.now(); paintRun(); return; }
-  if (RT.roundsDone(RUN) >= 1) runSave();
+  runSave(); // interrompido também conta (a partir de 1 min), marcado como interrompido
   runClose();
 }
 function timerReset() { if (!RUN) paintTimer(); }
@@ -2264,6 +2275,7 @@ let MRUN = RT.restore(MOB_KEY), MIV = null, mAnim = null, mobR = null, mobTab = 
 const MV = { x: -1, cd: -1, endArm: 0, min: false };
 const mobFavs = () => (Array.isArray(S.ui.mobFav) ? S.ui.mobFav : []).filter(id => MOB[id]);
 const mobSaved = () => (Array.isArray(S.ui.mobSaved) ? S.ui.mobSaved : []).map(cleanRoutineMob).filter(Boolean).slice(0, 10);
+let mobAll = false;
 const mobLog = () => (Array.isArray(S.logs.mob) ? S.logs.mob : []);
 const mobOpt = () => ({ moment: 'antes', sport: mySports()[0] || 'geral', region: '', min: 10, ...(S.ui.mobOpt || {}) });
 const mobSportName = id => id === 'forca' ? 'Musculação' : id === 'geral' ? 'Geral' : SPORTS[id]?.n || 'Geral';
@@ -2308,7 +2320,8 @@ views.mobilidade = () => {
     <ul class="list mlib">${lib.map(id => { const m = MOB[id]; return `<li><a class="grow" href="#mob-${id}"><b>${esc(m.n)}</b><small>${esc(m.reg.map(r => REGIONS[r]).join(', '))} · ${m.d} s${m.side ? ' cada lado' : ''} · ${LVL[m.lvl]}</small></a><button class="star ${favs.includes(id) ? 'on' : ''}" data-act="mobFav" data-id="${id}" aria-label="Favorito">${favs.includes(id) ? '★' : '☆'}</button></li>`; }).join('') || '<li class="muted small">Nenhum exercício com esses filtros.</li>'}</ul>
   </div>
   ${log.length ? `<div class="card"><h3>Histórico</h3><p class="small">${wk.length} ${wk.length === 1 ? 'sessão' : 'sessões'} nesta semana · ${log.reduce((a, x) => a + (+x.min || 0), 0)} min no total</p>
-    <ul class="list">${log.slice(-5).reverse().map(x => `<li><div class="grow"><b>${esc(MOMENTS[x.kind] || 'Mobilidade')}</b><small>${esc(x.date.split('-').reverse().slice(0, 2).join('/'))} · ${+x.min || 0} min${SPORT_REG[x.sport] ? ' · ' + esc(mobSportName(x.sport)) : ''}</small></div></li>`).join('')}</ul></div>` : ''}
+    <ul class="list">${log.slice(mobAll ? -60 : -5).reverse().map(x => `<li><div class="grow"><b>${esc(MOMENTS[x.kind] || 'Mobilidade')}</b><small>${esc(x.date.split('-').reverse().slice(0, 2).join('/'))} · ${+x.min || 0} min${x.part ? ' · interrompida' : ''}${SPORT_REG[x.sport] ? ' · ' + esc(mobSportName(x.sport)) : ''}</small></div>${xDel('mob', x.id)}</li>`).join('')}</ul></div>` : ''}
+  ${log.length > 5 ? `<button class="linkbtn pad" data-act="mobAll">${mobAll ? 'Mostrar menos' : `Ver todo o histórico (${log.length})`}</button>` : ''}
   <p class="small muted pad">Desconforto leve é normal. Dor aguda, formigamento ou tontura: pare.</p>`;
 };
 views.mob = id => {
@@ -2343,7 +2356,7 @@ function mobSaveLog() {
   const min = RT.minutesDone(MRUN); if (min < 1) return;
   if (!Array.isArray(S.logs.mob)) S.logs.mob = [];
   const R = MRUN.meta.R;
-  S.logs.mob.push({ id: newId(), date: today(), kind: MOMENTS[R.moment] ? R.moment : 'antes', sport: SPORT_REG[R.sport] ? R.sport : 'geral', min, rounds: RT.roundsDone(MRUN) });
+  S.logs.mob.push({ id: newId(), date: today(), kind: MOMENTS[R.moment] ? R.moment : 'antes', sport: SPORT_REG[R.sport] ? R.sport : 'geral', min, rounds: RT.roundsDone(MRUN), ...(MRUN.done ? {} : { part: 1 }) });
   MRUN.saved = true; RT.persist(MRUN); save();
 }
 function mobFinish() { bell(2); say('Rotina concluída.'); mobLoop(false); lockScreen(false); mobSaveLog(); paintMob(); }
@@ -2401,7 +2414,7 @@ document.addEventListener('input', e => {
 // ---------------- Esporte ----------------
 let genSession = null, genFor = null;
 views.esporte = arg => {
-  if (arg && mySports().includes(arg)) S.ui.sport = arg;
+  if (arg && mySports().includes(arg)) { S.ui.sport = arg; S.ui.sportDay = { d: today(), id: arg }; }
   const ms = mySports();
   if (!ms.length) return `<section class="head"><h1>Esporte</h1></section><div class="card"><p>Você ainda não marcou nenhum esporte.</p><a class="btn primary" href="#perfil">Escolher esportes</a></div>`;
   const id = curSport(), SP = SPORTS[id], c = S.timer, r = 120, circ = 2 * Math.PI * r;
@@ -2461,11 +2474,11 @@ views.esporte = arg => {
   <div class="card" id="e-goals"><h3>${SP.combat ? 'Seus objetivos na luta' : 'Onde você quer evoluir?'}</h3><p class="small muted">Marque o que quer melhorar.</p>
     <div class="chips">${SP.weak.map(w => `<button class="chipbtn ${S.weak.includes(w.id) ? 'on' : ''}" data-act="weak" data-id="${w.id}">${esc(w.n)}</button>`).join('')}</div>
     ${SP.weak.filter(w => S.weak.includes(w.id)).map(w => { const lifts = (w.lift || []).map(l => XSLOTS[l[0]]?.map(x => EXERCISES[x]?.n).filter(Boolean)[0]).filter(Boolean), fl = ['luta'].includes(tgoalOf(S.profile)) || S.profile.tgoal2 === 'luta';
-      return `<div class="focus"><h4>${esc(w.n)}</h4>
+      return `<details class="focus"><summary><h4>${esc(w.n)}</h4></summary>
       ${(w.drills || []).length ? `<ul class="drills">${w.drills.map(d => { const href = d.tech && TECHNIQUES.some(t => t.id === d.tech) ? '#tecnica-' + d.tech : d.ex && hasDemo(d.ex) ? '#demo-' + d.ex : ''; return `<li><div class="grow"><b>${esc(d.n)}</b><span class="cdose small">${esc(d.dose)}</span><small>${esc(d.how)}</small></div>${href ? `<a class="btn small ghost" href="${href}">Ver</a>` : ''}</li>`; }).join('')}</ul>` : ''}
       ${lifts.length ? `<p class="small note">${fl ? `No treino de força entra: <b>${esc(lifts.join(', '))}</b>.` : `Com o objetivo de força "Força pra luta", entra também ${esc(lifts.join(', ').toLowerCase())} no treino de força.`}</p>` : ''}
       <ul class="small">${w.fix.map(f => `<li>${esc(f)}</li>`).join('')}</ul>
-      <p class="small muted">Base: ${w.ev.map(e => esc(ev(e)?.title)).filter(Boolean).join(' · ')}</p></div>`; }).join('')}
+      <p class="small muted">Base: ${w.ev.map(e => esc(ev(e)?.title)).filter(Boolean).join(' · ')}</p></details>`; }).join('')}
   </div>
 
   ${SP.combat ? '<small class="cat pad">Aprender</small>' : ''}
@@ -2478,6 +2491,11 @@ views.esporte = arg => {
     <div class="grid2"><label>Minutos<input name="min" inputmode="numeric" value="${sportsOf(S.profile)[id]?.min || 60}"></label>
     ${id === 'corrida' ? '<label>Distância (km) <small>opcional</small><input name="km" inputmode="decimal" placeholder="ex.: 5"></label>' : ''}</div>
     <button class="btn small" type="submit">Salvar sessão</button></form>
+  ${(() => { const L = S.logs.sessions.filter(b => b.sport === id).sort(byWhen).reverse(); if (!L.length) return '';
+    const show = sessAll ? L.slice(0, 60) : L.slice(0, 6);
+    return `<div class="card" id="e-hist"><h3>Histórico de ${esc(SP.n.toLowerCase())}</h3><ul class="list">${show.map(b => `<li><div class="grow">${id === 'corrida' && +b.km > 0 ? `<a href="#corrida-${esc(b.id)}">` : ''}<b>${esc(typesOf(b.sport, b).map(k => SP.types[k]?.n).filter(Boolean).join(' + ') || SP.n)}</b>${id === 'corrida' && +b.km > 0 ? '</a>' : ''}
+      <small>${esc(fmtDay(b.date))} · ${+b.min || 0} min${+b.rounds ? ` · ${+b.rounds} ${id === 'corrida' ? 'blocos' : 'rounds'}` : ''}${+b.km > 0 ? ` · ${kmTxt(+b.km, 2)} km` : ''}${b.part ? ' · interrompido' : ''}${b.src === 'timer' ? ' · timer' : b.src === 'gps' ? ' · GPS' : ''}</small></div>${xDel('sessions', b.id)}</li>`).join('')}</ul>
+      ${L.length > 6 ? `<button class="linkbtn" data-act="sessAll">${sessAll ? 'Mostrar menos' : `Ver todos (${L.length})`}</button>` : ''}</div>`; })()}
 
   <div class="card"><h3>Semana modelo</h3>
     <table class="tbl small">${SP.week.map(([d, x]) => `<tr><td>${d}</td><td>${esc(x)}</td></tr>`).join('')}</table>
@@ -2485,7 +2503,7 @@ views.esporte = arg => {
 `;
 };
 
-let anim = null, techCat = '', spineNext = false;
+let anim = null, techCat = '', spineNext = false, sessAll = false;
 const techList = () => TECHNIQUES.filter(t => t.sport.includes(curSport()));
 // Tabela de numeração dos socos (o número fica só aqui; as animações usam só o nome)
 const KICK_NAMES = { muaythai: ['teep', 'chute', 'chutebaixo', 'chuteesq', 'joelhada', 'cotovelada'], mma: ['chute', 'chutebaixo', 'double', 'sprawl'] };
@@ -2708,7 +2726,8 @@ function render() {
   // um esporte só: a aba leva o nome dele (luva pras lutas com luva, faixa pro jiu-jitsu, tênis pra corrida); mais de um: "Esporte" com troféu
   const ms = mySports(), one = ms.length === 1 ? ms[0] : null;
   const spLabel = one ? SPORTS[one].n : 'Esporte';
-  ICONS.esporte = one === 'corrida' ? SHOE : one === 'jiu' ? BELT : one && SPORTS[one].combat ? GLOVE : TROPHY;
+  const ic = one || (ms.length ? curSport() : null); // vários esportes: o ícone segue o esporte do dia
+  ICONS.esporte = ic === 'corrida' ? SHOE : ic === 'jiu' ? BELT : ic && SPORTS[ic]?.combat ? GLOVE : TROPHY;
   const tabs = [['hoje', 'Hoje'], ['nutri', 'Nutrição'], ['treino', 'Força'], ['esporte', spLabel], ['coach', 'Coach']];
   $('#nav').innerHTML = tabs.map(([id, label]) => `<a href="#${id}" class="${(v === id || ((v === 'sessao' || v === 'rotinas' || v === 'rotina' || v === 'ver' || v === 'resumo' || v === 'wk' || v === 'evo' || v === 'demo' || v === 'coluna') && id === 'treino') || (v === 'cardapio' && id === 'nutri') || ((v === 'tecnica' || v === 'tecnicas' || v === 'corrida') && id === 'esporte')) ? 'on' : ''}"><svg viewBox="0 0 24 24"><path d="${ICONS[id]}"/></svg><span>${esc(label)}</span></a>`).join('');
   bindAfter(v, arg);
@@ -3125,7 +3144,7 @@ document.addEventListener('click', async e => {
     const id = el.dataset.id; if (wkArm !== id) { wkArm = id; render(); setTimeout(() => { if (wkArm === id) { wkArm = null; if (location.hash === '#wk-' + id) render(); } }, 3500); return; }
     wkArm = null; S.logs.workouts = S.logs.workouts.filter(x => x.id !== id); S.del[id] = Date.now(); save(); toast('Treino apagado'); location.hash = '#treino';
   }
-  if (a === 'sport') { S.ui.sport = el.dataset.id; save(true); timerReset(); render(); }
+  if (a === 'sport') { S.ui.sport = el.dataset.id; S.ui.sportDay = { d: today(), id: el.dataset.id }; save(true); timerReset(); render(); }
   if (a === 'preset') { const p = SPORTS[curSport()].presets.find(x => x.id === el.dataset.id); Object.assign(S.timer, { preset: p.id, rounds: p.rounds, work: p.work, rest: p.rest, program: null }); save(true); timerReset(); render(); }
   if (a === 'tToggle') timerToggle();
   if (a === 'presetCustom') { const f = $('[data-tm=rounds]'); f?.scrollIntoView({ block: 'center', behavior: 'smooth' }); setTimeout(() => f?.focus(), 300); }
@@ -3150,6 +3169,11 @@ document.addEventListener('click', async e => {
   if (a === 'mobOpen') { MV.min = false; paintMob(); }
   if (a === 'mobPre') mobQuick('antes', el.dataset.sport || 'geral', el.dataset.sid);
   if (a.startsWith('gps') && GACT[a]) { GACT[a](el); return; }
+  if (a === 'logDel') { const k = el.dataset.k, id = el.dataset.id; if (!LOGK[k] || !Array.isArray(S.logs[k])) return;
+    if (logArm !== k + ':' + id) { logArm = k + ':' + id; render(); setTimeout(() => { if (logArm === k + ':' + id) { logArm = ''; render(); } }, 3500); return; }
+    logArm = ''; S.logs[k] = S.logs[k].filter(x => x.id !== id); S.del[id] = Date.now(); save(); render(); toast('Registro apagado'); return; }
+  if (a === 'mobAll') { mobAll = !mobAll; render(); return; }
+  if (a === 'sessAll') { sessAll = !sessAll; render(); return; }
   if (a === 'mobPost') { if (el.dataset.gclose) gpsClose(); if (el.dataset.close && RUN) runClose(); mobQuick('depois', el.dataset.sport || 'geral'); }
   if (a === 'runPause') runPause();
   if (a === 'runSkip' && RUN) { RT.skipRest(RUN); onPhase(RT.cur(RUN)); tick(); }

@@ -292,6 +292,16 @@ const KZ2 = KP({ p: [0.24, 0.8, 0], cy: -68, lean: 8, fL: [0.8, 0, -0.1], fR: [-
 const KZ3 = KP({ ...KZ2, fR: [-0.2, 0.02, 0.14] });
 const KZ4 = KP({ p: [0.12, 0.8, 0], fL: [0.8, 0, -0.1], fR: [-0.44, 0.02, 0.14] });
 
+// passo em L (base ortodoxa): o pé de trás recua, o da frente acompanha; depois o de trás abre pra direita e o da frente acompanha — o caminho desenha um L
+const LS1 = P({ p: [-0.1, 0.86, 0], fR: [-0.6, 0.02, 0.12] });
+const LS2 = P({ p: [-0.24, 0.86, 0], fL: [0.08, 0, -0.12], fR: [-0.6, 0, 0.12] });
+const LS3 = P({ p: [-0.24, 0.86, 0.14], fL: [0.08, 0, -0.12], fR: [-0.6, 0.02, 0.46] });
+const LS4 = P({ p: [-0.26, 0.86, 0.3], cy: -60, fL: [0.06, 0, 0.2], fR: [-0.6, 0, 0.46] });
+// tipos de guarda do boxe (poses paradas)
+const GU_ALTA = P({ lean: 10, hL: [0.16, 0.26, 0.02], hR: [0.1, 0.26, -0.1], eL: [0.2, -1, 0.3], eR: [0.1, -1, -0.3] });
+const GU_PEEK = P({ p: [0, 0.8, 0], lean: 24, hL: [0.12, 0.3, 0.04], hR: [0.1, 0.3, -0.06], eL: [0.3, -1, 0.2], eR: [0.2, -1, -0.2] });
+const GU_PHILLY = P({ cy: -62, lean: 8, shrug: 1, hL: [0.1, -0.14, -0.12], eL: [0.1, -0.3, 1], hR: [0.1, 0.24, -0.04] });
+const GU_LONGA = P({ lean: 8, hL: [0.5, 0.16, 0.02], hR: [0.12, 0.23, -0.1] });
 // passos: frente, trás, lados (a base nunca muda)
 const PS_F1 = P({ p: [0.12, 0.86, 0], fL: [0.62, 0.02, -0.12] });
 const PS_F2 = P({ p: [0.24, 0.86, 0], fL: [0.62, 0, -0.12], fR: [-0.06, 0, 0.12] });
@@ -327,6 +337,8 @@ const FU3 = P({ ...FU2, fR: [0.08, 0.3, -0.1], kR: [0.3, 0.6, 1], tR: [1, 0, 0] 
 // age-uke contra o soco no rosto; cruzado no corpo com o parceiro
 const PKZ = KP({ p: [0.24, 0.8, 0], cy: -68, lean: 6, fL: [0.78, 0, -0.1], fR: [-0.2, 0, 0.14], hL: [0.95, 0.42, -0.04], hR: [0.14, 0.1, -0.08] });
 const PBODY = P({ p: [-0.06, 0.82, 0], lean: 26, cy: -20, py: -30, hR: [0.12, -0.12, -0.22], hL: [0.24, 0.18, 0.06] });
+// parceiro levando o cruzado no fígado: guarda alta, o lado da costela fica aberto e ele dobra um pouco com o impacto
+const PLIV = { ...G, lean: (G.lean || 0) + 14, cy: (G.cy || 0) + 14 };
 // </lutas-rev>
 
 const LIMB = { haL: 'armL', elL: 'armL', haR: 'armR', elR: 'armR', anL: 'legL', knL: 'legL', anR: 'legR', knR: 'legR' };
@@ -500,10 +512,18 @@ export const TECHNIQUES = [
     [F(KA, 480, 0), F(TS_F1, 200, 0, { hi: ['anL'] }), F(TS_F2, 220, 1, { hi: ['anR'] }), F(TS_F2, 200, 1), F(TS_B1, 220, 2, { hi: ['anR'] }), F(KA, 260, 3)],
     ['Kamae, peso na ponta dos pés.', 'O pé da frente desliza pra frente e o de trás acompanha a mesma distância.', 'Pra sair, o pé de trás recua primeiro e o da frente acompanha.', 'A base nunca diminui nem aumenta.'],
     ['Cruzar os pés.', 'Saltar alto (fica sem base no ar).', 'Mover o tronco antes das pernas.'], { gloves: false, cam: 14 }),
-  T('ganchocorpo', SC, 'Socos', 'Cruzado no corpo', 'Desce com as pernas e acerta a costela ou o fígado.',
+  T('ganchocorpo', SC, 'Socos', 'Cruzado no corpo (fígado)', 'O liver shot: desce com as pernas e acerta o fígado, no lado direito do adversário.',
     [F(G, 480, 0), F(BHOOK_LOAD, 200, 0, { e: 'load', hi: ['knL', 'knR'] }), F(BHOOK, 170, 1, { e: 'snap', fx: 'haL', hit: true, hi: ['pel'] }), F(BHOOK, 120, 2), F(G, 360, 3)],
     ['Dobre os joelhos e incline pro lado da frente.', 'Gire o pé e o quadril, como no cruzado.', 'O soco entra em arco na altura da costela.', 'Sobe já em guarda, mão de trás no rosto.'],
     ['Abaixar só o tronco.', 'Abrir demais o braço (fica lento).', 'Ficar embaixo depois do golpe.'], { cam: 40 }),
+  T('passoL', ['boxe'], 'Movimentação', 'Passo em L', 'Sai da linha pro lado da mão de trás e já fica no ângulo pro contra-ataque.',
+    [F(G, 460, 0), F(LS1, 220, 0, { fx: 'anR', hi: ['anR'] }), F(LS2, 220, 0, { fx: 'anL', hi: ['anL'] }), F(LS3, 230, 1, { fx: 'anR', hi: ['anR'] }), F(LS4, 260, 1, { fx: 'anL', hi: ['anL', 'pel'] }), F(LS4, 420, 2), F(G, 320, 3)],
+    ['Recua: o pé de trás sai primeiro e o da frente acompanha.', 'Abre pro lado da mão de trás (direita, na base destra): de novo o pé de trás primeiro.', 'Gira o quadril de volta pro adversário: ele passa reto e você fica no ângulo.', 'Use fora da distância de soco; sai já com o direto pronto.'],
+    ['Fazer colado no adversário (fica sem base).', 'Cruzar os pés no passo lateral.', 'Baixar a guarda no movimento.'], { cam: 35, tilt: 55, zoom: 0.9, props: PRINTS(G) }),
+  T('guardas', ['boxe'], 'Defesa', 'Tipos de guarda', 'Quatro guardas clássicas: cada uma protege uma coisa e abre outra.',
+    [F(GU_ALTA, 1300, 0, { hi: ['haL', 'haR'] }), F(GU_PEEK, 1300, 1, { hi: ['haL', 'haR'] }), F(GU_PHILLY, 1300, 2, { hi: ['haL', 'shL'] }), F(GU_LONGA, 1300, 3, { hi: ['haL'] })],
+    ['Guarda alta: luvas na testa e cotovelos colados no corpo. Segura bem a cabeça e a costela; pede braço forte e cansa.', 'Peek-a-boo: agachado, luvas coladas no rosto, cabeça sempre mexendo. Boa pra encurtar e entrar; ruim de longe.', 'Philly shell: mão da frente baixa na barriga, ombro da frente subido protegendo o queixo, mão de trás no rosto. Ótima pra contra-atacar; difícil de aprender.', 'Guarda longa: braço da frente esticado medindo e travando o adversário. Controla a distância; abre o corpo se ele passar do braço.'],
+    ['Copiar a guarda de um lutador sem treinar a defesa que vem junto.', 'Ficar parado: toda guarda funciona com movimento de cabeça e pés.'], { cam: 120, tilt: 6 }),
   T('passos', ['boxe', 'muaythai', 'karate'], 'Movimentação', 'Passos: entra, sai e lateral', 'O pé do lado pra onde você vai se move primeiro.',
     [F(G, 460, 0), F(PS_F1, 220, 0, { fx: 'anL', hi: ['anL'] }), F(PS_F2, 220, 0, { fx: 'anR', hi: ['anR'] }), F(PS_B1, 220, 1, { fx: 'anR', hi: ['anR'] }), F(G, 240, 1, { fx: 'anL', hi: ['anL'] }), F(PS_L1, 240, 2, { fx: 'anL', hi: ['anL'] }), F(PS_L2, 240, 2, { fx: 'anR', hi: ['anR'] }), F(PS_R1, 240, 2, { fx: 'anR', hi: ['anR'] }), F(G, 300, 3, { fx: 'anL', hi: ['anL'] })],
     ['Pra frente: o pé da frente anda, o de trás acompanha.', 'Pra trás: o pé de trás sai primeiro.', 'Pro lado: o pé daquele lado vai primeiro, o outro acompanha.', 'A distância entre os pés não muda; mãos na guarda.'],
@@ -564,7 +584,7 @@ const DUO = {
   sprawl: { o: { d: 1.15, cam: 30, tilt: 22, fit: true, zmax: 1.05 }, q: [G, PSH, PSFL, PSFL, PSKN, G] },
   double: { o: { d: 1.12, cam: 30, tilt: 14, fit: true, zmax: 1.0 }, q: [G, G, PDL1, PDL1, PDL2, PDL3, PDL3, G] },
   fuga: { o: { d: 0, gloves: false, cam: 25, tilt: 35, fit: true }, q: [PSC, PSC, PSC, PSC2, PSC2, PSC] },
-  ganchocorpo: { o: { d: 1.0, cam: 40, tilt: 12, fit: true, zmax: 1.05 }, q: [G, G, PBODY, PBODY, G] },
+  ganchocorpo: { o: { d: 1.0, cam: -20, tilt: 30, fit: true, zmax: 1.05 }, q: [G, G, PLIV, PLIV, G] },
   singleleg: { o: { d: 1.05, gloves: false }, q: [G, G, PSL1, PSL1, PSL2, PFALL, G] }
 };
 DUO.agarrachute = { o: { d: 1.28 }, q: [G, KICK_CH, PBKICK, PCAUGHT, Q(PCAUGHT, { lean: -30 }), G] };
@@ -601,8 +621,8 @@ function fitView(t) {
 }
 for (const t of TECHNIQUES) { const x = DUO[t.id]; if (!x) continue; t.partner = x.o; t.cam = x.o.cam ?? 12; t.ox = x.o.ox ?? -Math.round((x.o.d ?? 1.1) * 46); t.zoom = x.o.zoom ?? 0.92; if (x.o.tilt) t.tilt = x.o.tilt; if (x.o.props) t.props = x.o.props; t.frames.forEach((f, i) => { if (x.q[i]) f.q = x.q[i]; }); if (x.o.fit) fitView(t); }
 // revisão v3.34: enquadramento automático também nas técnicas solo refeitas
-for (const t of TECHNIQUES) if (['overhand', 'pivo', 'chuteesq', 'cotoveladasobe', 'kizami', 'passos'].includes(t.id)) fitView(t);
-for (const t of TECHNIQUES) if (['pivo', 'kizami', 'passos', 'esquiva'].includes(t.id)) t.noshadow = true;
+for (const t of TECHNIQUES) if (['overhand', 'pivo', 'chuteesq', 'cotoveladasobe', 'kizami', 'passos', 'passoL', 'guardas'].includes(t.id)) fitView(t);
+for (const t of TECHNIQUES) if (['pivo', 'kizami', 'passos', 'passoL', 'esquiva'].includes(t.id)) t.noshadow = true;
 
 export const CATS = ['Socos', 'Chutes', 'Joelhos e cotovelos', 'Defesa', 'Movimentação', 'Quedas', 'Chão', 'Guarda e passagem'];
 

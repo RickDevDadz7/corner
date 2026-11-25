@@ -123,6 +123,7 @@ input:focus,select:focus,textarea:focus{box-shadow:3px 3px 0 var(--acc)}
 .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
 .switch{display:flex!important;flex-direction:row!important;align-items:center;gap:8px;font-size:13px;margin-top:8px;font-weight:700;text-align:left}
 .switch input{width:20px;height:20px;accent-color:var(--acc);flex:none}
+input[type=checkbox],input[type=radio]{width:20px;height:20px;padding:0;margin:0;border:0;background:none;box-shadow:none!important;accent-color:var(--acc);flex:none}
 .equip{border:2px dashed var(--ink);padding:10px 12px;margin:0;display:flex;flex-wrap:wrap;gap:6px}
 .equip legend{font-weight:900;font-size:12.5px;padding:0 6px}
 .check{flex-direction:row!important;align-items:center}
@@ -978,3 +979,10 @@ body.runmin #app{padding-bottom:calc(150px + var(--safe-b))}
 .shbar{height:6px;border:1.5px solid var(--ink);margin-top:4px;max-width:220px}.shbar i{display:block;height:100%;background:var(--acc)}
 .pfst{position:sticky;bottom:calc(88px + var(--safe-b));z-index:5;background:var(--ink);color:var(--sheet)!important;padding:6px 10px;margin:10px 0 0;font-weight:800;box-shadow:3px 3px 0 var(--acc)}
 .pfst.warn{background:var(--acc);color:#fff!important;box-shadow:3px 3px 0 var(--ink)}
+details.focus>summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px}
+details.focus>summary::-webkit-details-marker{display:none}
+details.focus>summary h4{margin:0}
+details.focus>summary::after{content:'+';font:900 22px var(--font);color:var(--acc)}
+details.focus[open]>summary::after{content:'−'}
+details.focus[open]>summary{margin-bottom:6px}
+.x.armed{font-size:12px;border:2px solid var(--acc);padding:3px 6px;white-space:nowrap}
