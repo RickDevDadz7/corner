@@ -228,6 +228,7 @@ const GOALX = {
   jj_guard: { n: 'Guarda difícil de passar', drills: [D('Fuga de quadril', '4 × a sala', 'Pros dois lados, ombro no chão e quadril longe.', { tech: 'fuga' }), D('Ponte (upa)', '3 × 10', 'Quadril alto e gira por cima do ombro.', { tech: 'ponte' }), D('Quebra de postura', '3 × 8', 'Puxa com os joelhos e as mãos na guarda fechada.', { tech: 'quebrapostura' })] },
   jj_td: { n: 'Quedas e defesa de queda', drills: [D('Sprawl', '5 × 5', 'Tira as pernas pra trás e cai com o quadril no chão; levanta rápido.', { tech: 'sprawl' }), D('Entrada de double leg', '4 × 5', 'Troca de nível com as pernas e entra fundo, sem olhar pro chão.', { tech: 'double' })], lift: [['power_l', 3, 3, 5]] },
   jj_bottom: { n: 'Sair de baixo', drills: [D('Upa', '3 × 8 cada lado', 'Prende o braço e a perna do mesmo lado, ponte e gira.', { tech: 'upa' }), D('Levantada técnica', '3 × 8 cada lado', 'Mão de trás no chão, a perna passa por baixo e você volta em base.', { tech: 'levantada' })] },
+  jj_sub: { n: 'Finalizar mais', drills: [D('Triângulo', '3 × 5 cada lado', 'Com parceiro e devagar: um braço dentro, outro fora, fecha o 4.', { tech: 'triangulo' }), D('Armlock da guarda', '3 × 5 cada lado', 'Ângulo primeiro, depois a perna por cima da cabeça.', { tech: 'armlock' }), D('Kimura', '3 × 5 cada lado', 'Espera a mão dele no chão e gira devagar.', { tech: 'kimura' }), D('Mata-leão', '3 × 5', 'Das costas, com os ganchos. Bateu, soltou.', { tech: 'mataleao' })] },
   jj_neck: { n: 'Pescoço e lombar protegidos', drills: [D('Isometria de pescoço', '3 × 20 s cada lado', 'Sem mexer, leve no começo.', { ex: 'neck' }), D('Perdigueiro (bird dog)', '2 × 8 cada lado', 'Coluna parada enquanto braço e perna esticam.', { ex: 'birddog' })], lift: [['neck', 2, 15, 30], ['lowback', 2, 10, 15]] }
 };
 const NEWW = {
@@ -236,7 +237,8 @@ const NEWW = {
   muaythai: [{ id: 'mt_foot', fix: ['Quem controla a distância controla a luta: teep e passo pra trás valem pontos e poupam pancada.', 'Corda e pliometria leve deixam as pernas mais rápidas.'], ev: ['mt-energia'] },
     { id: 'mt_def', fix: ['Checar dói menos que levar o chute baixo na coxa: treine dos dois lados.', 'Sempre devolva: defesa sem contra-ataque só adia o próximo chute.'], ev: ['mt-lesao'] }],
   jiu: [{ id: 'jj_td', fix: ['Luta em pé decide quem fica por cima: sprawl e entrada de queda toda semana.', 'Potência de perna (saltos) ajuda a entrar e a defender.'], ev: ['jj-perfil'] },
-    { id: 'jj_bottom', fix: ['Saída de baixo é movimento: upa e fuga de quadril até virar automático.', 'Respire e proteja o pescoço antes de tentar sair.'], ev: ['jj-perfil'] }]
+    { id: 'jj_bottom', fix: ['Saída de baixo é movimento: upa e fuga de quadril até virar automático.', 'Respire e proteja o pescoço antes de tentar sair.'], ev: ['jj-perfil'] },
+    { id: 'jj_sub', fix: ['Finalização sai da posição: controle primeiro, ataque depois.', 'Triângulo, armlock e kimura saem da mesma guarda: encadeie um no outro.'], ev: ['jj-perfil'] }]
 };
 for (const [sid, list] of Object.entries(NEWW)) for (const w of list) if (!SPORTS[sid].weak.some(x => x.id === w.id)) SPORTS[sid].weak.splice(SPORTS[sid].weak.length - (sid === 'boxe' ? 1 : 0), 0, w);
 for (const sp of Object.values(SPORTS)) for (const w of sp.weak || []) if (GOALX[w.id]) Object.assign(w, { ...GOALX[w.id], drills: GOALX[w.id].drills || [], lift: GOALX[w.id].lift || [] });

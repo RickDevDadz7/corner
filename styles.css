@@ -1,6 +1,6 @@
 /* RONIN — estética de mangá de boxe dos anos 70: papel jornal, nanquim, retícula e vermelho-sangue */
 [hidden]{display:none!important}
-:root{--p2:#1d5fb4;--p2d:#0f3a73;--p2ink:#2b3140;--p2far:#9aa4b3;
+:root{--p2:#1d5fb4;--p2d:#0f3a73;--p2ink:#2f4f7f;--p2far:#a3b4cc;
   --paper:#ece5d3; --paper2:#e2d9c3; --sheet:#f7f2e6; --ink:#1a1714; --ink2:#3a342d; --muted:#5e574c;
   --acc:#c3131b; --cyan:#1a1714; --amber:#9a8657; --red:#5a0a0d;
   --r:3px; --safe-b:env(safe-area-inset-bottom,0px); --safe-t:env(safe-area-inset-top,0px);
@@ -12,7 +12,7 @@
   color-scheme:light;
 }
 /* Modo escuro: mesmo mangá, impresso em papel preto (nanquim vira giz) */
-:root[data-theme=dark]{--p2:#3f86e0;--p2d:#1d5fb4;--p2ink:#c9d3e6;--p2far:#56627a;
+:root[data-theme=dark]{--p2:#3f86e0;--p2d:#1d5fb4;--p2ink:#7da6e0;--p2far:#3e5579;
   --paper:#14120f; --paper2:#1d1a16; --sheet:#221f1a; --ink:#ece5d3; --ink2:#cfc6b2; --muted:#a39b8c;
   --acc:#ec3b43; --cyan:#ece5d3; --amber:#c9b27a; --red:#ff8a8f;
   --ink-rgb:236,229,211; --field:#2b2721; --accbg:#3a1416; --warnbg:#3b3018; --grain:rgba(0,0,0,.45);

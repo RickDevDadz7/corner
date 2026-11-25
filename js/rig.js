@@ -106,11 +106,12 @@ const W = { th: 17, sn: 13, ua: 13, fa: 11, foot: 9 };
 // parceiro: segundo boneco (short e luvas azuis) com pose própria, girado 180° e a d metros à frente
 // partner = { J (já posicionado no mundo, ver placePartner), gloves, front: desenha na frente do principal }
 export function placePartner(J2, d = 1.1, dz = 0) { const o = {}; for (const k in J2) { const v = J2[k]; o[k] = [d - v[0], v[1], dz - v[2]]; } return o; }
-export function draw(J, { gloves = true, hi = [], trail = null, burst = null, cam = 30, ox = 0, act = [], tilt = 0, zoom = 1, target = null, path = null, props = null, missing = null, prosthesis = false, partner = null } = {}) {
+export function draw(J, { gloves = true, hi = [], trail = null, burst = null, cam = 30, ox = 0, oy = 0, act = [], tilt = 0, zoom = 1, target = null, path = null, props = null, missing = null, prosthesis = false, partner = null } = {}) {
   CAM = cam * D; TILT = tilt * D; ZOOM = zoom;
   const F1 = figParts(J, { gloves, act, missing, prosthesis });
   let p2 = '';
-  if (partner?.J) { const F2 = figParts(partner.J, { gloves: partner.gloves ?? gloves, act: [] }); p2 = `<g class="p2">${F2.shadow}${F2.back}${F2.gBack}${F2.torso}${F2.frontLegs}${F2.trunks}${F2.head}${F2.front}${F2.gFront}</g>`; }
+  let F2 = null;
+  if (partner?.J) { F2 = figParts(partner.J, { gloves: partner.gloves ?? gloves, act: partner.act || [] }); p2 = `<g class="p2">${F2.shadow}${F2.back}${F2.gBack}${F2.torso}${F2.frontLegs}${F2.trunks}${F2.head}${F2.front}${F2.gFront}</g>`; }
   const { P, zMid } = F1;
   // (corpo montado em figParts)
   let pBack = '', pFront = '';
@@ -139,7 +140,16 @@ export function draw(J, { gloves = true, hi = [], trail = null, burst = null, ca
     for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2; fx += `<line x1="${(c[0] + Math.cos(a) * r2 * 1.1).toFixed(1)}" y1="${(c[1] + Math.sin(a) * r2 * 1.1).toFixed(1)}" x2="${(c[0] + Math.cos(a) * r2 * 1.7).toFixed(1)}" y2="${(c[1] + Math.sin(a) * r2 * 1.7).toFixed(1)}" class="bsl"/>`; }
   }
   const pf = partner?.front, me = `${back}${gBack}${torso}${frontLegs}${trunks}${head}${front}${gFront}`;
-  return `<svg viewBox="${-ox} 0 230 200" class="fig" role="img" aria-hidden="true">
+  // luta agarrada: ordem por camada entre os dois (m = principal, p = parceiro; b = membros de trás, t = tronco,
+  // l = pernas da frente + short (n = só as pernas, s = só o short), h = cabeça, f = braços da frente). Ex.: 'mb pb pt pl ph mt ml mh pf mf'
+  if (F2 && partner.ord) {
+    const part = (F, k) => k === 'b' ? F.back + F.gBack : k === 't' ? F.torso : k === 'l' ? F.frontLegs + F.trunks : k === 'n' ? F.frontLegs : k === 's' ? F.trunks : k === 'h' ? F.head : k === 'f' ? F.front + F.gFront : '';
+    const lay = partner.ord.split(/\s+/).map(x => x[0] === 'p' ? `<g class="p2">${part(F2, x[1])}</g>` : part(F1, x[1])).join('');
+    return `<svg viewBox="${-ox} ${-oy} 230 200" class="fig" role="img" aria-hidden="true">
+    ${TILT ? '' : `<line x1="${6 - ox - 120}" y1="${GY}" x2="${224 - ox + 120}" y2="${GY}" class="gr"/>`}${shadow}${hl}
+    ${pBack}${lay}${pFront}${tg}${fx}${badge}</svg>`;
+  }
+  return `<svg viewBox="${-ox} ${-oy} 230 200" class="fig" role="img" aria-hidden="true">
     ${TILT ? '' : `<line x1="${6 - ox - 120}" y1="${GY}" x2="${224 - ox + 120}" y2="${GY}" class="gr"/>`}${shadow}${hl}
     ${pBack}${pf ? '' : p2}${me}${pf ? p2 : ''}${pFront}${tg}${fx}${badge}</svg>`;
   }
