@@ -1902,7 +1902,9 @@ views.esporte = arg => {
     <div id="tCombo" class="combo" aria-live="polite"></div>
     <div id="tInfo" class="tinfo"></div>
     ${P ? `<p class="small"><b>Treino carregado (${esc(SPORTS[P[0].sport]?.n || '')}):</b> ${P.length} ${P[0].sport === 'corrida' ? 'blocos' : 'rounds'} · ~${Math.round(P.reduce((a, x) => a + x.work + x.rest, 0) / 60)} min <button class="linkbtn" data-act="unloadProg">trocar pra modo livre</button></p>` : `
-    <div class="chips">${SP.presets.map(p => `<button class="chipbtn ${c.preset === p.id ? 'on' : ''}" data-act="preset" data-id="${p.id}">${esc(p.n)}</button>`).join('')}</div>
+    ${(() => { const on = SP.presets.find(p => p.rounds === +c.rounds && p.work === +c.work && p.rest === +c.rest)?.id || 'custom';
+      return `<div class="pgrid">${SP.presets.map(p => `<button class="${on === p.id ? 'on' : ''}" data-act="preset" data-id="${p.id}"><b>${esc(p.n)}</b><small>${p.rounds} × ${mmss(p.work)} · pausa ${mmss(p.rest)}</small></button>`).join('')}
+      <button class="${on === 'custom' ? 'on' : ''}" data-act="presetCustom"><b>Personalizado</b><small>${on === 'custom' ? `${+c.rounds} × ${mmss(+c.work)}· pausa ${mmss(+c.rest)}` : 'do seu jeito'}</small></button></div>`; })()}
     <div class="grid3 small">
       <label>Rounds<input data-tm="rounds" inputmode="numeric" value="${esc(c.rounds)}"></label>
       <label>Round (s)<input data-tm="work" inputmode="numeric" value="${esc(c.work)}"></label>
@@ -1928,7 +1930,8 @@ views.esporte = arg => {
       </div>
       <button class="btn" type="submit">Gerar treino</button>
     </form>
-    ${genSession ? `<ol class="rounds">${genSession.map((x, i) => `<li><span class="mono">${id === 'corrida' ? 'B' : 'R'}${i + 1}</span><div><b>${esc(x.t)}</b><small>${esc(x.f)}</small></div><span class="mono small">${x.work / 60 | 0}:${String(x.work % 60).padStart(2, '0')}${x.calls ? ' 🗣' : ''}</span></li>`).join('')}</ol>
+    ${genSession ? `<div class="row between genbar"><b class="small">${genSession.length} ${id === 'corrida' ? 'blocos' : 'rounds'} · ~${Math.round(genSession.reduce((a, x) => a + x.work + x.rest, 0) / 60)} min</b><div class="row gap"><button class="btn small ghost" data-act="genShut">${S.ui.genShut ? 'Mostrar' : 'Recolher'}</button><button class="btn small ghost" data-act="genClear">Apagar</button></div></div>
+    ${S.ui.genShut ? '' : `<ol class="rounds">${genSession.map((x, i) => `<li><span class="mono">${id === 'corrida' ? 'B' : 'R'}${i + 1}</span><div><b>${esc(x.t)}</b><small>${esc(x.f)}</small></div><span class="mono small">${x.work / 60 | 0}:${String(x.work % 60).padStart(2, '0')}${x.calls ? ' 🗣' : ''}</span></li>`).join('')}</ol>`}
       <button class="btn primary block" data-act="loadProg">Carregar no timer ↑</button>` : `<p class="small muted">${SP.combos ? 'Monta os rounds com tema, foco e combinações faladas, usando seus pontos fracos marcados abaixo.' : id === 'corrida' ? 'Monta aquecimento, blocos e volta à calma com o timer marcando cada parte.' : 'Monta os rounds com drills, posições e o foco nos seus pontos fracos.'}</p>`}
   </div>
 
@@ -2358,7 +2361,7 @@ function bindAfter(v, arg) {
       save(); toast('Sessão salva'); render();
     });
     document.querySelectorAll('[data-tm]').forEach(i => i.addEventListener('change', () => {
-      const n = Math.max(1, Math.round(num(i.value) || 1)); S.timer[i.dataset.tm] = n; S.timer.preset = 'custom'; save(); if (!RUN) paintTimer();
+      const n = Math.max(1, Math.round(num(i.value) || 1)); S.timer[i.dataset.tm] = n; S.timer.preset = 'custom'; save(); render();
     }));
   }
   if (v === 'mob' && MOB[arg]?.ex && hasDemo(MOB[arg].ex) && $('#techFig')) anim = exAnimate($('#techFig'), MOB[arg].ex, null, myFig());
@@ -2596,6 +2599,9 @@ document.addEventListener('click', async e => {
   if (a === 'sport') { S.ui.sport = el.dataset.id; save(true); timerReset(); render(); }
   if (a === 'preset') { const p = SPORTS[curSport()].presets.find(x => x.id === el.dataset.id); Object.assign(S.timer, { preset: p.id, rounds: p.rounds, work: p.work, rest: p.rest, program: null }); save(true); timerReset(); render(); }
   if (a === 'tToggle') timerToggle();
+  if (a === 'presetCustom') { const f = $('[data-tm=rounds]'); f?.scrollIntoView({ block: 'center', behavior: 'smooth' }); setTimeout(() => f?.focus(), 300); }
+  if (a === 'genClear') { genSession = null; render(); }
+  if (a === 'genShut') { S.ui.genShut = !S.ui.genShut; save(true); render(); }
   if (a === 'mobOpt') { const k = el.dataset.k, v = el.dataset.v; if (k === 'moment' && MOMENTS[v] || k === 'min' && [5, 10, 15, 20, 30].includes(+v)) { S.ui.mobOpt = { ...mobOpt(), [k]: k === 'min' ? +v : v }; mobR = null; save(true); render(); } }
   if (a === 'mobMake') { mobR = mobBuild(); render(); }
   if (a === 'mobGo' && mobR) mobStart(mobR);

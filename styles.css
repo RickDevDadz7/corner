@@ -871,3 +871,9 @@ body.runmin #app{padding-bottom:calc(150px + var(--safe-b))}
 .mrun-body .mhow{max-width:34ch;margin:6px auto 0}
 .mrun.ph-rest .mrun-body .t-time{color:var(--muted)}
 .steps{padding-left:20px}.steps li{margin:4px 0}
+/* presets em grade 2×2 + personalizado (v3.37.1) */
+.pgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:6px 0 10px}
+.pgrid button{border:2.5px solid var(--ink);background:var(--sheet);color:var(--ink);padding:9px 8px;text-align:left;cursor:pointer;font:inherit;box-shadow:3px 3px 0 var(--ink)}
+.pgrid button b{display:block;font-size:14px}.pgrid button small{font-size:11.5px;opacity:.75}
+.pgrid button.on{background:var(--ink);color:var(--sheet);box-shadow:3px 3px 0 var(--acc)}
+.genbar{margin-top:10px;align-items:center}
