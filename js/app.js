@@ -1268,12 +1268,13 @@ let histAll = false;
 // apagar um registro (força, esporte, mobilidade): dois toques; deixa lápide pra não voltar pela sincronização
 let logArm = '';
 const LOGK = { workouts: 1, sessions: 1, mob: 1 };
+const clearBtn = (k, sport = '') => { const key = 'all:' + k + ':' + sport; return `<button class="linkbtn wclear ${logArm === key ? 'armed' : ''}" data-act="logClear" data-k="${k}" data-sport="${esc(sport)}">${logArm === key ? 'Toque de novo pra apagar tudo' : 'Apagar todo o histórico'}</button>`; };
 const xDel = (k, id) => `<button class="x ${logArm === k + ':' + id ? 'armed' : ''}" data-act="logDel" data-k="${k}" data-id="${esc(id)}" aria-label="Apagar">${logArm === k + ':' + id ? 'Apagar?' : '×'}</button>`;
 function historyCard() {
   const all = S.logs.workouts.slice().sort(byWhen).reverse(), list = histAll ? all.slice(0, 60) : all.slice(0, 6);
   return `<div class="card" id="t-hist"><h3>Histórico</h3>
     ${all.length ? `<ul class="list hlist">${list.map(w => { const st = workoutStats(w), pr = Object.keys(prsOf(w)).length; return `<li><a href="#wk-${esc(w.id)}"><div class="grow"><b>${esc(w.name || 'Treino')}</b><small>${esc(fmtDay(w.date))} · ${st.sets} séries${+w.dur ? ' · ' + Math.round(w.dur / 60) + ' min' : ''}${st.vol ? ' · ' + fmt(st.vol, 0) + ' kg' : ''}</small></div>${pr ? `<span class="prtag">${pr} PR</span>` : ''}<span>›</span></a>${xDel('workouts', w.id)}</li>`; }).join('')}</ul>
-      ${all.length > 6 ? `<button class="linkbtn" data-act="histAll">${histAll ? 'Mostrar menos' : `Ver todos (${all.length})`}</button>` : ''}`
+      <div class="row between">${all.length > 6 ? `<button class="linkbtn" data-act="histAll">${histAll ? 'Mostrar menos' : `Ver todos (${all.length})`}</button>` : '<span></span>'}${clearBtn('workouts')}</div>`
     : '<p class="small muted">Nenhum treino registrado ainda. Comece uma sessão da sua rotina: cada série concluída aparece aqui, com detalhes e recordes.</p>'}</div>`;
 }
 function evoCard() {
@@ -2275,7 +2276,7 @@ let MRUN = RT.restore(MOB_KEY), MIV = null, mAnim = null, mobR = null, mobTab = 
 const MV = { x: -1, cd: -1, endArm: 0, min: false };
 const mobFavs = () => (Array.isArray(S.ui.mobFav) ? S.ui.mobFav : []).filter(id => MOB[id]);
 const mobSaved = () => (Array.isArray(S.ui.mobSaved) ? S.ui.mobSaved : []).map(cleanRoutineMob).filter(Boolean).slice(0, 10);
-let mobAll = false;
+let mobAll = false, mobLibAll = false;
 const mobLog = () => (Array.isArray(S.logs.mob) ? S.logs.mob : []);
 const mobOpt = () => ({ moment: 'antes', sport: mySports()[0] || 'geral', region: '', min: 10, ...(S.ui.mobOpt || {}) });
 const mobSportName = id => id === 'forca' ? 'Musculação' : id === 'geral' ? 'Geral' : SPORTS[id]?.n || 'Geral';
@@ -2310,6 +2311,10 @@ views.mobilidade = () => {
       <div class="row gap mt"><button class="btn small grow" data-act="mobMake">↻ Outra</button><button class="btn small grow" data-act="mobSave">☆ Salvar</button></div></div>` : ''}
   </div>
   ${saved.length ? `<div class="card"><h3>Suas rotinas</h3><ul class="list">${saved.map((R, i) => `<li><div class="grow"><b>${esc(R.name || MOMENTS[R.moment])}</b><small>${esc(mobSportName(R.sport))} · ${R.items.length} exercícios · ~${mobMin(R)} min</small></div><button class="btn small" data-act="mobRun" data-i="${i}">▶</button><button class="linkbtn" data-act="mobDel" data-i="${i}" aria-label="Apagar">×</button></li>`).join('')}</ul></div>` : ''}
+  <div class="card" id="m-hist"><h3>Histórico</h3>${log.length ? `<p class="small">${wk.length} ${wk.length === 1 ? 'sessão' : 'sessões'} nesta semana · ${log.reduce((a, x) => a + (+x.min || 0), 0)} min no total</p>
+    <ul class="list">${log.slice(mobAll ? -60 : -5).reverse().map(x => `<li><div class="grow"><b>${esc(MOMENTS[x.kind] || 'Mobilidade')}</b><small>${esc(x.date.split('-').reverse().slice(0, 2).join('/'))} · ${+x.min || 0} min${x.part ? ' · interrompida' : ''}${SPORT_REG[x.sport] ? ' · ' + esc(mobSportName(x.sport)) : ''}</small></div>${xDel('mob', x.id)}</li>`).join('')}</ul>
+    <div class="row between">${log.length > 5 ? `<button class="linkbtn" data-act="mobAll">${mobAll ? 'Mostrar menos' : `Ver todo o histórico (${log.length})`}</button>` : '<span></span>'}${clearBtn('mob')}</div>`
+    : '<p class="small muted">Nenhuma sessão ainda. Monte uma rotina acima e toque em Começar: cada sessão aparece aqui.</p>'}</div>
   <div class="card" id="m-lib"><h3>Exercícios</h3>
     <div class="chips">${[['', 'Todos'], ...Object.entries(MCATS), ['fav', '★ Favoritos']].map(([k, n]) => `<button class="chipbtn ${mobTab === k ? 'on' : ''}" data-act="mobTab" data-v="${k}">${n}</button>`).join('')}</div>
     <div class="form mt"><input id="mobQ" type="search" placeholder="Buscar exercício" value="${esc(mobQ)}" autocomplete="off"></div>
@@ -2317,11 +2322,9 @@ views.mobilidade = () => {
       <label>Região${sel('mobReg', { '': 'Todas', ...REGIONS }, S.ui.mobReg || '')}</label>
       <label>Modalidade${sel('mobSp', { '': 'Todas', ...Object.fromEntries(SPORT_IDS.filter(id => !SPORTS[id].retired || mySports().includes(id)).map(id => [id, SPORTS[id].n])) }, S.ui.mobSp || '')}</label>
       <label>Nível${sel('mobLvl', { '': 'Todos', 1: 'Iniciante', 2: 'Intermediário', 3: 'Avançado' }, S.ui.mobLvl || '')}</label></div></details>
-    <ul class="list mlib">${lib.map(id => { const m = MOB[id]; return `<li><a class="grow" href="#mob-${id}"><b>${esc(m.n)}</b><small>${esc(m.reg.map(r => REGIONS[r]).join(', '))} · ${m.d} s${m.side ? ' cada lado' : ''} · ${LVL[m.lvl]}</small></a><button class="star ${favs.includes(id) ? 'on' : ''}" data-act="mobFav" data-id="${id}" aria-label="Favorito">${favs.includes(id) ? '★' : '☆'}</button></li>`; }).join('') || '<li class="muted small">Nenhum exercício com esses filtros.</li>'}</ul>
+    <ul class="list mlib">${(mobLibAll || mobQ || mobTab || S.ui.mobReg || S.ui.mobLvl || S.ui.mobSp ? lib : lib.slice(0, 6)).map(id => { const m = MOB[id]; return `<li><a class="grow" href="#mob-${id}"><b>${esc(m.n)}</b><small>${esc(m.reg.map(r => REGIONS[r]).join(', '))} · ${m.d} s${m.side ? ' cada lado' : ''} · ${LVL[m.lvl]}</small></a><button class="star ${favs.includes(id) ? 'on' : ''}" data-act="mobFav" data-id="${id}" aria-label="Favorito">${favs.includes(id) ? '★' : '☆'}</button></li>`; }).join('') || '<li class="muted small">Nenhum exercício com esses filtros.</li>'}</ul>
+    ${!(mobQ || mobTab || S.ui.mobReg || S.ui.mobLvl || S.ui.mobSp) && lib.length > 6 ? `<button class="linkbtn" data-act="mobLibAll">${mobLibAll ? 'Mostrar menos' : `Ver todos os exercícios (${lib.length})`}</button>` : ''}
   </div>
-  ${log.length ? `<div class="card"><h3>Histórico</h3><p class="small">${wk.length} ${wk.length === 1 ? 'sessão' : 'sessões'} nesta semana · ${log.reduce((a, x) => a + (+x.min || 0), 0)} min no total</p>
-    <ul class="list">${log.slice(mobAll ? -60 : -5).reverse().map(x => `<li><div class="grow"><b>${esc(MOMENTS[x.kind] || 'Mobilidade')}</b><small>${esc(x.date.split('-').reverse().slice(0, 2).join('/'))} · ${+x.min || 0} min${x.part ? ' · interrompida' : ''}${SPORT_REG[x.sport] ? ' · ' + esc(mobSportName(x.sport)) : ''}</small></div>${xDel('mob', x.id)}</li>`).join('')}</ul></div>` : ''}
-  ${log.length > 5 ? `<button class="linkbtn pad" data-act="mobAll">${mobAll ? 'Mostrar menos' : `Ver todo o histórico (${log.length})`}</button>` : ''}
   <p class="small muted pad">Desconforto leve é normal. Dor aguda, formigamento ou tontura: pare.</p>`;
 };
 views.mob = id => {
@@ -2491,11 +2494,12 @@ views.esporte = arg => {
     <div class="grid2"><label>Minutos<input name="min" inputmode="numeric" value="${sportsOf(S.profile)[id]?.min || 60}"></label>
     ${id === 'corrida' ? '<label>Distância (km) <small>opcional</small><input name="km" inputmode="decimal" placeholder="ex.: 5"></label>' : ''}</div>
     <button class="btn small" type="submit">Salvar sessão</button></form>
-  ${(() => { const L = S.logs.sessions.filter(b => b.sport === id).sort(byWhen).reverse(); if (!L.length) return '';
+  ${(() => { const L = S.logs.sessions.filter(b => b.sport === id).sort(byWhen).reverse();
+    if (!L.length) return `<div class="card" id="e-hist"><h3>Histórico de ${esc(SP.n.toLowerCase())}</h3><p class="small muted">Nenhum treino registrado ainda. Use o timer${id === 'corrida' ? ', o GPS' : ''} ou registre uma sessão acima: cada treino aparece aqui.</p></div>`;
     const show = sessAll ? L.slice(0, 60) : L.slice(0, 6);
     return `<div class="card" id="e-hist"><h3>Histórico de ${esc(SP.n.toLowerCase())}</h3><ul class="list">${show.map(b => `<li><div class="grow">${id === 'corrida' && +b.km > 0 ? `<a href="#corrida-${esc(b.id)}">` : ''}<b>${esc(typesOf(b.sport, b).map(k => SP.types[k]?.n).filter(Boolean).join(' + ') || SP.n)}</b>${id === 'corrida' && +b.km > 0 ? '</a>' : ''}
       <small>${esc(fmtDay(b.date))} · ${+b.min || 0} min${+b.rounds ? ` · ${+b.rounds} ${id === 'corrida' ? 'blocos' : 'rounds'}` : ''}${+b.km > 0 ? ` · ${kmTxt(+b.km, 2)} km` : ''}${b.part ? ' · interrompido' : ''}${b.src === 'timer' ? ' · timer' : b.src === 'gps' ? ' · GPS' : ''}</small></div>${xDel('sessions', b.id)}</li>`).join('')}</ul>
-      ${L.length > 6 ? `<button class="linkbtn" data-act="sessAll">${sessAll ? 'Mostrar menos' : `Ver todos (${L.length})`}</button>` : ''}</div>`; })()}
+      <div class="row between">${L.length > 6 ? `<button class="linkbtn" data-act="sessAll">${sessAll ? 'Mostrar menos' : `Ver todos (${L.length})`}</button>` : '<span></span>'}${clearBtn('sessions', id)}</div></div>`; })()}
 
   <div class="card"><h3>Semana modelo</h3>
     <table class="tbl small">${SP.week.map(([d, x]) => `<tr><td>${d}</td><td>${esc(x)}</td></tr>`).join('')}</table>
@@ -3173,6 +3177,11 @@ document.addEventListener('click', async e => {
     if (logArm !== k + ':' + id) { logArm = k + ':' + id; render(); setTimeout(() => { if (logArm === k + ':' + id) { logArm = ''; render(); } }, 3500); return; }
     logArm = ''; S.logs[k] = S.logs[k].filter(x => x.id !== id); S.del[id] = Date.now(); save(); render(); toast('Registro apagado'); return; }
   if (a === 'mobAll') { mobAll = !mobAll; render(); return; }
+  if (a === 'mobLibAll') { mobLibAll = !mobLibAll; render(); return; }
+  if (a === 'logClear') { const k = el.dataset.k, sp = el.dataset.sport || '', key = 'all:' + k + ':' + sp; if (!LOGK[k] || !Array.isArray(S.logs[k])) return;
+    if (logArm !== key) { logArm = key; render(); setTimeout(() => { if (logArm === key) { logArm = ''; render(); } }, 3500); return; }
+    logArm = ''; const t = Date.now(), gone = S.logs[k].filter(x => !sp || x.sport === sp); for (const x of gone) S.del[x.id] = t;
+    S.logs[k] = S.logs[k].filter(x => sp && x.sport !== sp); save(); render(); toast(`${gone.length} ${gone.length === 1 ? 'registro apagado' : 'registros apagados'}`); return; }
   if (a === 'sessAll') { sessAll = !sessAll; render(); return; }
   if (a === 'mobPost') { if (el.dataset.gclose) gpsClose(); if (el.dataset.close && RUN) runClose(); mobQuick('depois', el.dataset.sport || 'geral'); }
   if (a === 'runPause') runPause();
