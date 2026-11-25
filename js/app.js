@@ -1,5 +1,5 @@
 import { EVIDENCE, EXERCISES, FOODS, MUSCLES, EQUIP, PUNCHES, MEALS, RESTR, RESTR_GROUPS, restrOf } from './data.js';
-import { NEAT, GOALS, targets, adaptiveTDEE, buildPlan as plan_, suggest, dayKey, fmt, sessionKcal, movingAvg, equipment, comboPool, comboSpeech, sportsOf, sportDays } from './calc.js';
+import { NEAT, GOALS, targets, adaptiveTDEE, buildPlan as plan_, suggest, dayKey, fmt, sessionKcal, movingAvg, equipment, comboPool, comboSpeech, sportsOf, sportDays, WEEKDAYS, wdOk, hOk, weekOf, weekdayOf } from './calc.js';
 import { SPORTS, SPORT_IDS, combatSession, runSession, paceTxt, paceKmh, parsePace } from './sports.js';
 import { TECHNIQUES, TIRED, CATS, animate, thumbSVG } from './techniques.js';
 import { hasDemo, exThumb, exAnimate, demoSteps } from './exanim.js';
@@ -10,6 +10,8 @@ import { pickDay, pickMeal, mealKeys, solveDay, dayTargets, measure, shoppingLis
 import * as sync from './sync.js';
 import { TGOALS, INJURIES, FOCUS_MUSCLES, usable, avoidSet, tgoalOf, injuriesOf, focusOf, careOf, goalParams, cycleInfo, blockInfo, readiness, weeklyTargets, planFor, fitVolume, sessionMin, stagnant, swapOptions } from './periodize.js';
 import { CONDITIONS, COND_GROUPS, BODY, condsOf, condFlag, condRestr, bodyOf, caps, bodyLabel, bodyCare, bodyNA, bodyFig } from './health.js';
+import { habits, daySchedule, hm } from './schedule.js';
+import { startTour, tourSeen, touring } from './tour.js';
 import { VERT, VY, VR, SAG0, spineOf, spineEmpty, dragSpine, spineSummary, complements, spineTips } from './spine.js';
 const buildPlan = p => plan_(p, S.prog);
 // trocas feitas pela pessoa (exercício estagnado) na rotina recomendada: {de: para}
@@ -21,7 +23,7 @@ const cycleNow = () => cycleInfo(S.profile, S.logs.workouts, today(), blockNow()
 function routinesState() { const R = (S.routines ||= { active: 'auto', list: {} }); if (!R.list || typeof R.list !== 'object') R.list = {}; if (!R.swap || typeof R.swap !== 'object' || Array.isArray(R.swap)) R.swap = {}; return R; }
 function autoRoutine() {
   const ci = cycleNow(), plan = planFor(S.profile, S.prog, { rot: ci.rot, swap: swapsOf(), block: blockNow().n });
-  return { id: 'auto', auto: true, name: 'Recomendada pelo perfil', split: 'auto', splitName: plan.split, none: !!plan.none, swapped: plan.swapped,
+  return { id: 'auto', auto: true, name: 'Recomendada pelo perfil', split: 'auto', splitName: plan.split, none: !!plan.none, swapped: plan.swapped, freq: plan.freq, why: plan.why,
     sessions: plan.days.map(d => ({ id: `auto-${d.key}-${d.idx}`, key: d.key, name: d.name, items: d.items.map(it => ({ ex: it.ex, slot: it.slot, sets: it.sets, lo: it.lo, hi: it.hi, rest: it.rest })) })) };
 }
 function activeRoutine() {
@@ -41,7 +43,7 @@ function activePlan() {
   const startLvl = p.experience === 'iniciante' ? 0 : 1, gp = goalParams(p);
   // ciclo: volume sobe semana a semana (dentro do tempo da sessão) e a cada 4–5 semanas vem uma semana leve
   const ci = cycleNow(), rd = readiness(S.logs.workouts, today()), tg = weeklyTargets(p, ci, rd), auto = p.autoVol !== false;
-  const freq = r.auto ? r.sessions.length : Math.max(1, Math.round(+r.freq) || r.sessions.length), mult = r.sessions.length ? freq / r.sessions.length : 1;
+  const freq = r.auto ? Math.max(r.sessions.length, +r.freq || 0) : Math.max(1, Math.round(+r.freq) || r.sessions.length), mult = r.sessions.length ? freq / r.sessions.length : 1;
   const fit = auto ? fitVolume(r.sessions, p, tg, ci, { trim: r.auto, custom: !r.auto, goal: gp.g, mult }) : null;
   const sessions = fit ? fit.days : r.sessions;
   const days = sessions.map((s, i) => ({ key: s.key || s.id, sid: s.id, idx: i, name: s.name, min: sessionMin(s.items), items: s.items.map((it, j) => {
@@ -108,6 +110,7 @@ function cycleBox(plan) {
   <details class="howplan"><summary>Como o app montou seu treino</summary>
     <p class="small"><b>Objetivo:</b> ${esc(TGOALS[gp.g].n)}. ${esc(TGOALS[gp.g].d)}</p>
     <p class="small"><b>Você:</b> ${esc({ iniciante: 'iniciante', intermediario: 'intermediário', avancado: 'avançado' }[gp.lv])}, ${plan.days.length} ${plan.days.length === 1 ? 'dia' : 'dias'} de força, ${mins} min por sessão${sportDays(p) ? `, ${sportDays(p)} treinos de esporte na semana` : ''}${(p.age || 0) >= 50 ? ', 50+ anos (teto de volume menor)' : ''}.</p>
+    ${plan.routine.auto && plan.routine.why ? `<p class="small"><b>Divisão:</b> ${esc(plan.split)}. ${esc(plan.routine.why)}</p>` : ''}
     <p class="small"><b>Repetições:</b> principais ${gp.comp.join('–')}, isoladores ${gp.iso.join('–')} (só nos exercícios com carga; calistenia sobe de nível). Descanso de ${fmtRest(gp.rc)} nos principais.</p>
     <table class="voltab"><tr><th>Músculo</th><th>Alvo</th><th>No plano</th><th></th></tr>${rows}</table>
     <p class="small muted">Séries por semana (exercício que ajuda conta 0,5). O alvo começa em ${gp.start} e sobe 1 por semana até ${gp.cap}${focusOf(p).length ? ' (★ prioridade: começa 3 acima e sobe 2)' : ''}. Depois de ${ci.acc} semanas vem uma semana leve.</p>
@@ -139,7 +142,7 @@ function editableRoutine() {
   let r = R.active !== 'auto' ? cleanRoutine(R.list[R.active]) : null;
   if (!r) {
     const a = autoRoutine();
-    r = { id: newId(), name: 'Minha rotina', split: 'custom', t: Date.now(), sessions: a.sessions.map(s => ({ ...s, id: 's' + newId().slice(0, 8), items: s.items.map(x => ({ ...x })) })) };
+    r = { id: newId(), name: 'Minha rotina', split: 'custom', t: Date.now(), freq: a.freq || a.sessions.length, sessions: a.sessions.map(s => ({ ...s, id: 's' + newId().slice(0, 8), items: s.items.map(x => ({ ...x })) })) };
     toast('A rotina agora é sua: não muda mais sozinha com o perfil');
   }
   R.list[r.id] = r; R.active = r.id; return r;
@@ -426,12 +429,53 @@ const sel = (name, opts, cur, extra = '') => `<select name="${name}" ${extra}>${
 // ---------------- Telas ----------------
 const views = {};
 
+// ---------- Horários do dia (Minha semana + horários aprendidos dos registros) ----------
+function agendaCard() {
+  const p = S.profile, wk = weekOf(p), hab = habits(S.logs, today()), sp = sportsOf(p);
+  const plan = wk.days[weekdayOf(today())].map(x => ({ a: x.a, h: x.h, n: x.a === 'forca' ? 'Treino de força' : SPORTS[x.a]?.n || '', min: x.a === 'forca' ? Math.round(+p.liftMin) || 45 : +sp[x.a]?.min || 60 }));
+  const items = daySchedule(wk.explicit ? plan : [], mealsFor().filter(m => m.id !== 'extra').map(m => m.id), hab, { weight: latestWeight(), water: T().water });
+  const noTime = wk.explicit && plan.length && plan.every(x => !x.h);
+  return `<details class="card" id="h-agenda" ${S.ui.agOpen ? 'open' : ''}><summary><h3>Seu dia, hora a hora</h3><small class="muted">${hab.n ? 'com os horários em que você costuma comer' : 'sugestão pelo seu plano'}</small></summary>
+    <ol class="agenda">${items.map(x => `<li class="ag-${x.k}"><span class="mono">${hm(x.m)}</span><span class="agi" aria-hidden="true"></span><span>${esc(x.t)}${x.usual ? ' <small class="muted">(seu horário de costume)</small>' : ''}</span></li>`).join('')}</ol>
+    ${!wk.explicit ? '<p class="small muted">Marque seus dias e horários de treino em Perfil › Minha semana pra encaixar pré e pós-treino.</p>' : noTime ? '<p class="small muted">Coloque o horário dos treinos em Perfil › Minha semana pra encaixar pré e pós-treino.</p>' : ''}
+    ${hab.n < 3 ? '<p class="small muted">Registrando refeições e água na hora, o app aprende seus horários e ajusta a sugestão.</p>' : ''}
+    <p class="small muted">Os horários são guia, não regra: o total do dia importa mais que o relógio.</p></details>`;
+}
+// ---------- Perfil: seções recolhíveis e Minha semana ----------
+// perfil novo: tudo aberto; editando: fechado com resumo de uma linha
+const psec = (id, title, sum, body) => `<details class="psec" id="ps-${id}" ${!S.profile || (Array.isArray(S.ui?.psOpen) && S.ui.psOpen.includes(id)) ? 'open' : ''}><summary><b>${title}</b>${sum ? `<small>${sum}</small>` : ''}</summary><div class="psbody">${body}</div></details>`;
+const ACTS = () => [['forca', 'Força'], ...SPORT_IDS.map(id => [id, SPORTS[id].n])];
+function weekSummary(p) {
+  const w = weekOf(p).days, c = {};
+  for (const l of w) for (const x of l) c[x.a] = (c[x.a] || 0) + 1;
+  const parts = ACTS().filter(([id]) => c[id]).map(([id, n]) => `${n} ${c[id]}x`);
+  return esc(parts.join(' · ') || 'Nada marcado');
+}
+function weekEditor(p) {
+  const w = weekOf(S.profile ? p : { ...p, liftDays: 2 }).days, sp = sportsOf(p), on = id => id === 'forca' ? (S.profile ? (+p.liftDays || 0) > 0 : true) : !!sp[id];
+  const has = (id, d) => w[d].some(x => x.a === id), hOf = id => id === 'forca' ? hOk(p.liftH) : hOk(sp[id]?.h);
+  return `<p class="small muted">Toque no que você faz e marque os dias. O app usa isso pro treino do dia, o gasto, o cardápio e os horários.</p>
+    <div class="actchips">${ACTS().map(([id, n]) => `<label class="chipbtn ${on(id) ? 'on' : ''}"><input type="checkbox" name="${id === 'forca' ? 'lift_on' : 'sp_' + id}" ${on(id) ? 'checked' : ''} data-wrow="${id}">${id === 'forca' ? '' : `<b class="mk">${SPORTS[id].mark}</b>`}${esc(n)}</label>`).join('')}</div>
+    <table class="wkgrid"><tr><th></th>${WEEKDAYS.map(d => `<th>${d}</th>`).join('')}</tr>
+      ${ACTS().map(([id, n]) => `<tr class="wrow ${on(id) ? 'on' : ''}" data-row="${id}"><th>${esc(n)}</th>${WEEKDAYS.map((_, d) => `<td><label class="wcell"><input type="checkbox" name="wd_${id}" value="${d}" ${on(id) && has(id, d) ? 'checked' : ''} aria-label="${esc(n)} ${WEEKDAYS[d]}"><span></span></label></td>`).join('')}</tr>`).join('')}
+    </table>
+    <div class="wkcfg">${ACTS().map(([id, n]) => {
+      const S0 = SPORTS[id], v = sp[id] || {};
+      return `<div class="wcfg ${on(id) ? 'on' : ''}" data-cfg="${id}"><b>${esc(n)}</b><div class="grid2">
+        <label>Horário<input type="time" name="wh_${id}" value="${hOf(id)}"></label>
+        ${id === 'forca' ? '' : `<label>Min. por treino <input name="sm_${id}" inputmode="numeric" value="${esc(v.min || 60)}"></label>
+        <label>Tipo mais comum ${sel('st_' + id, Object.fromEntries(Object.entries(S0.types).map(([k, t]) => [k, t.n])), v.type || S0.defaultType)}</label>
+        <label>Onde ${sel('sw_' + id, id === 'corrida' ? { rua: 'Rua / parque', esteira: 'Esteira' } : { casa: 'Em casa', academia: 'Academia / equipe' }, v.where || (id === 'corrida' ? 'rua' : 'casa'))}</label>`}
+      </div></div>`;
+    }).join('')}</div>`;
+}
 views.onboarding = () => {
   const p = S.profile || {}, sp = sportsOf(p);
   return `${S.profile ? '<section class="head"><h1>Perfil</h1></section>' : `<section class="hero"><div class="logo-big">RONIN</div><div class="kanji">浪人</div><p class="tag">Sem mestre. Só disciplina.</p><p>Luta, corrida, força e nutrição com base em ciência. Em casa ou na academia.</p></section>
   ${cloud.available() ? (cloud.user() ? `<p class="note small">Conectado como <b>${esc(cloud.user().email || '')}</b>. Seus dados vão pra nuvem assim que você salvar.</p>` : `<div class="card center"><p class="small">Quer salvar na nuvem e usar em outros aparelhos?</p><button class="btn small" data-act="toLogin">Entrar ou criar conta</button></div>`) : ''}`}
   <form id="profileForm" class="card form">
     <h2>${S.profile ? 'Editar perfil' : 'Vamos te conhecer'}</h2>
+    ${psec('voce', 'Você', S.profile ? `${p.sex === 'f' ? 'Feminino' : 'Masculino'} · ${esc(p.age)} anos · ${esc(p.height)} cm · ${esc(p.weight)} kg` : '', `
     <div class="grid2">
       <label>Sexo biológico ${sel('sex', { m: 'Masculino', f: 'Feminino' }, p.sex || 'm')}</label>
       <label>Idade <input name="age" inputmode="numeric" value="${esc(p.age ?? '')}" required placeholder="anos"></label>
@@ -439,46 +483,29 @@ views.onboarding = () => {
       <label>Peso (kg) <input name="weight" inputmode="decimal" value="${esc(p.weight ?? '')}" required placeholder="80"></label>
     </div>
     <label>% de gordura <small>(opcional, melhora a precisão)</small><input name="bf" inputmode="decimal" value="${esc(p.bf ?? '')}" placeholder="ex.: 15"></label>
-    <label>Dia a dia fora do treino ${sel('neat', NEAT, p.neat || 1.3)}</label>
+    <label>Dia a dia fora do treino ${sel('neat', NEAT, p.neat || 1.3)}</label>`)}
+    ${psec('obj', 'Objetivo', S.profile ? `${esc(GOALS[p.goal] || '')} · ${esc({ iniciante: 'iniciante', intermediario: 'intermediário', avancado: 'avançado' }[p.experience] || '')}` : '', `
     <label>Objetivo ${sel('goal', GOALS, p.goal || 'recomp')}</label>
     <label class="cut-only">Ritmo de perda ${sel('rate', { 0.5: '0,5% do peso/semana (recomendado)', 0.75: '0,75%/semana', 1: '1%/semana (agressivo)' }, p.rate || 0.5)}</label>
-    <label>Experiência de treino ${sel('experience', { iniciante: 'Iniciante (< 1 ano)', intermediario: 'Intermediário (1–3 anos)', avancado: 'Avançado (3+ anos)' }, p.experience || 'intermediario')}</label>
-
-    <h3 class="sec">Seus esportes</h3>
-    <p class="small muted">Marque quantos quiser. Cada um muda o gasto, os treinos e as dicas.</p>
-    ${SPORT_IDS.map(id => {
-      const S0 = SPORTS[id], on = !!sp[id], v = sp[id] || {};
-      return `<div class="sport ${on ? 'on' : ''}" data-sport="${id}">
-        <label class="check big"><input type="checkbox" name="sp_${id}" ${on ? 'checked' : ''}><span><b class="mk">${S0.mark}</b>${esc(S0.n)}</span></label>
-        <div class="sport-cfg grid2">
-          <label>Dias/semana ${sel('sd_' + id, { 1: '1', 2: '2', 3: '3', 4: '4', 5: '5', 6: '6' }, v.days || 3)}</label>
-          <label>Min. por treino <input name="sm_${id}" inputmode="numeric" value="${esc(v.min || 60)}"></label>
-          <label>Tipo mais comum ${sel('st_' + id, Object.fromEntries(Object.entries(S0.types).map(([k, t]) => [k, t.n])), v.type || S0.defaultType)}</label>
-          <label>Onde ${sel('sw_' + id, id === 'corrida' ? { rua: 'Rua / parque', esteira: 'Esteira' } : { casa: 'Em casa', academia: 'Academia / equipe' }, v.where || (id === 'corrida' ? 'rua' : 'casa'))}</label>
-        </div></div>`;
-    }).join('')}
-
-    <h3 class="sec">Força (musculação ou calistenia)</h3>
+    <label>Experiência de treino ${sel('experience', { iniciante: 'Iniciante (< 1 ano)', intermediario: 'Intermediário (1–3 anos)', avancado: 'Avançado (3+ anos)' }, p.experience || 'intermediario')}</label>`)}
+    ${psec('semana', 'Minha semana', S.profile ? weekSummary(p) : '', weekEditor(p))}
+    ${psec('forca', 'Treino de força', S.profile ? `${p.env === 'academia' ? 'Academia' : 'Em casa'} · ${esc(Math.round(+p.liftMin) || 40)} min · ${esc(TGOALS[tgoalOf(p)].n.toLowerCase())}` : '', `
     <div class="grid2">
       <label>Onde ${sel('env', { casa: 'Em casa / calistenia', academia: 'Academia' }, p.env || 'casa')}</label>
-      <label>Dias por semana ${sel('liftDays', { 0: '0 (por enquanto)', 1: '1', 2: '2', 3: '3', 4: '4', 5: '5', 6: '6' }, p.liftDays ?? 2)}</label>
       <label>Min. por sessão <input name="liftMin" inputmode="numeric" value="${esc(p.liftMin ?? 40)}"></label>
     </div>
-    <details class="tfine" ${p.tgoal || (p.inj || []).length || (p.focus || []).length ? 'open' : ''}><summary>Ajustes do treino de força <small>objetivo, dores, prioridades</small></summary>
-      <label>Objetivo do treino ${sel('tgoal', { '': `Automático (${TGOALS[tgoalOf({ ...p, tgoal: '' })].n.toLowerCase()})`, ...Object.fromEntries(Object.entries(TGOALS).map(([k, v]) => [k, v.n])) }, p.tgoal || '')}</label>
-      <fieldset class="equip"><legend>Dor ou lesão que precisa poupar</legend>
-        ${Object.entries(INJURIES).map(([k, v]) => `<label class="check"><input type="checkbox" name="inj" value="${k}" ${(p.inj || []).includes(k) ? 'checked' : ''}><span>${esc(v.n)}</span></label>`).join('')}
-        <small class="muted">O app tira os exercícios que mais pioram a região e avisa nos que pedem cuidado. Não substitui fisioterapeuta.</small></fieldset>
-      <fieldset class="equip"><legend>Prioridade (até 3 músculos)</legend>
-        ${FOCUS_MUSCLES.map(m => `<label class="check"><input type="checkbox" name="focus" value="${m}" ${(p.focus || []).includes(m) ? 'checked' : ''}><span>${esc(MUSCLES[m])}</span></label>`).join('')}
-        <small class="muted">Começam com mais séries e sobem mais rápido no ciclo.</small></fieldset>
-      <label class="check"><input type="checkbox" name="autoVol" ${p.autoVol === false ? '' : 'checked'}><span>Subir o volume sozinho em ciclos (com semana leve)</span></label>
-    </details>
     <fieldset class="equip"><legend>O que você tem em casa?</legend>
       ${Object.entries(EQUIP).map(([k, v]) => `<label class="check"><input type="checkbox" name="equip" value="${k}" ${(p.equip || []).includes(k) ? 'checked' : ''}><span>${esc(v)}</span></label>`).join('')}
       <small class="muted">Sem nada marcado = só peso corporal (calistenia). O app escolhe os exercícios pelo que você tem.</small>
     </fieldset>
-
+    <label>Objetivo do treino ${sel('tgoal', { '': `Automático (${TGOALS[tgoalOf({ ...p, tgoal: '' })].n.toLowerCase()})`, ...Object.fromEntries(Object.entries(TGOALS).map(([k, v]) => [k, v.n])) }, p.tgoal || '')}</label>
+    <fieldset class="equip"><legend>Dor ou lesão que precisa poupar</legend>
+      ${Object.entries(INJURIES).map(([k, v]) => `<label class="check"><input type="checkbox" name="inj" value="${k}" ${(p.inj || []).includes(k) ? 'checked' : ''}><span>${esc(v.n)}</span></label>`).join('')}
+      <small class="muted">Marque no dia em que doer: o treino troca na hora o que piora a região. Desmarcou, volta ao normal. Não substitui fisioterapeuta.</small></fieldset>
+    <fieldset class="equip"><legend>Prioridade (até 3 músculos)</legend>
+      ${FOCUS_MUSCLES.map(m => `<label class="check"><input type="checkbox" name="focus" value="${m}" ${(p.focus || []).includes(m) ? 'checked' : ''}><span>${esc(MUSCLES[m])}</span></label>`).join('')}
+      <small class="muted">Começam com mais séries e sobem mais rápido no ciclo.</small></fieldset>
+    <label class="check"><input type="checkbox" name="autoVol" ${p.autoVol === false ? '' : 'checked'}><span>Subir o volume sozinho em ciclos (com semana leve)</span></label>`)}
     ${healthBox(p)}
     ${restrBox(restrOfProfile(p))}
     <button class="btn primary" type="submit">${S.profile ? 'Salvar' : 'Montar meu plano'}</button>
@@ -508,12 +535,21 @@ views.hoje = () => {
   const liftRecent = lastW && (lastW.date === today() || lastW.date === yest);
   const hasSport = mySports().length > 0;
   const liftToday = S.logs.workouts.some(w => w.date === today()); // força já feita hoje: a próxima sessão fica pra outro dia
-  const primary = liftToday ? (hasSport ? 'esporte' : null) : lift && (!liftRecent || !hasSport) ? 'forca' : hasSport ? 'esporte' : lift ? 'forca' : null;
+  // Minha semana: se a pessoa marcou os dias, o card segue o planejado de hoje
+  const wk = weekOf(S.profile), planToday = wk.explicit ? wk.days[weekdayOf(today())] : null;
+  const planSport = planToday?.find(x => x.a !== 'forca' && SPORTS[x.a] && !todayS.some(b => b.sport === x.a))?.a;
+  const planLift = !!planToday?.some(x => x.a === 'forca');
+  const sportId = planSport || cs;
+  let primary = liftToday ? (hasSport ? 'esporte' : null) : lift && (!liftRecent || !hasSport) ? 'forca' : hasSport ? 'esporte' : lift ? 'forca' : null;
+  if (planToday) primary = planLift && lift && !liftToday ? 'forca' : planSport ? 'esporte' : planToday.length ? null : 'descanso';
   const liftEx = lift ? next.items.filter(i => EXERCISES[i.ex].t !== 'prehab') : [];
-  const sportCard = { cat: SP.n, title: SP.combat ? 'Rounds de ' + SP.n.toLowerCase() : 'Corrida do dia', desc: SP.combat ? 'Rounds com tema, combinações faladas e foco nos seus pontos fracos.' : 'Rodagem, intervalado ou tiros, com o timer marcando cada bloco.', meta: `~${spMin} min`, href: '#esporte', cta: SP.combat ? 'Montar e começar' : 'Montar corrida' };
+  const SPx = SPORTS[sportId] || SP, spMinX = sportsOf(S.profile)[sportId]?.min || spMin;
+  const sportCard = { cat: SPx.n, title: SPx.combat ? 'Rounds de ' + SPx.n.toLowerCase() : 'Corrida do dia', desc: SPx.combat ? 'Rounds com tema, combinações faladas e foco nos seus pontos fracos.' : 'Rodagem, intervalado ou tiros, com o timer marcando cada bloco.', meta: `~${spMinX} min`, href: '#esporte' + (planSport ? '-' + planSport : ''), cta: SPx.combat ? 'Montar e começar' : 'Montar corrida' };
   const liftCard = lift ? { cat: 'Força · ' + plan.split, title: next.name, desc: liftEx.slice(0, 4).map(i => i.name).join(' · ') + (liftEx.length > 4 ? '…' : ''), meta: `${liftEx.length} exercícios · ~${S.profile.liftMin ?? 40} min`, href: '#sessao-' + nextIdx, cta: 'Começar treino' } : null;
   const P = primary === 'forca' ? liftCard : primary === 'esporte' ? sportCard : null;
-  const alt = primary === 'forca' && hasSport ? sportCard : primary === 'esporte' && liftCard && !liftToday ? liftCard : null;
+  const alt = primary === 'forca' && (planSport || (!planToday && hasSport)) ? sportCard : primary === 'esporte' && liftCard && !liftToday && (planLift || !planToday) ? liftCard : null;
+  const nm = a => a === 'forca' ? 'Força' : SPORTS[a]?.n || '';
+  const planLine = planToday && !viewDay ? `<p class="small wkline">Na sua semana: <b>${planToday.length ? esc(planToday.map(x => nm(x.a) + (x.h ? ' ' + x.h : '')).join(' · ')) : 'descanso'}</b></p>` : '';
   const tiles = [
     { id: 'h-treino', ico: ICO.treino, n: 'Treino', v: doneTrain ? `${doneTrain} feito${doneTrain > 1 ? 's' : ''}` : 'Pendente', ok: doneTrain > 0 },
     { id: 'h-nutri', ico: ICO.comida, n: 'Refeições', v: `${nMeals} de ${mealsMain.length}`, ok: f.k >= t.kcal * 0.9 },
@@ -554,14 +590,19 @@ views.hoje = () => {
   </div>
   <div class="card ${viewDay ? '' : 'panel'}" id="h-treino">
     <small class="cat">${viewDay ? 'Treinos do dia' : 'Seu treino de hoje'}</small>
+    ${planLine}
     ${doneTrain ? `<ul class="done">${todayW.map(x => `<li>✓ <b>${esc(x.name)}</b> <span class="muted small">· força</span></li>`).join('')}${todayS.map(b => `<li>✓ <b>${esc(SPORTS[b.sport]?.n || '')}</b> <span class="muted small">· ${esc(SPORTS[b.sport]?.types[b.type]?.n || '')} · ${b.min} min${b.km > 0 ? ` · ${fmt(b.km, 1)} km${b.min > 0 ? ` · ${paceTxt(b.min * 60 / b.km)}/km` : ''}` : ''} · ~${fmt(b.kcal, 0)} kcal</span></li>`).join('')}</ul>` : viewDay ? `<p class="muted small">Nenhuma sessão registrada nesse dia.</p>` : ''}
     ${viewDay ? '' : P ? `<div class="tmain"><small class="muted tcat">${doneTrain ? 'Quer mais? ' : ''}${esc(P.cat)}</small><h3>${esc(P.title)}</h3>
       <p class="small muted">${esc(P.desc)}</p><p class="small tmeta mono">${esc(P.meta)}</p>
       <a class="btn primary block" href="${P.href}">${P.cta} →</a></div>
       ${alt ? `<a class="talt small" href="${alt.href}">Prefere outro? <b>${esc(alt.cat.split(' · ')[0])}: ${esc(alt.title)}</b> →</a>` : ''}`
+    : primary === 'descanso' && !doneTrain ? `<p class="small">Hoje é dia de descanso na sua semana: comer bem, beber água e dormir. Descanso também faz parte do treino.</p>
+      ${lift ? `<a class="talt small" href="#sessao-${nextIdx}">Quer treinar mesmo assim? <b>Força: ${esc(next.name)}</b> →</a>` : ''}`
+    : planToday && !P && doneTrain ? `<p class="small">Tudo que estava na sua semana pra hoje foi feito. Agora é recuperar.</p>`
     : liftToday ? `<p class="small">Treino de força feito. ${lift ? `Próxima: <b>${esc(next.name)}</b>, amanhã ou depois.` : ''} Hoje é recuperar: comer bem, beber água e dormir.</p>`
     : `<p class="small">Você ainda não tem treino programado.</p><a class="btn primary block" href="#perfil">Montar meu plano →</a>`}
   </div>
+  ${viewDay ? '' : agendaCard()}
   <div class="card" id="h-peso">
     ${weighHead()}
     ${weightChart()}
@@ -646,7 +687,9 @@ const menuCtx = () => ({ ok: n => !hitsOf(n).length, pantry: S.ui.pantry || {}, 
 const shortName = n => n.replace(/\s*\([^)]*(≈|ml|varia|lata, |sem pele)[^)]*\)/g, '').trim();
 function menuTrain(d = curDay()) {
   const v = S.ui.mtrain?.[d]; if (typeof v === 'boolean') return v;
-  return S.logs.workouts.some(w => w.date === d) || S.logs.sessions.some(x => x.date === d) || trainDaysWeek() >= 4;
+  if (S.logs.workouts.some(w => w.date === d) || S.logs.sessions.some(x => x.date === d)) return true;
+  const wk = weekOf(S.profile); if (wk.explicit) return wk.days[weekdayOf(d)].length > 0; // a semana marcada diz se é dia de treino
+  return trainDaysWeek() >= 4;
 }
 // lê o cardápio salvo (pode ter vindo da nuvem: só aceita o formato esperado) e troca o que deixou de valer
 function menuOf(d = curDay()) {
@@ -1297,7 +1340,7 @@ views.rotina = () => {
   return `<section class="head"><div><a href="#treino" class="backlink">← Força</a><h1>Editar rotina</h1></div></section>
   ${r.auto ? '<p class="note small">Essa é a rotina recomendada pelo perfil. Ao mudar qualquer coisa, ela vira sua e para de se ajustar sozinha.</p>' : ''}
   <div class="card"><label>Nome da rotina<input id="rtName" value="${esc(r.auto ? 'Minha rotina' : r.name)}" maxlength="40"></label>
-    <label>Treinos por semana <select id="rtFreq">${[1, 2, 3, 4, 5, 6, 7].map(n => `<option value="${n}" ${n === (r.auto ? r.sessions.length : (+r.freq || r.sessions.length)) ? 'selected' : ''}>${n}x${n > r.sessions.length && r.sessions.length ? ' (sessões alternando)' : ''}</option>`).join('')}</select></label>
+    <label>Treinos por semana <select id="rtFreq">${[1, 2, 3, 4, 5, 6, 7].map(n => `<option value="${n}" ${n === (+r.freq || r.sessions.length) ? 'selected' : ''}>${n}x${n > r.sessions.length && r.sessions.length ? ' (sessões alternando)' : ''}</option>`).join('')}</select></label>
     <small class="muted">Pode ser mais que o número de sessões: com A e B em 4 dias, você faz A, B, A, B. Escolha os dias você mesmo; o app só pede um por dia.</small></div>
   ${r.sessions.map((s, si) => `<div class="card rsession" id="rs-${s.id}" data-si="${si}">
     <div class="row between"><input class="rsname" data-rtname="${s.id}" value="${esc(s.name)}" maxlength="40" aria-label="Nome da sessão ${si + 1}"><span class="rday">DIA ${si + 1}</span></div>
@@ -1590,7 +1633,8 @@ function timerReset() { clearInterval(TM.iv); Object.assign(TM, { phase: 'idle',
 
 // ---------------- Esporte ----------------
 let genSession = null, genFor = null;
-views.esporte = () => {
+views.esporte = arg => {
+  if (arg && mySports().includes(arg)) S.ui.sport = arg;
   const ms = mySports();
   if (!ms.length) return `<section class="head"><h1>Esporte</h1></section><div class="card"><p>Você ainda não marcou nenhum esporte.</p><a class="btn primary" href="#perfil">Escolher esportes</a></div>`;
   const id = curSport(), SP = SPORTS[id], c = S.timer, r = 120, circ = 2 * Math.PI * r;
@@ -1724,6 +1768,7 @@ function coachContext() {
 REGRAS: Baseie-se em evidência científica. Use as cartas de evidência abaixo como base principal e cite-as pelo título e autor/ano. Se algo não estiver bem estabelecido na literatura, diga que a evidência é limitada. Nunca invente estudos. Não faça diagnósticos médicos; para dor persistente, sintomas após pancada na cabeça, condições de saúde ou cortes de peso agressivos, recomende um profissional. Respostas curtas e práticas (leitura no celular).
 PERFIL: ${p.sex === 'f' ? 'mulher' : 'homem'}, ${p.age} anos, ${p.height} cm, ${latestWeight()} kg${p.bf ? `, ${p.bf}% gordura` : ''}. Objetivo: ${GOALS[p.goal]}. Experiência: ${p.experience}.${activeRestr().length ? ` RESTRIÇÕES (não sugerir nada com isso): ${(() => { const r = restrOfProfile(); return [r.perm.length ? 'para sempre: ' + r.perm.map(k => RESTR[k].n).join(', ') : '', tempOn(r) ? 'temporárias' + (r.until ? ` até ${r.until}` : '') + ': ' + r.temp.map(k => RESTR[k].n).join(', ') : ''].filter(Boolean).join('; '); })()}.` : ''}
 ESPORTES: ${Object.entries(sp).map(([id, s]) => `${SPORTS[id]?.n} ${s.days}x/semana, ${s.min} min, ${SPORTS[id]?.types[s.type]?.n || ''}, ${s.where}`).join('; ') || 'nenhum'}.
+SEMANA: ${(() => { const w = weekOf(p); return w.explicit ? w.days.map((l, i) => `${WEEKDAYS[i]}: ${l.length ? l.map(x => (x.a === 'forca' ? 'força' : SPORTS[x.a]?.n) + (x.h ? ' ' + x.h : '')).join(', ') : 'descanso'}`).join('; ') : 'dias não marcados'; })()}. HORÁRIOS DE COSTUME (dos registros): ${(() => { const h = habits(S.logs, today()); const l = Object.entries(h.meals).map(([k, m]) => `${MEALS.find(x => x.id === k)?.n || k} ${hm(m)}`); if (h.lift != null) l.push('força ' + hm(h.lift)); return l.join(', ') || 'ainda sem dados'; })()}.
 FORÇA: ${p.liftDays}x/semana (${p.env === 'casa' ? 'em casa; equipamento: ' + ((p.equip || []).map(k => EQUIP[k]).join(', ') || 'só peso corporal/calistenia') : 'academia'}). ${Math.round(+p.liftMin) || 45} min/sessão. Objetivo do treino: ${TGOALS[tgoalOf(p)].n}.${injuriesOf(p).length ? ' Poupar: ' + injuriesOf(p).map(k => INJURIES[k].n).join(', ') + '.' : ''}${focusOf(p).length ? ' Prioridade: ' + focusOf(p).map(m => MUSCLES[m]).join(', ') + '.' : ''}${condsOf(p).length ? ' Condições de saúde: ' + condsOf(p).map(k => CONDITIONS[k].n).join(', ') + '.' : ''}${spineSummary(spineOf(p)).length ? ' Coluna (desenho do usuário, estimativa): ' + spineSummary(spineOf(p)).join(' ') : ''}${bodyOf(p).length ? ' Corpo: ' + bodyOf(p).map(k => BODY[k]).join(', ') + ' (adapte exercícios).' : ''}
 METAS: ${t.kcal} kcal, P ${t.protein} g, C ${t.carbs} g, G ${t.fat} g, água ${t.water} ml. Gasto estimado ${Math.round(t.tdee)} kcal (${t.source}).
 HOJE: consumido ${Math.round(dayFood().k)} kcal, P ${Math.round(dayFood().p)} g.
@@ -1851,6 +1896,7 @@ views.perfil = () => `<section class="head"><h1>Perfil e ajustes</h1></section>
     <div class="segs small" id="themeSeg">${[['auto', 'Automático'], ['light', 'Claro'], ['dark', 'Escuro']].map(([v, n]) => `<button class="${(window.roninTheme?.get() || 'auto') === v ? 'on' : ''}" data-act="themeSet" data-v="${v}">${n}</button>`).join('')}</div>
     <small class="muted">Automático segue o modo do celular. Atalho: o botão de lua/sol no topo.</small></div>
   ${views.onboarding().replace('<section class="head"><h1>Perfil</h1></section>', '')}
+  <div class="card row between"><div><h3>Tutorial</h3><small class="muted">O passo a passo pelas telas do app.</small></div><button class="btn small" data-act="tour">Ver o tutorial</button></div>
   <div class="card form"><h3>Coach com IA</h3>
     <p class="small muted">Chave da API Anthropic (console.anthropic.com). Cobrança por uso, separada da assinatura do Claude. Fica só neste aparelho e fora dos backups e da sincronização.</p>
     <input id="apiKey" type="password" placeholder="sk-ant-…" value="${getKey() ? '••••••••' : ''}" autocomplete="off">
@@ -1862,6 +1908,8 @@ views.perfil = () => `<section class="head"><h1>Perfil e ajustes</h1></section>
   </div>
   <p class="small muted center pad">RONIN v3.8 · não substitui acompanhamento profissional.</p>`;
 
+// tutorial: troca de tela sem animação de rolagem
+const tourGo = h => { if (location.hash !== h) { try { history.pushState(null, '', h); } catch (e) { location.hash = h; } } go(true); };
 // ---------------- Roteador ----------------
 const ICONS = { hoje: 'M3 12l9-8 9 8M5 10v10h14V10', nutri: 'M12 3c4 3 6 6 6 10a6 6 0 0 1-12 0c0-4 2-7 6-10z', treino: 'M3 10v4M6 7v10M18 7v10M21 10v4M6 12h12', esporte: 'M7 4h7a4 4 0 0 1 4 4v4a6 6 0 0 1-6 6H9a4 4 0 0 1-4-4V6a2 2 0 0 1 2-2zM9 18v3h6v-3', coach: 'M4 5h16v11H8l-4 4z' };
 const ALIAS = { boxe: 'esporte' };
@@ -1915,16 +1963,25 @@ function bindAfter(v, arg) {
     pf.goal.addEventListener('change', cutVis); cutVis();
     const eqVis = () => pf.querySelector('.equip').style.display = pf.env.value === 'casa' ? '' : 'none';
     pf.env.addEventListener('change', eqVis); eqVis();
-    pf.querySelectorAll('.sport input[type=checkbox]').forEach(cb => cb.addEventListener('change', () => cb.closest('.sport').classList.toggle('on', cb.checked)));
+    pf.querySelectorAll('[data-wrow]').forEach(cb => cb.addEventListener('change', () => {
+      const id = cb.dataset.wrow; cb.closest('.chipbtn').classList.toggle('on', cb.checked);
+      pf.querySelector(`[data-row="${id}"]`)?.classList.toggle('on', cb.checked); pf.querySelector(`[data-cfg="${id}"]`)?.classList.toggle('on', cb.checked);
+    }));
+    pf.querySelectorAll('details.psec').forEach(d => d.addEventListener('toggle', () => { if (!S.profile) return; const o = new Set(Array.isArray(S.ui.psOpen) ? S.ui.psOpen : []); d.open ? o.add(d.id.slice(3)) : o.delete(d.id.slice(3)); S.ui.psOpen = [...o].filter(x => /^[a-z]{2,10}$/.test(x)); }));
     bindRestrBox(pf); bindHealthBox(pf);
     pf.addEventListener('submit', e => {
       e.preventDefault();
       const fd = new FormData(pf), g = k => fd.get(k);
-      const sports = {};
-      for (const id of SPORT_IDS) if (g('sp_' + id)) sports[id] = { days: num(g('sd_' + id)) || 1, min: num(g('sm_' + id)) || 60, type: g('st_' + id), where: g('sw_' + id) };
+      const sports = {}, wdOf = id => wdOk(fd.getAll('wd_' + id)) || [];
+      for (const id of SPORT_IDS) if (g('sp_' + id)) {
+        const wd = wdOf(id); if (!wd.length) { toast(`Marque os dias de ${SPORTS[id].n.toLowerCase()} em Minha semana.`); $('#ps-semana').open = true; return; }
+        sports[id] = { days: wd.length, wd, h: hOk(g('wh_' + id)), min: num(g('sm_' + id)) || 60, type: SPORTS[id].types[g('st_' + id)] ? g('st_' + id) : SPORTS[id].defaultType, where: g('sw_' + id) };
+      }
+      const liftWd = g('lift_on') ? wdOf('forca') : [];
+      if (g('lift_on') && !liftWd.length) { toast('Marque os dias de força em Minha semana (ou desmarque Força).'); $('#ps-semana').open = true; return; }
       const p = {
         sex: g('sex'), age: num(g('age')), height: num(g('height')), weight: num(g('weight')), bf: num(g('bf')), neat: num(g('neat')), goal: g('goal'), rate: num(g('rate')),
-        experience: g('experience'), liftDays: num(g('liftDays')) ?? 0, liftMin: Math.max(15, Math.min(180, num(g('liftMin')) || 40)), env: g('env'), equip: fd.getAll('equip'), sports,
+        experience: g('experience'), liftDays: Math.min(6, liftWd.length), liftWd: liftWd.slice(0, 6), liftH: hOk(g('wh_forca')), liftMin: Math.max(15, Math.min(180, num(g('liftMin')) || 40)), env: g('env'), equip: fd.getAll('equip'), sports,
         cond: fd.getAll('cond').filter(k => CONDITIONS[k]), body: fd.getAll('body').filter(k => BODY[k]), bodyFig: !!g('bodyFig'), healthOk: g('healthOk') ? (S.profile?.healthOk || today()) : '',
         spine: S.profile?.spine, tgoal: TGOALS[g('tgoal')] ? g('tgoal') : '', inj: fd.getAll('inj').filter(k => INJURIES[k]), focus: fd.getAll('focus').filter(m => FOCUS_MUSCLES.includes(m)).slice(0, 3), autoVol: !!g('autoVol')
       };
@@ -1943,10 +2000,12 @@ function bindAfter(v, arg) {
       save(true); toast(first ? 'Plano pronto. Bora.' : 'Perfil atualizado');
       if (spineNext) { spineNext = false; spEdit = null; location.hash = '#coluna'; } else location.hash = '#hoje';
       rendered = ''; go();
+      if (first && !tourSeen()) setTimeout(() => startTour(tourGo), 700);
     });
   }
   if (v === 'coluna') bindSpine();
   if (v === 'hoje') {
+    $('#h-agenda')?.addEventListener('toggle', e => { S.ui.agOpen = e.target.open; });
     $('#weighForm').addEventListener('submit', e => {
       e.preventDefault(); const kg = num(e.target.kg.value), d = curDay();
       if (!kg || kg < 30 || kg > 300) { toast('Peso inválido'); return; }
@@ -2117,6 +2176,7 @@ document.addEventListener('click', async e => {
   if (a === 'theme') { const dark = window.roninTheme?.isDark(); window.roninTheme?.set(dark ? 'light' : 'dark'); toast(dark ? 'Modo claro' : 'Modo escuro'); if (location.hash === '#perfil') render(); return; }
   if (a === 'themeSet') { window.roninTheme?.set(el.dataset.v); render(); return; }
   if (a === 'water') addWater(+el.dataset.v);
+  if (a === 'tour') startTour(tourGo);
   if (a === 'spineGo') { spineNext = true; $('#profileForm')?.requestSubmit(); spineNext = false; }
   if (a === 'spView') { spView = el.dataset.v === 'side' ? 'side' : 'back'; spSel = -1; render(); }
   if (a === 'spSh' || a === 'spHip') { const k = a === 'spSh' ? 'sh' : 'hip', v = ['E', 'D'].includes(el.dataset.v) ? el.dataset.v : ''; spEdit[k] = v; render(); }
@@ -2401,6 +2461,8 @@ let pendingLogin = false;
     }
   } catch (e) { }
   rendered = location.hash; render();
+  // tutorial: aparece uma vez pra quem já tem perfil e ainda não viu (pode rever no Perfil)
+  if (S.profile && !tourSeen() && /^#?(hoje)?$/.test(location.hash) && !$('#nav').hidden) setTimeout(() => { if (!touring() && !$('#nav').hidden && S.profile) startTour(tourGo); }, 900);
   if (cloud.user()) {
     if (pendingLogin) afterLogin(); else doSync(true).then(() => { if (!S.profile) render(); });
     setInterval(() => doSync(true), 10 * 60 * 1000);

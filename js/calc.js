@@ -10,6 +10,34 @@ export function sportsOf(p) {
 }
 export const sportDays = p => Object.values(sportsOf(p)).reduce((a, s) => a + (+s.days || 0), 0);
 
+// ---------- Minha semana: o que a pessoa faz em cada dia (0 = segunda … 6 = domingo) ----------
+export const WEEKDAYS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+export const wdOk = a => Array.isArray(a) ? [...new Set(a.map(Number).filter(n => Number.isInteger(n) && n >= 0 && n <= 6))].sort((x, y) => x - y) : null;
+export const hOk = h => typeof h === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(h) ? h : '';
+// perfil antigo (só "N dias por semana"): espalha os dias e foge dos já ocupados
+const PAT = { 0: [], 1: [2], 2: [0, 3], 3: [0, 2, 4], 4: [0, 1, 3, 4], 5: [0, 1, 2, 3, 4], 6: [0, 1, 2, 3, 4, 5], 7: [0, 1, 2, 3, 4, 5, 6] };
+export function spreadDays(n, taken = []) {
+  const base = PAT[Math.max(0, Math.min(7, Math.round(+n || 0)))]; let best = base, bs = 1e9;
+  for (let k = 0; k < 7; k++) { const c = base.map(d => (d + k) % 7).sort((a, b) => a - b), sc = c.filter(d => taken.includes(d)).length * 10 + c.filter(d => d >= 5).length; if (sc < bs) { bs = sc; best = c; } }
+  return best;
+}
+// semana completa: [{a: 'forca'|esporte, h}] por dia; explicit = a pessoa já marcou os dias
+export function weekOf(p) {
+  const days = Array.from({ length: 7 }, () => []), sp = sportsOf(p || {}), taken = [];
+  let explicit = false;
+  for (const [id, s] of Object.entries(sp)) {
+    if (!SPORTS[id] || !s) continue;
+    const wd = wdOk(s.wd); if (wd) explicit = true;
+    for (const d of wd || spreadDays(s.days, taken)) { days[d].push({ a: id, h: hOk(s.h) }); taken.push(d); }
+  }
+  const lift = Math.max(0, Math.min(6, Math.round(+p?.liftDays || 0))), lw = wdOk(p?.liftWd);
+  if (lw) explicit = true;
+  for (const d of lw || spreadDays(lift, taken)) days[d].push({ a: 'forca', h: hOk(p?.liftH) });
+  for (const l of days) l.sort((x, y) => (x.h || '99') < (y.h || '99') ? -1 : 1);
+  return { days, explicit };
+}
+export const weekdayOf = k => (new Date(k + 'T12:00').getDay() + 6) % 7;
+
 export const NEAT = {
   1.2: 'Sedentário (escritório, < 5 mil passos)',
   1.3: 'Pouco ativo (5–8 mil passos)',

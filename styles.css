@@ -764,3 +764,52 @@ body.resting #app{padding-bottom:calc(176px + var(--safe-b))}
 .clist li{display:flex;gap:10px;align-items:center;padding:8px 0;border-top:1px solid rgba(var(--ink-rgb),.12)}
 .clist li small{display:block;color:var(--muted);margin-top:2px}
 .clist .cdose{display:block;font-weight:700;margin-top:2px}
+/* perfil em seções + Minha semana (v3.29) */
+.psec{border:2px solid var(--ink);background:var(--paper);margin:0 0 10px}
+.psec>summary{list-style:none;cursor:pointer;padding:10px 12px;display:flex;flex-direction:column;gap:2px;position:relative;padding-right:34px}
+.psec>summary::-webkit-details-marker{display:none}
+.psec>summary::after{content:'+';position:absolute;right:12px;top:8px;font:800 20px/1 sans-serif}
+.psec[open]>summary::after{content:'–'}
+.psec>summary small{color:var(--muted);font-size:13px}
+.psec[open]>summary{border-bottom:1px solid rgba(var(--ink-rgb),.15)}
+.psbody{padding:10px 12px 12px;display:grid;gap:10px}
+.actchips{display:flex;flex-wrap:wrap;gap:6px}
+.actchips .chipbtn{position:relative;cursor:pointer}
+.actchips .chipbtn input{position:absolute;opacity:0;pointer-events:none}
+.actchips .mk{margin-right:4px}
+.wkgrid{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12px}
+.wkgrid th{font-weight:800;padding:2px 0;text-align:center}
+.wkgrid tr th:first-child{text-align:left;width:76px;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wkgrid .wrow{display:none}.wkgrid .wrow.on{display:table-row}
+.wkgrid td{padding:2px;text-align:center}
+.wcell{display:block;position:relative;cursor:pointer}
+.wcell input{position:absolute;opacity:0;inset:0;margin:0}
+.wcell span{display:block;height:30px;border:2px solid var(--ink);background:var(--field,var(--sheet))}
+.wcell input:checked+span{background:var(--ink)}
+.wcell input:checked+span::after{content:'✓';color:var(--sheet);font-weight:900;line-height:26px}
+.wcell input:focus-visible+span{outline:2px solid var(--acc)}
+.wcfg{display:none;border-top:1px solid rgba(var(--ink-rgb),.15);padding-top:8px}.wcfg.on{display:block}
+.wkcfg{display:grid;gap:8px}
+.wkline{margin:2px 0 8px}
+.actchips .chipbtn{display:inline-flex;align-items:center;gap:5px;padding:7px 11px}.actchips .chipbtn .mk{margin:0;display:inline}
+.form .actchips label.chipbtn{display:inline-flex;flex-direction:row;align-items:center;gap:5px;margin:0}
+#h-agenda>summary{list-style:none;cursor:pointer}#h-agenda>summary::-webkit-details-marker{display:none}
+#h-agenda>summary h3{display:inline}#h-agenda>summary small{display:block}
+.agenda{list-style:none;padding:0;margin:10px 0 6px;border-left:2px solid rgba(var(--ink-rgb),.2)}
+.agenda li{display:grid;grid-template-columns:46px 14px 1fr;gap:6px;align-items:start;padding:6px 0 6px 8px;font-size:14px;line-height:1.35}
+.agenda .mono{font-weight:800;font-size:13px}
+.agenda .agi{width:10px;height:10px;margin-top:4px;border:2px solid var(--ink);background:var(--sheet)}
+.agenda .ag-train{font-weight:700}.agenda .ag-train .agi{background:var(--acc);border-color:var(--acc)}
+.agenda .ag-meal .agi{background:var(--ink)}
+.agenda .ag-water .agi{border-radius:50%;background:var(--sheet);border-color:var(--ink)}
+.agenda .ag-tip{color:var(--muted)}
+/* tutorial guiado (v3.29) */
+#tour{position:fixed;inset:0;z-index:1000}
+#tour.dim{background:rgba(10,8,6,.62)}
+.tr-hole{position:fixed;box-shadow:0 0 0 9999px rgba(10,8,6,.62);outline:3px solid var(--acc);pointer-events:none;transition:left .2s,top .2s,width .2s,height .2s}
+.tr-card{position:fixed;left:12px;right:12px;max-width:440px;margin:0 auto;background:var(--sheet);color:var(--ink);border:2px solid var(--ink);box-shadow:4px 4px 0 var(--acc);padding:14px 14px 12px}
+.tr-card.down{bottom:86px}.tr-card.up{top:64px}.tr-card.mid{top:30%}
+.tr-card h3{margin:2px 0 6px}.tr-card p{margin:0 0 12px;font-size:15px;line-height:1.45}
+.tr-n{color:var(--muted);font-weight:700;letter-spacing:.06em;text-transform:uppercase;font-size:11px}
+.tr-btns{display:flex;gap:8px;align-items:center}.tr-btns span{flex:1}
+body.touring{overflow:hidden}

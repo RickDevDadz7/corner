@@ -3,14 +3,14 @@
 import { EXERCISES, TEMPLATES, SLOTS, MUSCLES } from './data.js';
 import { equipment, canDo, sportDays, sportsOf } from './calc.js';
 import { SPORTS } from './sports.js';
-import { avoidSet, goalParams, repsFor, restFor, usable } from './periodize.js';
+import { avoidSet, goalParams, repsFor, restFor, usable, chooseSplit } from './periodize.js';
 import { caps, bodyOk } from './health.js';
 
 export const SPLIT_DEFS = {
   fb: { n: 'Full Body', d: 'Corpo inteiro em toda sessão. Cada músculo 2 a 3 vezes por semana com poucos dias. Combina bem com esporte. De 4x pra cima, os treinos alternam (A, B, A, B…).', opts: { 1: ['A'], 2: ['A', 'B'], 3: ['A', 'B', 'C'], 4: ['A', 'B'], 5: ['A', 'B', 'C'], 6: ['A', 'B', 'C'] } },
-  ul: { n: 'Superior / Inferior', d: 'Alterna parte de cima e parte de baixo. Com 4 sessões, cada músculo treina 2 vezes por semana.', opts: { 2: ['U1', 'L1'], 4: ['U1', 'L1', 'U2', 'L2'] } },
+  ul: { n: 'Superior / Inferior', d: 'Alterna parte de cima e parte de baixo. Com 4 sessões, cada músculo treina 2 vezes por semana; com 6, alterna as 4 sessões.', opts: { 2: ['U1', 'L1'], 4: ['U1', 'L1', 'U2', 'L2'], 6: ['U1', 'L1', 'U2', 'L2'] } },
   mix: { n: 'Sup/Inf + PPL', d: 'Superior, Inferior, Empurrar, Puxar e Pernas: 5 sessões, cada músculo cerca de 2 vezes.', opts: { 5: ['U1', 'L1', 'PU', 'PL', 'LG'] } },
-  ppl: { n: 'Empurrar / Puxar / Pernas', d: 'Empurrar = peito, ombros e tríceps. Puxar = costas e bíceps. Pernas. Com 3 dias cada músculo treina 1 vez; com 6, 2 vezes.', opts: { 3: ['PU', 'PL', 'LG'], 6: ['PU', 'PL', 'LG', 'PU', 'PL', 'LG'] } },
+  ppl: { n: 'Empurrar / Puxar / Pernas', d: 'Empurrar = peito, ombros e tríceps. Puxar = costas e bíceps. Pernas. Com 3 dias cada músculo treina 1 vez; com 6, 2 vezes.', opts: { 3: ['PU', 'PL', 'LG'], 6: ['PU', 'PL', 'LG'] } },
   abc: { n: 'ABC', d: 'Clássico de academia: A peito e tríceps, B costas e bíceps, C pernas e ombros. 3 dias (1 vez por músculo) ou 6 (repete o ciclo).', opts: { 3: ['AA', 'BB', 'CC'], 6: ['AA', 'BB', 'CC', 'AA', 'BB', 'CC'] } },
   abcdef: { n: 'ABCDEF', d: 'Um grupo por dia em 6 dias. Muito volume por sessão e cada músculo só 1 vez por semana: exige boa recuperação.', opts: { 6: ['F1', 'F2', 'F3', 'F4', 'F5', 'F6'] } },
   custom: { n: 'Personalizada', d: 'Você monta do zero: quantas sessões quiser, com os exercícios que escolher.', opts: { 1: [] } }
@@ -54,13 +54,9 @@ export function genRoutine(p, split, days, name) {
 
 // recomendação explicável a partir do perfil
 export function recommend(p) {
-  const d = Math.max(0, Math.min(6, p.liftDays ?? 2)), sd = sportDays(p);
-  if (!d) return { split: 'fb', days: 2, why: 'Você marcou 0 dias de força. Se quiser começar, 2 sessões de Full Body por semana já trazem potência e proteção contra lesão.' };
-  if (d <= 3) return { split: 'fb', days: Math.max(1, d), why: `Com ${d} ${d === 1 ? 'dia' : 'dias'} de força, Full Body faz cada músculo treinar ${d === 1 ? '1 vez' : `${d} vezes`} por semana, o que costuma render mais que treinar cada grupo 1 vez só.` };
-  if (d === 4) return { split: 'ul', days: 4, why: 'Com 4 dias, Superior/Inferior dá 2 sessões por músculo na semana com volume bem distribuído.' };
-  if (sd >= 3) return { split: 'ul', days: 4, why: `Você tem ${d} dias de força e ${sd} sessões de esporte. Pra recuperar, a recomendação é ficar em 4 sessões de Superior/Inferior; dá pra mudar se você se sentir bem.` };
-  if (d === 5) return { split: 'mix', days: 5, why: 'Com 5 dias, Superior/Inferior + Empurrar/Puxar/Pernas mantém cada músculo perto de 2 vezes por semana.' };
-  return { split: 'ppl', days: 6, why: 'Com 6 dias, Empurrar/Puxar/Pernas 2x treina cada músculo 2 vezes por semana.' };
+  const c = chooseSplit(p);
+  if (!c) return { split: 'fb', days: 2, why: 'Você marcou 0 dias de força. Se quiser começar, 2 sessões de Full Body por semana já trazem potência e proteção contra lesão.' };
+  return { split: c.key, days: c.freq, why: c.why };
 }
 
 // tudo que vem da nuvem passa por aqui antes de virar tela

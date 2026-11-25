@@ -15,7 +15,8 @@ export const TGOALS = {
   forca: { n: 'Ficar mais forte', d: 'Cargas altas, poucas repetições, descanso longo nos exercícios principais.' },
   hipertrofia: { n: 'Ganhar músculo', d: 'Mais séries por músculo, faixa de 6–15 repetições, perto da falha.' },
   emagrecer: { n: 'Perder gordura sem perder músculo', d: 'Manter a força com descanso mais curto; quem queima gordura é a dieta.' },
-  saude: { n: 'Saúde e disposição', d: 'O mínimo que funciona: corpo forte, articulações protegidas, sem exagero.' }
+  saude: { n: 'Saúde e disposição', d: 'O mínimo que funciona: corpo forte, articulações protegidas, sem exagero.' },
+  corrida: { n: 'Render na corrida', d: 'Força pesada e pliometria em pouco volume: melhora a economia de corrida sem pesar as pernas.' }
 };
 // lesões/dores: exercícios evitados (trocados automaticamente) e os que pedem cuidado
 export const INJURIES = {
@@ -35,10 +36,17 @@ const GYM_SKIP = new Set(['pike', 'bwsq', 'pushup', 'chairdip', 'diamond', 'calf
 const MAIN_SLOTS = new Set(['squat', 'hinge', 'hpush', 'vpull', 'vpush', 'hpull', 'glute']);
 
 const COMBAT = new Set(['boxe', 'muaythai', 'mma', 'jiu']);
+// automático: cautela de saúde → saúde; luta → render na luta (ganhando massa → músculo); secar → emagrecer;
+// ganhar massa → músculo; só corrida → render na corrida; recomposição → músculo (precisa de estímulo pra trocar gordura por músculo)
 export function tgoalOf(p) {
   if (p?.tgoal && TGOALS[p.tgoal]) return p.tgoal;
-  if (Object.keys(sportsOf(p || {})).some(s => COMBAT.has(s))) return 'luta';
-  return p?.goal === 'perder' ? 'emagrecer' : p?.goal === 'ganhar' ? 'hipertrofia' : 'saude';
+  const sp = Object.keys(sportsOf(p || {}));
+  if (condFlag(p || {}, 'conservative') || (p?.age || 0) >= 65) return 'saude';
+  if (sp.some(s => COMBAT.has(s))) return p?.goal === 'bulk' ? 'hipertrofia' : 'luta';
+  if (p?.goal === 'cut') return 'emagrecer';
+  if (p?.goal === 'bulk') return 'hipertrofia';
+  if (sp.includes('corrida')) return 'corrida';
+  return 'hipertrofia';
 }
 export const injuriesOf = p => (Array.isArray(p?.inj) ? p.inj : []).filter(k => INJURIES[k]);
 export const focusOf = p => (Array.isArray(p?.focus) ? p.focus : []).filter(m => FOCUS_MUSCLES.includes(m)).slice(0, 3);
@@ -66,7 +74,8 @@ export function goalParams(p) {
     hipertrofia: { comp: [6, 12], iso: [10, 15], rc: 120, ri: 75, rirC: '1–2', start: 10, cap: 20 },
     emagrecer: { comp: [8, 12], iso: [12, 15], rc: 90, ri: 60, rirC: '1–2', start: 8, cap: 14 },
     saude: { comp: [8, 12], iso: [10, 15], rc: 90, ri: 60, rirC: '2–3', start: 6, cap: 12 },
-    luta: { comp: [4, 8], iso: [10, 15], rc: 150, ri: 75, rirC: '1–3', start: 6, cap: 14 }
+    luta: { comp: [4, 8], iso: [10, 15], rc: 150, ri: 75, rirC: '1–3', start: 6, cap: 14 },
+    corrida: { comp: [4, 8], iso: [10, 15], rc: 150, ri: 60, rirC: '2–3', start: 6, cap: 12 }
   }[g];
   const capLv = { iniciante: 12, intermediario: 16, avancado: 22 }[lv];
   let start = R.start - (lv === 'iniciante' ? 2 : 0), cap = Math.min(R.cap, capLv);
@@ -75,7 +84,7 @@ export function goalParams(p) {
   const sd = sportDays(p || {});
   if (sd >= 4) { start -= 1; cap -= 2; }
   if ((p?.age || 0) >= 50) cap -= 2;
-  const acc = g === 'luta' || lv === 'iniciante' ? 3 : 4; // semanas subindo antes da semana leve
+  const acc = g === 'luta' || g === 'corrida' || lv === 'iniciante' ? 3 : 4; // semanas subindo antes da semana leve
   const RIR_ORDER = ['1–2', '1–3', '2–3', '3–4'], condRir = condsOf(p).map(k => CONDITIONS[k].rir).filter(Boolean);
   const rir = [lv === 'iniciante' ? '2–3' : R.rirC, ...condRir].sort((a, b) => RIR_ORDER.indexOf(b) - RIR_ORDER.indexOf(a))[0];
   return { g, lv, ...R, start: Math.max(4, start), cap: Math.max(start + 2, cap), acc, rir, cons };
@@ -175,10 +184,31 @@ function pick(slot, ctx, j, used) {
   const sw = ctx.swap[ex]; if (sw && EXERCISES[sw] && !used.has(sw) && usable(sw, ctx.p, ctx.eq, ctx.avoid, ctx.caps)) ex = sw;
   return ex;
 }
+// ---------- divisão escolhida pelo perfil (dias, nível, objetivo, esporte e tempo) ----------
+// Base: frequência 2x/semana por músculo rende mais que 1x com o mesmo volume (Schoenfeld 2016); com esporte,
+// Full Body espalha a fadiga e combina melhor (menos perna destruída antes do treino técnico).
+export function chooseSplit(p) {
+  const d = Math.min(6, Math.max(0, Math.round(+p?.liftDays || 0))), g = tgoalOf(p), lv = lvlOf(p), sd = sportDays(p || {}), min = Math.round(+p?.liftMin) || 45;
+  const light = ['luta', 'corrida', 'saude', 'emagrecer'].includes(g) || lv === 'iniciante' || sd >= 3;
+  const S = (key, tpl, why) => ({ key, tpl, freq: d, why, name: { fb: 'Full Body', ul: 'Superior / Inferior', mix: 'Sup/Inf + Empurrar/Puxar/Pernas', ppl: 'Empurrar / Puxar / Pernas' }[key] + (tpl.length < d ? ' (alternando)' : '') });
+  if (!d) return null;
+  if (d === 1) return S('fb', ['A'], 'Com 1 dia, Full Body é o único jeito de treinar o corpo todo.');
+  if (d === 2) return S('fb', ['A', 'B'], 'Com 2 dias, Full Body A e B treina cada músculo 2 vezes por semana.');
+  if (d === 3) return S('fb', ['A', 'B', 'C'], 'Com 3 dias, Full Body treina cada músculo 3 vezes por semana com pouco volume por sessão: rende mais que dividir.');
+  if (d === 4) return light && !(min <= 35 && lv !== 'iniciante')
+    ? S('fb', ['A', 'B'], `Com 4 dias${sd >= 3 ? ` e ${sd} treinos de esporte` : ''}, Full Body alternando A e B espalha o cansaço: nenhum dia acaba com as pernas ou os braços${lv === 'iniciante' ? ', e repetir os mesmos movimentos acelera o aprendizado' : ''}.`)
+    : S('ul', ['U1', 'L1', 'U2', 'L2'], `Com 4 dias${min <= 35 ? ' e sessões curtas' : ''}, Superior/Inferior dá 2 treinos por músculo na semana com sessões mais focadas.`);
+  if (d === 5) return light
+    ? S('fb', ['A', 'B', 'C'], 'Com 5 dias, Full Body A/B/C alternando mantém cada sessão leve e cada músculo treinando 3 a 4 vezes.')
+    : S('mix', ['U1', 'L1', 'PU', 'PL', 'LG'], 'Com 5 dias, Superior/Inferior + Empurrar/Puxar/Pernas mantém cada músculo perto de 2 vezes por semana.');
+  return light
+    ? S('ul', ['U1', 'L1', 'U2', 'L2'], 'Com 6 dias, Superior/Inferior alternando: cada músculo 3 vezes por semana sem sessões pesadas demais.')
+    : S('ppl', ['PU', 'PL', 'LG'], 'Com 6 dias, Empurrar/Puxar/Pernas 2x treina cada músculo 2 vezes por semana com bastante volume.');
+}
 export function planFor(p, prog = {}, opt = {}) {
-  const d = Math.min(6, Math.max(0, p.liftDays ?? 2));
-  if (!d) return { split: 'Sem dias de força', days: [], none: true, swapped: [] };
-  const split = SPLITS[d], gp = goalParams(p), eq = equipment(p), avoid = avoidSet(p);
+  const cs = chooseSplit(p);
+  if (!cs) return { split: 'Sem dias de força', days: [], none: true, swapped: [] };
+  const split = { name: cs.name, days: cs.tpl }, gp = goalParams(p), eq = equipment(p), avoid = avoidSet(p);
   const ctx = { p, eq, avoid, caps: caps(p), gym: p.env === 'academia' || !p.env, rot: opt.rot || 0, swap: opt.swap || {}, block: opt.block || 1 };
   const extra = [];
   for (const id of Object.keys(sportsOf(p))) for (const x of (SPORTS[id]?.sc || [])) if (!extra.some(e => e[0] === x[0])) extra.push(x);
@@ -199,7 +229,7 @@ export function planFor(p, prog = {}, opt = {}) {
     }
     return { key, idx: i, name: t.name, items };
   });
-  return { split: split.name, days, none: false, swapped };
+  return { split: split.name, days, none: false, swapped, freq: cs.freq, splitKey: cs.key, why: cs.why };
 }
 
 // ---------- ajuste de volume: chega no alvo da semana dentro do tempo disponível ----------
