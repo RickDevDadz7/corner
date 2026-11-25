@@ -18,7 +18,7 @@ export const TOUR = [
   { r: 'nutri', s: '#n-como', t: 'Como cheguei nesse número', d: 'Toda meta tem a conta aberta: fórmula, ajustes e o porquê. Nada de número mágico.' },
   { r: 'treino', s: '#t-rotina', t: 'Sua rotina de força', d: 'Montada pelo seu perfil: dias, objetivo, nível, esporte e tempo. Toque em Começar pra abrir o treino com séries, cargas e descanso.' },
   { r: 'treino', s: '.cyc', t: 'Ciclo de treino', d: 'O volume sobe semana a semana e a cada 4 ou 5 semanas vem uma semana leve pra recuperar. O app faz isso sozinho.' },
-  { r: 'treino', s: '#t-comp', t: 'Complementares', d: 'Exercícios de coluna, postura e reabilitação, escolhidos pelo que você marcou em Saúde e corpo.' },
+  { r: 'treino', s: '#t-comp', t: 'Complementares', d: 'Este cartão só aparece pra quem marcou coluna, dor ou lesão no perfil. São exercícios de postura e reabilitação escolhidos pro seu caso.' },
   { r: 'treino', s: '#t-semana', t: 'Esta semana', d: 'Quantos treinos você já fez dos planejados. A rotina não tem dia fixo: fez, conta.' },
   { r: 'treino', s: '#t-hist,#t-evo', t: 'Histórico e evolução', d: 'Cada treino salvo vira histórico, e cada exercício ganha gráfico de evolução e recordes.' },
   { r: 'treino', s: '#nav a[href="#esporte"]', t: 'Seu esporte', d: 'Gerador de rounds e de corrida com timer, técnicas animadas e registro das sessões.' },
@@ -62,7 +62,8 @@ function place() {
   if (!st.el) { h.style.cssText = 'display:none'; c.className = 'tr-card mid'; return; }
   const r = st.el.getBoundingClientRect(), p = 6, top = Math.max(4, r.top - p), bot = Math.min(innerHeight - 4, r.bottom + p);
   h.style.cssText = `display:block;left:${Math.max(4, r.left - p)}px;top:${top}px;width:${Math.min(innerWidth - 8, r.width + 2 * p)}px;height:${Math.max(20, bot - top)}px`;
-  c.className = 'tr-card ' + ((r.top + r.bottom) / 2 > innerHeight * 0.5 ? 'up' : 'down');
+  // parte alta (maior que meia tela): explicação embaixo, pra não tapar o começo dela
+  c.className = 'tr-card ' + (r.height > innerHeight * 0.45 ? 'down' : (r.top + r.bottom) / 2 > innerHeight * 0.5 ? 'up' : 'down');
 }
 export function endTour() { try { localStorage.setItem('ronin:tour', 'done'); } catch (e) { } stopTour(); }
 export function stopTour() {
