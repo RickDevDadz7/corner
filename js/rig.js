@@ -103,8 +103,49 @@ function proj(p) {
 const W = { th: 17, sn: 13, ua: 13, fa: 11, foot: 9 };
 
 // missing: membros ausentes ('armL','armR','handL','handR','legL','legR'); prosthesis: perna ausente desenhada como prótese
-export function draw(J, { gloves = true, hi = [], trail = null, burst = null, cam = 30, ox = 0, act = [], tilt = 0, zoom = 1, target = null, path = null, props = null, missing = null, prosthesis = false } = {}) {
+// parceiro: segundo boneco (short e luvas azuis) com pose própria, girado 180° e a d metros à frente
+// partner = { J (já posicionado no mundo, ver placePartner), gloves, front: desenha na frente do principal }
+export function placePartner(J2, d = 1.1, dz = 0) { const o = {}; for (const k in J2) { const v = J2[k]; o[k] = [d - v[0], v[1], dz - v[2]]; } return o; }
+export function draw(J, { gloves = true, hi = [], trail = null, burst = null, cam = 30, ox = 0, act = [], tilt = 0, zoom = 1, target = null, path = null, props = null, missing = null, prosthesis = false, partner = null } = {}) {
   CAM = cam * D; TILT = tilt * D; ZOOM = zoom;
+  const F1 = figParts(J, { gloves, act, missing, prosthesis });
+  let p2 = '';
+  if (partner?.J) { const F2 = figParts(partner.J, { gloves: partner.gloves ?? gloves, act: [] }); p2 = `<g class="p2">${F2.shadow}${F2.back}${F2.gBack}${F2.torso}${F2.frontLegs}${F2.trunks}${F2.head}${F2.front}${F2.gFront}</g>`; }
+  const { P, zMid } = F1;
+  // (corpo montado em figParts)
+  let pBack = '', pFront = '';
+  // selo fixo no canto (ex.: posição da mão)
+  let badge = '';
+  for (const it of props || []) if (it && it.k === 'badge') badge += badgeSVG(it, -ox);
+  if (props) for (const it of propSVG(props)) { if (it.layer === 'back' || (it.layer !== 'front' && it.z > zMid + 0.02)) pBack += it.svg; else pFront += it.svg; }
+  const { back, gBack, torso, frontLegs, trunks, head, front, gFront, shadow } = F1;
+  return composeSVG();
+  function composeSVG() {
+  // alvo: onde o golpe chega (cabeça/corpo do adversário imaginário)
+  let tg = '';
+  if (target) { const c = proj(target); tg = `<g class="tgt"><circle cx="${c[0].toFixed(1)}" cy="${c[1].toFixed(1)}" r="13"/><circle cx="${c[0].toFixed(1)}" cy="${c[1].toFixed(1)}" r="4"/></g>`; }
+  if (path && path.length > 1) { const q = path.map(proj); tg += `<polyline points="${q.map(v => v[0].toFixed(1) + ',' + v[1].toFixed(1)).join(' ')}" class="pth"/>`; const a = q[q.length - 1], b = q[q.length - 2], an = Math.atan2(a[1] - b[1], a[0] - b[0]); tg += `<path d="M${a[0].toFixed(1)},${a[1].toFixed(1)}L${(a[0] - 9 * Math.cos(an - 0.5)).toFixed(1)},${(a[1] - 9 * Math.sin(an - 0.5)).toFixed(1)}L${(a[0] - 9 * Math.cos(an + 0.5)).toFixed(1)},${(a[1] - 9 * Math.sin(an + 0.5)).toFixed(1)}Z" class="pta"/>`; }
+  const hl = hi.filter(k => P[k]).map(k => `<circle cx="${P[k][0].toFixed(1)}" cy="${P[k][1].toFixed(1)}" r="15" class="hi"/>`).join('');
+  let fx = '';
+  if (trail && trail.length > 1) {
+    const pts = trail.map(t => proj(t));
+    for (let i = 1; i < pts.length; i++) fx += `<line x1="${pts[i - 1][0].toFixed(1)}" y1="${pts[i - 1][1].toFixed(1)}" x2="${pts[i][0].toFixed(1)}" y2="${pts[i][1].toFixed(1)}" stroke-width="${(3 + 9 * i / pts.length).toFixed(1)}" opacity="${(0.08 + 0.4 * i / pts.length).toFixed(2)}" class="trl"/>`;
+  }
+  if (burst) {
+    const c = proj(burst.p), r1 = 9 * burst.s, r2 = 22 * burst.s;
+    let d = '';
+    for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2 + 0.2, r = i % 2 ? r1 : r2; d += `${i ? 'L' : 'M'}${(c[0] + Math.cos(a) * r).toFixed(1)},${(c[1] + Math.sin(a) * r).toFixed(1)}`; }
+    fx += `<path d="${d}Z" class="bst"/>`;
+    for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2; fx += `<line x1="${(c[0] + Math.cos(a) * r2 * 1.1).toFixed(1)}" y1="${(c[1] + Math.sin(a) * r2 * 1.1).toFixed(1)}" x2="${(c[0] + Math.cos(a) * r2 * 1.7).toFixed(1)}" y2="${(c[1] + Math.sin(a) * r2 * 1.7).toFixed(1)}" class="bsl"/>`; }
+  }
+  const pf = partner?.front, me = `${back}${gBack}${torso}${frontLegs}${trunks}${head}${front}${gFront}`;
+  return `<svg viewBox="${-ox} 0 230 200" class="fig" role="img" aria-hidden="true">
+    ${TILT ? '' : `<line x1="${6 - ox - 120}" y1="${GY}" x2="${224 - ox + 120}" y2="${GY}" class="gr"/>`}${shadow}${hl}
+    ${pBack}${pf ? '' : p2}${me}${pf ? p2 : ''}${pFront}${tg}${fx}${badge}</svg>`;
+  }
+}
+// monta um boneco (sombra, membros, tronco, short, cabeça, luvas) já projetado
+function figParts(J, { gloves = true, act = [], missing = null, prosthesis = false } = {}) {
   const miss = new Set(missing || []);
   const P = {}; for (const k in J) P[k] = proj(J[k]);
   const segs = [];
@@ -156,33 +197,7 @@ export function draw(J, { gloves = true, hi = [], trail = null, burst = null, ca
   const gFront = (!farH('L') ? gL : '') + (!farH('R') ? gR : '');
   const sp = proj([J.pel[0], 0, J.pel[2]]);
   const shadow = `<ellipse cx="${sp[0].toFixed(1)}" cy="${(sp[1] + 1).toFixed(1)}" rx="52" ry="${(6 + 30 * Math.sin(TILT)).toFixed(1)}" class="sh"/>`;
-  // alvo: onde o golpe chega (cabeça/corpo do adversário imaginário)
-  let tg = '';
-  if (target) { const c = proj(target); tg = `<g class="tgt"><circle cx="${c[0].toFixed(1)}" cy="${c[1].toFixed(1)}" r="13"/><circle cx="${c[0].toFixed(1)}" cy="${c[1].toFixed(1)}" r="4"/></g>`; }
-  // trajeto do golpe (fica marcado depois do impacto)
-  if (path && path.length > 1) { const q = path.map(proj); tg += `<polyline points="${q.map(v => v[0].toFixed(1) + ',' + v[1].toFixed(1)).join(' ')}" class="pth"/>`; const a = q[q.length - 1], b = q[q.length - 2], an = Math.atan2(a[1] - b[1], a[0] - b[0]); tg += `<path d="M${a[0].toFixed(1)},${a[1].toFixed(1)}L${(a[0] - 9 * Math.cos(an - 0.5)).toFixed(1)},${(a[1] - 9 * Math.sin(an - 0.5)).toFixed(1)}L${(a[0] - 9 * Math.cos(an + 0.5)).toFixed(1)},${(a[1] - 9 * Math.sin(an + 0.5)).toFixed(1)}Z" class="pta"/>`; }
-  const hl = hi.filter(k => P[k]).map(k => `<circle cx="${P[k][0].toFixed(1)}" cy="${P[k][1].toFixed(1)}" r="15" class="hi"/>`).join('');
-  let fx = '';
-  if (trail && trail.length > 1) {
-    const pts = trail.map(t => proj(t));
-    for (let i = 1; i < pts.length; i++) fx += `<line x1="${pts[i - 1][0].toFixed(1)}" y1="${pts[i - 1][1].toFixed(1)}" x2="${pts[i][0].toFixed(1)}" y2="${pts[i][1].toFixed(1)}" stroke-width="${(3 + 9 * i / pts.length).toFixed(1)}" opacity="${(0.08 + 0.4 * i / pts.length).toFixed(2)}" class="trl"/>`;
-  }
-  if (burst) {
-    const c = proj(burst.p), r1 = 9 * burst.s, r2 = 22 * burst.s;
-    let d = '';
-    for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2 + 0.2, r = i % 2 ? r1 : r2; d += `${i ? 'L' : 'M'}${(c[0] + Math.cos(a) * r).toFixed(1)},${(c[1] + Math.sin(a) * r).toFixed(1)}`; }
-    fx += `<path d="${d}Z" class="bst"/>`;
-    for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2; fx += `<line x1="${(c[0] + Math.cos(a) * r2 * 1.1).toFixed(1)}" y1="${(c[1] + Math.sin(a) * r2 * 1.1).toFixed(1)}" x2="${(c[0] + Math.cos(a) * r2 * 1.7).toFixed(1)}" y2="${(c[1] + Math.sin(a) * r2 * 1.7).toFixed(1)}" class="bsl"/>`; }
-  }
-  // equipamentos (barra, halter, banco, elástico...): atrás ou na frente do corpo conforme a profundidade
-  let pBack = '', pFront = '';
-  // selo fixo no canto (ex.: posição da mão)
-  let badge = '';
-  for (const it of props || []) if (it && it.k === 'badge') badge += badgeSVG(it, -ox);
-  if (props) for (const it of propSVG(props)) { if (it.layer === 'back' || (it.layer !== 'front' && it.z > zMid + 0.02)) pBack += it.svg; else pFront += it.svg; }
-  return `<svg viewBox="${-ox} 0 230 200" class="fig" role="img" aria-hidden="true">
-    ${TILT ? '' : `<line x1="${6 - ox - 120}" y1="${GY}" x2="${224 - ox + 120}" y2="${GY}" class="gr"/>`}${shadow}${hl}
-    ${pBack}${back}${gBack}${torso}${frontLegs}${trunks}${head}${front}${gFront}${pFront}${tg}${fx}${badge}</svg>`;
+  return { P, zMid, back, gBack, torso, frontLegs, trunks, head, front, gFront, shadow };
 }
 
 // ---------- equipamentos ----------

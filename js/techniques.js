@@ -2,14 +2,14 @@
 // RONIN — biblioteca de técnicas animadas (esqueleto com IK, traço próprio)
 // Guarda ortodoxa: L = lado da frente (esquerdo), R = lado de trás (direito).
 // ============================================================
-import { solve, mix, draw, EASE } from './rig.js';
+import { solve, mix, draw, EASE, placePartner } from './rig.js';
 
 const D = Math.PI / 180;
 // Guarda base
 const G = { p: [0, 0.86, 0], py: -40, cy: -45, lean: 12, hL: [0.26, 0.17, 0.04], hR: [0.14, 0.21, -0.12], fL: [0.38, 0, -0.12], fR: [-0.3, 0, 0.12] };
 const P = (o, from = G) => ({ ...from, ...o });
 // quadro: pose, duração (ms), passo, opções { e: curva, fx: articulação com rastro, hit: estouro, hi: destaques }
-const F = (p, d, step, o = {}) => ({ p, d, step, e: o.e || 'inout', fx: o.fx || null, hit: !!o.hit, hi: o.hi || [] });
+const F = (p, d, step, o = {}) => ({ p, d, step, e: o.e || 'inout', fx: o.fx || null, hit: !!o.hit, hi: o.hi || [], q: o.q || null });
 
 // ---------- Boxe: socos ----------
 const JAB = P({ p: [0.05, 0.86, 0], cy: -60, lean: 15, hL: [0.85, 0.19, -0.03] });
@@ -142,8 +142,33 @@ const AR1 = P({ ...GF0, p: [0.06, 0.14, 0.08], tw: -30, fL: [0.5, 0.5, -0.02], f
 const AR2 = P({ ...AR1, fL: [0.36, 0.8, -0.36], kL: [0, 1, -1], hL: [0.26, 0.06, 0.04], hR: [0.26, 0.06, -0.04], eL: [-1, 0, 1], eR: [-1, 0, -1] }, LIE);
 const AR3 = P({ ...AR2, p: [0.06, 0.26, 0.06], lean: -112, fL: [0.5, 0.6, -0.42], fR: [0.56, 0.62, 0.22], kR: [0, 1, 1] }, LIE);
 
+// ============================================================
+// Técnicas em dupla (v3.32): o parceiro (short azul) ataca, é derrubado ou recebe o golpe.
+// Cada entrada: opções do parceiro + pose dele em cada quadro da técnica (null = mantém a anterior).
+// Poses do parceiro na mesma convenção (olhando pra +X); placePartner gira 180° e põe a _d metros.
+// ============================================================
+const Q = (pose, o = {}) => ({ ...pose, ...o });
+const PDOWN = P({ p: [0.06, 0.8, 0], lean: 36, hL: [0.24, 0.02, 0.12], hR: [0.24, 0.02, -0.12] });
+const PKNEED = P({ p: [0.02, 0.84, 0], lean: 42, hL: [0.2, -0.05, 0.14], hR: [0.2, -0.05, -0.14] });
+const PHIT = P({ p: [-0.06, 0.86, 0], lean: -6, cy: -30 });
+const PFLAT = P({ p: [-0.05, 0.36, 0], py: 0, cy: 0, lean: 70, fL: [-0.75, 0, -0.18], fR: [-0.75, 0, 0.18], kL: [0, -1, 0], kR: [0, -1, 0], tL: [0, -1, 0], tR: [0, -1, 0], hL: [0.42, -0.5, 0.2], hR: [0.42, -0.5, -0.2] });
+const PKNEEL = P({ p: [-0.1, 0.5, 0], py: 0, cy: 0, lean: 25, fL: [-0.5, 0, -0.14], fR: [-0.5, 0, 0.14], kL: [0, -1, 0], kR: [0, -1, 0], tL: [-1, 0, 0], tR: [-1, 0, 0], hL: [0.3, -0.1, 0.14], hR: [0.3, -0.1, -0.14] });
+const PGRAB = P({ p: [-0.04, 0.86, 0], lean: -10, cy: -35, hL: [0.3, 0.1, 0.18], hR: [0.3, 0.1, -0.2] });
+const PFALL = P({ p: [-0.28, 0.5, 0], py: 0, cy: 0, lean: -55, fL: [0.25, 0.3, -0.14], fR: [0.15, 0.2, 0.14], kL: [0, 1, 0], kR: [0, 1, 0], hL: [-0.1, -0.3, 0.3], hR: [-0.1, -0.3, -0.3] });
+const PDOWNB = P({ ...LIE, p: [-0.35, 0.12, 0], hL: [0.2, 0.1, 0.25], hR: [0.2, 0.1, -0.25] }, LIE);
+const PSL1 = P({ p: [-0.02, 0.88, 0], lean: -4, fL: [0.32, 0.34, -0.12], kL: [1, 0.4, 0], tL: [1, -0.4, 0], hL: [0.3, 0.16, 0.22], hR: [0.26, 0.12, -0.2] });
+const PSL2 = P({ ...PSL1, p: [-0.12, 0.86, 0.04], lean: -16, fR: [-0.36, 0, 0.18], hL: [0.1, 0.2, 0.4], hR: [0.1, 0.1, -0.36] });
+const PBKICK = P({ p: [0.15, 0.9, -0.15], py: 70, cy: 38, lean: -22, fL: [0.48, 0, -0.3], tL: [0.1, 0, -1], fR: [1.08, 0.95, -0.36], kR: [0, 1, 0], tR: [0.6, 0, -0.8], hR: [-0.25, -0.38, -0.25], eR: [-1, 0, -0.2], hL: [0.18, 0.28, 0.16] });
+const PCAUGHT = P({ ...PBKICK, p: [0.1, 0.88, -0.12], lean: -18, hL: [0.2, 0.25, 0.25], fR: [1.0, 0.92, -0.3] });
+const PSHOOT = P({ ...SHOT, _d: 1.05 });
+// agarrar o chute (muay thai): braço da frente prende a perna e o direto sai na hora
+const CATCH = P({ p: [0.06, 0.84, 0], lean: 12, cy: -40, hL: [0.36, -0.12, 0.06], eL: [0, -1, 0.6], hR: [0.16, 0.24, -0.1] });
+const CATCH_X = P({ ...CROSS, p: [0.2, 0.84, 0], hL: [0.3, -0.12, 0.06], eL: [0, -1, 0.6] });
+// contra no tempo (karatê): ele entra, você chega antes com o gyaku
+const DEAI = KP({ p: [0.1, 0.78, 0], py: -8, cy: 8, lean: 12, fR: [-0.4, 0.03, 0.14], tR: [0.8, -0.3, 0.5], hR: [0.92, 0.12, 0.0], hL: [0.0, -0.2, 0.16], eL: [-1, -0.3, 0.3] });
+
 const LIMB = { haL: 'armL', elL: 'armL', haR: 'armR', elR: 'armR', anL: 'legL', knL: 'legL', anR: 'legR', knR: 'legR' };
-const T = (id, sport, cat, n, sub, frames, steps, furos, opts = {}) => ({ id, sport, cat, n, sub, frames, steps, furos, props: opts.props, body: opts.body, gloves: opts.gloves ?? true, cam: opts.cam ?? 22, ox: opts.ox ?? 0, tilt: opts.tilt ?? 0, zoom: opts.zoom ?? 1,
+const T = (id, sport, cat, n, sub, frames, steps, furos, opts = {}) => ({ id, sport, cat, n, sub, frames, steps, furos, props: opts.props, body: opts.body, partner: opts.partner || null, gloves: opts.gloves ?? true, cam: opts.cam ?? 22, ox: opts.ox ?? 0, tilt: opts.tilt ?? 0, zoom: opts.zoom ?? 1,
   act: [...new Set(frames.map(f => LIMB[f.fx]).filter(Boolean))].flatMap(x => x.startsWith('leg') ? [x, 'foot' + x.slice(3)] : [x]) });
 const SC = ['boxe', 'muaythai', 'mma'];
 
@@ -337,11 +362,38 @@ export const TECHNIQUES = [
     [F(GF0, 520, 0), F(AR1, 260, 1, { fx: 'pel', hi: ['pel'] }), F(AR2, 260, 2, { fx: 'anL', hi: ['anL', 'haL', 'haR'] }), F(AR3, 260, 3, { e: 'snap', fx: 'pel', hit: true, hi: ['pel'] }), F(AR3, 420, 3), F(GF0, 540, 3)],
     ['Da guarda fechada, prende o braço dele no seu peito.', 'Pé no quadril dele e gira o corpo, fazendo ângulo.', 'A perna de cima passa por cima da cabeça dele.', 'Joelhos fechados e quadril pra cima: o cotovelo dele fica preso.'],
     ['Fazer sem ângulo (fica de frente e ele tira o braço).', 'Joelhos abertos.', 'Esquecer de controlar o punho dele contra o peito.'], { gloves: false, cam: 30, ox: 15, zoom: 1.3 }),
+  T('agarrachute', ['muaythai'], 'Defesa', 'Agarrar o chute e devolver', 'Prende a perna dele no braço e solta o direto antes que ele caia em base.',
+    [F(G, 460, 0), F(CATCH, 180, 0, { e: 'snap', hi: ['haL'] }), F(CATCH, 200, 1, { hi: ['elL'] }), F(CATCH_X, 170, 2, { e: 'snap', fx: 'haR', hit: true, hi: ['pel'] }), F(CATCH_X, 160, 3), F(G, 400, 3)],
+    ['Viu o chute no corpo: dá um passinho pra dentro e recebe com o braço da frente.', 'O antebraço passa por baixo da perna e prende contra a costela.', 'Ele fica numa perna só: é a hora de devolver.', 'Direto ou chute baixo na perna de apoio e solta a perna.'],
+    ['Tentar agarrar de longe (o chute chega com força total).', 'Segurar com as duas mãos e baixar a guarda.', 'Ficar parado segurando sem contra-atacar.'], { cam: 26, partner: { d: 1.28 } }),
+  T('deai', ['karate'], 'Defesa', 'Contra no tempo (deai)', 'Ele começa a entrar e você chega antes com o gyaku.',
+    [F(KA, 520, 0), F(KA, 160, 0, { hi: ['head'] }), F(GYA_L, 120, 1, { e: 'load' }), F(DEAI, 150, 2, { e: 'snap', fx: 'haR', hit: true, hi: ['pel'] }), F(DEAI, 180, 3), F(KA, 420, 3)],
+    ['Na distância, olhando o quadril e o ombro dele.', 'Ele começa a entrar: é o sinal.', 'O gyaku sai no mesmo instante, com o quadril, sem recuar.', 'Pontua e sai da linha dele.'],
+    ['Esperar o golpe dele chegar pra reagir (aí já é tarde).', 'Recuar antes de contra-atacar.', 'Soco sem o quadril, que não pontua.'], { gloves: false, cam: 16, partner: { d: 1.45, gloves: false } }),
   T('quebrapostura', ['jiu'], 'Guarda e passagem', 'Quebra de postura (guarda fechada)', 'Puxa com os joelhos e as mãos ao mesmo tempo: a cabeça dele desce no seu peito.',
     [F(GF0, 520, 0, { hi: ['anL', 'anR'] }), F(GF0, 200, 1, { hi: ['haL', 'haR'] }), F(GF1, 260, 2, { e: 'snap', fx: 'knL', hi: ['knL', 'knR', 'haL'] }), F(GF1, 400, 3, { hi: ['pel'] }), F(GF0, 520, 0)],
     ['Guarda fechada: tornozelos cruzados nas costas dele.', 'Pegue a gola ou a nuca com as mãos.', 'Puxe os joelhos pro peito e as mãos pra baixo, ao mesmo tempo.', 'Com a postura dele quebrada, ataque (triângulo, armlock, raspagem).'],
     ['Puxar só com os braços (ele é mais forte que seus bíceps).', 'Guarda fechada parada, sem puxar: ele levanta a postura.', 'Abrir a guarda sem motivo.'], { gloves: false, cam: 30, ox: 15, zoom: 1.3 })
 ];
+
+// ---------- técnicas em dupla ----------
+const DUO = {
+  bloqueio: { o: { d: 1.15 }, q: [G, CROSS_LOAD, CROSS, G] },
+  aparada: { o: { d: 1.1 }, q: [G, JAB, JAB, G, PHIT, G] },
+  esquiva: { o: { d: 1.1 }, q: [G, JAB, JAB, G, CROSS, CROSS, G] },
+  pendulo: { o: { d: 1.0 }, q: [G, HOOK_LOAD, HOOK_MID, HOOK, G] },
+  recuo: { o: { d: 1.12 }, q: [G, JAB, JAB, PHIT, G] },
+  checar: { o: { d: 1.25 }, q: [G, LOWKICK, LOWKICK, Q(G, { _d: 1.08 }), Q(PHIT, { _d: 1.08 }), G] },
+  clinch: { o: { d: 0.8 }, q: [Q(G, { _d: 1.0 }), G, PDOWN, PKNEED, PDOWN, Q(G, { _d: 1.0 })] },
+  ageuke: { o: { d: 1.3, gloves: false }, q: [KA, KIZ_SL, KIZ, KIZ, KA] },
+  sprawl: { o: { d: 1.15, ox: 8, zoom: 0.85 }, q: [G, Q(PSHOOT, { _d: 0.92 }), Q(PFLAT, { _d: 0.6 }), Q(PKNEEL, { _d: 0.85 }), G] },
+  double: { o: { d: 1.12 }, q: [G, G, PGRAB, PFALL, PDOWNB, G] },
+  singleleg: { o: { d: 1.05, gloves: false }, q: [G, G, PSL1, PSL1, PSL2, PFALL, G] }
+};
+DUO.agarrachute = { o: { d: 1.28 }, q: [G, KICK_CH, PBKICK, PCAUGHT, Q(PCAUGHT, { lean: -30 }), G] };
+DUO.deai = { o: { d: 1.45, gloves: false }, q: [KA, KA, KIZ_SL, Q(KIZ_SL, { lean: -10, cy: -40 }), KIZ_SL, KA] };
+// em dupla: câmera mais de lado (um não cobre o outro) e a dupla centralizada no quadro
+for (const t of TECHNIQUES) { const x = DUO[t.id]; if (!x) continue; t.partner = x.o; t.cam = x.o.cam ?? 12; t.ox = x.o.ox ?? -Math.round((x.o.d ?? 1.1) * 46); t.zoom = x.o.zoom ?? 0.92; t.frames.forEach((f, i) => { if (x.q[i]) f.q = x.q[i]; }); }
 
 export const CATS = ['Socos', 'Chutes', 'Joelhos e cotovelos', 'Defesa', 'Movimentação', 'Quedas', 'Chão', 'Guarda e passagem'];
 
@@ -361,12 +413,15 @@ export const TIRED = {
 export function peak(t) { return (t.frames.find(f => f.hit) || t.frames[Math.min(2, t.frames.length - 1)]).p; }
 // alvo = onde a parte que golpeia chega no impacto (só nos golpes, não no chão/defesa)
 export function targetOf(t) {
-  const h = t.frames.find(f => f.hit && f.fx && f.fx !== 'pel'); if (!h || !t.gloves) return null;
+  const h = t.frames.find(f => f.hit && f.fx && f.fx !== 'pel'); if (!h || !t.gloves || t.partner) return null; // com parceiro, o alvo é ele
   return solve(h.p)[h.fx];
 }
 // um quadro qualquer (folha de revisão): i = índice do quadro
-export function techFrameSVG(t, i) { const f = t.frames[Math.max(0, Math.min(i, t.frames.length - 1))], J = solve(f.p); return draw(J, { gloves: t.gloves, cam: t.cam, ox: t.ox, act: t.act, tilt: t.tilt, zoom: t.zoom, target: targetOf(t), props: t.props?.(J), ...(t.body || {}) }); }
-export function thumbSVG(t) { return draw(solve(peak(t)), { gloves: t.gloves, cam: t.cam, ox: t.ox, act: t.act, tilt: t.tilt, zoom: t.zoom, target: targetOf(t) }); }
+// parceiro (segundo boneco): q = pose dele no quadro (mesma convenção, olhando pra +X); _d = distância (m)
+const qOf = (t, i) => { for (let j = i; j >= 0; j--) if (t.frames[j].q) return t.frames[j].q; return t.frames.find(f => f.q)?.q || null; };
+function partnerOf(t, q) { if (!t.partner || !q) return null; return { J: placePartner(solve(q), q._d ?? t.partner.d ?? 1.1, q._dz ?? 0), gloves: t.partner.gloves ?? t.gloves, front: !!(q._front ?? t.partner.front) }; }
+export function techFrameSVG(t, i) { const k = Math.max(0, Math.min(i, t.frames.length - 1)), f = t.frames[k], J = solve(f.p); return draw(J, { gloves: t.gloves, cam: t.cam, ox: t.ox, act: t.act, tilt: t.tilt, zoom: t.zoom, target: targetOf(t), props: t.props?.(J), partner: partnerOf(t, qOf(t, k)), ...(t.body || {}) }); }
+export function thumbSVG(t) { const k = Math.max(0, t.frames.findIndex(f => f.hit)); return draw(solve(peak(t)), { gloves: t.gloves, cam: t.cam, ox: t.ox, act: t.act, tilt: t.tilt, zoom: t.zoom, target: targetOf(t), partner: partnerOf(t, qOf(t, k || Math.floor(t.frames.length / 2))) }); }
 
 // ---------- animação ----------
 export function animate(el, tech, onStep) {
@@ -385,14 +440,14 @@ export function animate(el, tech, onStep) {
     }
     const a = fr[i], b = fr[(i + 1) % fr.length];
     const k = EASE[b.e](Math.max(0, Math.min(1, t)));
-    const J = solve(mix(a.p, b.p, k));
+    const J = solve(mix(a.p, b.p, k)), qa = qOf(tech, i), qb = qOf(tech, (i + 1) % fr.length), pq = qa && qb ? mix(qa, qb, k) : qa || qb;
     if (b.fx && t > 0) { trail.push(J[b.fx]); if (trail.length > 9) trail.shift(); if (target && b.fx !== 'pel' && (!path.length || Math.hypot(...J[b.fx].map((v, j) => v - path[path.length - 1][j])) > 0.015)) path.push(J[b.fx]); }
     else if (trail.length) trail.shift();
     let burst = null;
     const since = now - burstT;
     if (burstT && since < 260 * speed) { if (a.fx) burstP = J[a.fx]; burst = burstP ? { p: burstP, s: 1.15 - since / (260 * speed) * 0.6 } : null; }
     const show = k > 0.5 ? b : a;
-    el.innerHTML = draw(J, { gloves: tech.gloves, hi: show.hi, trail: trail.length > 1 ? trail : null, burst, cam: tech.cam, ox: tech.ox, act: tech.act, tilt: tech.tilt, zoom: tech.zoom, target, path: path.length > 2 ? path : null, props: tech.props ? tech.props(J) : null, ...(tech.body || {}) });
+    el.innerHTML = draw(J, { gloves: tech.gloves, partner: partnerOf(tech, pq), hi: show.hi, trail: trail.length > 1 ? trail : null, burst, cam: tech.cam, ox: tech.ox, act: tech.act, tilt: tech.tilt, zoom: tech.zoom, target, path: path.length > 2 ? path : null, props: tech.props ? tech.props(J) : null, ...(tech.body || {}) });
     if (show.step !== lastStep) { lastStep = show.step; onStep && onStep(show.step); }
     raf = requestAnimationFrame(frame);
   }
