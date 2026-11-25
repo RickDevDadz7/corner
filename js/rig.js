@@ -106,8 +106,8 @@ const W = { th: 17, sn: 13, ua: 13, fa: 11, foot: 9 };
 // parceiro: segundo boneco (short e luvas azuis) com pose própria, girado 180° e a d metros à frente
 // partner = { J (já posicionado no mundo, ver placePartner), gloves, front: desenha na frente do principal }
 export function placePartner(J2, d = 1.1, dz = 0) { const o = {}; for (const k in J2) { const v = J2[k]; o[k] = [d - v[0], v[1], dz - v[2]]; } return o; }
-export function draw(J, { gloves = true, hi = [], trail = null, burst = null, cam = 30, ox = 0, oy = 0, act = [], tilt = 0, zoom = 1, target = null, path = null, props = null, missing = null, prosthesis = false, partner = null } = {}) {
-  CAM = cam * D; TILT = tilt * D; ZOOM = zoom;
+export function draw(J, { gloves = true, hi = [], trail = null, burst = null, cam = 30, ox = 0, oy = 0, noshadow = false, act = [], tilt = 0, zoom = 1, target = null, path = null, props = null, missing = null, prosthesis = false, partner = null } = {}) {
+  CAM = cam * D; TILT = tilt * D; ZOOM = zoom; NOSH = noshadow;
   const F1 = figParts(J, { gloves, act, missing, prosthesis });
   let p2 = '';
   let F2 = null;
@@ -155,6 +155,7 @@ export function draw(J, { gloves = true, hi = [], trail = null, burst = null, ca
   }
 }
 // monta um boneco (sombra, membros, tronco, short, cabeça, luvas) já projetado
+let NOSH = false; // sem sombra (técnicas com pegadas no chão)
 function figParts(J, { gloves = true, act = [], missing = null, prosthesis = false } = {}) {
   const miss = new Set(missing || []);
   const P = {}; for (const k in J) P[k] = proj(J[k]);
@@ -206,7 +207,7 @@ function figParts(J, { gloves = true, act = [], missing = null, prosthesis = fal
   const gBack = (farH('L') ? gL : '') + (farH('R') ? gR : '');
   const gFront = (!farH('L') ? gL : '') + (!farH('R') ? gR : '');
   const sp = proj([J.pel[0], 0, J.pel[2]]);
-  const shadow = `<ellipse cx="${sp[0].toFixed(1)}" cy="${(sp[1] + 1).toFixed(1)}" rx="52" ry="${(6 + 30 * Math.sin(TILT)).toFixed(1)}" class="sh"/>`;
+  const shadow = NOSH ? '' : `<ellipse cx="${sp[0].toFixed(1)}" cy="${(sp[1] + 1).toFixed(1)}" rx="52" ry="${(6 + 30 * Math.sin(TILT)).toFixed(1)}" class="sh"/>`;
   return { P, zMid, back, gBack, torso, frontLegs, trunks, head, front, gFront, shadow };
 }
 

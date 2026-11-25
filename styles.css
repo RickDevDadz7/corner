@@ -676,7 +676,7 @@ body.resting #app{padding-bottom:calc(176px + var(--safe-b))}
 .spark{width:100%;height:56px;margin-top:10px;border-bottom:2px solid var(--ink)}
 .spark polyline{fill:none;stroke:var(--acc);stroke-width:2.5;vector-effect:non-scaling-stroke;stroke-linejoin:round}
 /* equipamentos das demonstrações */
-.fig .pr{stroke:#6f675b}.fig .prb{stroke:#3a342c}.fig .bnd{stroke:var(--acc);stroke-dasharray:5 3}
+.fig .ftp{stroke:rgba(var(--ink-rgb),.45)}.fig .pr{stroke:#6f675b}.fig .prb{stroke:#3a342c}.fig .bnd{stroke:var(--acc);stroke-dasharray:5 3}
 .fig .plt{fill:#3a342c;stroke:var(--ink);stroke-width:2}.fig .pltc{fill:#a39b8e}
 .fig .dbb{fill:#3a342c;stroke:var(--ink);stroke-width:1.5}.fig .mbl{fill:var(--acc);stroke:var(--ink);stroke-width:2.5}
 .fig .bxf{fill:#d6cdb8;stroke:var(--ink);stroke-width:2}.fig .bxt{fill:#e7dfcc;stroke:var(--ink);stroke-width:2}.fig .bxs{fill:#c2b89f;stroke:var(--ink);stroke-width:2}

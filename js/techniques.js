@@ -245,6 +245,86 @@ const PML0 = { ...SAME({ p: [0.32, 0.12, 0], py: 0, cy: 0, ay: 0, lean: -22, fL:
 const PML3 = { ...SAME({ p: [0.3, 0.12, 0], py: 0, cy: 0, ay: 0, lean: -30, fL: [0.98, 0, -0.2], fR: [1.0, 0, 0.18], kL: [0.2, 1, -0.3], kR: [0.2, 1, 0.3], tL: [0.3, 1, 0], tR: [0.3, 1, 0], wL: [0.25, 0.38, -0.36], wR: [0.18, 0.6, 0.06], eL: [0, -1, 0.3], eR: [0, -1, -0.3] }), _d: 0 };
 const PML1 = { ...SAME({ p: [0.32, 0.12, 0], py: 0, cy: 0, ay: 0, lean: -22, fL: [1.0, 0, -0.18], fR: [1.0, 0, 0.18], kL: [0.2, 1, -0.3], kR: [0.2, 1, 0.3], tL: [0.3, 1, 0], tR: [0.3, 1, 0], wL: [0.2, 0.6, -0.08], wR: [0.18, 0.6, 0.06], eL: [0, -1, 0.3], eR: [0, -1, -0.3] }), _d: 0 };
 // </chao-duo>
+// <lutas-rev>
+// ============================================================
+// Revisão das lutas (v3.34): poses refeitas a pedido do Rick.
+// MIR(pose): espelha (base trocada, canhoto); pegadas: marcas fixas no chão pra ver o pé andar.
+// ============================================================
+const MIRV = v => v && [v[0], v[1], -v[2]];
+function MIR(q) {
+  const o = { ...q }; for (const k of ['p', 'wL', 'wR', 'fL', 'fR', 'kL', 'kR', 'tL', 'tR']) delete o[k];
+  if (q.p) o.p = MIRV(q.p);
+  for (const [a, b] of [['wL', 'wR'], ['fL', 'fR'], ['kL', 'kR'], ['tL', 'tR']]) { if (q[b]) o[a] = MIRV(q[b]); if (q[a]) o[b] = MIRV(q[a]); }
+  for (const [a, b] of [['hL', 'hR'], ['eL', 'eR']]) { o[a] = q[b] && MIRV(q[b]); o[b] = q[a] && MIRV(q[a]); if (!o[a]) delete o[a]; if (!o[b]) delete o[b]; }
+  for (const k of ['py', 'cy', 'ay', 'tw']) if (q[k] !== undefined) o[k] = -q[k];
+  return o;
+}
+const FOOT = (f, w = 9) => ({ k: 'line', a: [f[0] - 0.08, 0.002, f[2]], b: [f[0] + 0.08, 0.002, f[2]], w, c: 'ftp', layer: 'back' });
+const PRINTS = (...ps) => () => ps.flatMap(p => [FOOT(p.fL), FOOT(p.fR)]);
+
+// cruzado por cima: a mão sai por fora e por cima, longe da cabeça, e desce no alvo
+const OVR_UP = P({ p: [0.03, 0.8, 0], cy: -30, lean: 18, hR: [0.02, 0.56, -0.44], eR: [-0.4, 0.4, -1] });
+const OVR_TOP = P({ p: [0.07, 0.79, 0], cy: 0, py: -10, lean: 24, hR: [0.48, 0.5, -0.3], eR: [0, 1, -0.7], fR: [-0.28, 0.03, 0.1], tR: [0.8, -0.3, 0.5] });
+const OVR = P({ ...OVER, hR: [0.8, 0.08, 0.0], eR: [0, 1, -0.5] });
+
+// esquiva: o pé e o quadril giram e a cabeça sai da linha (sem tombar o tronco)
+const SLIPO = P({ p: [0.02, 0.8, 0.09], py: -66, cy: -80, lean: 12, hL: [0.24, 0.2, 0.06], hR: [0.14, 0.24, -0.1], tL: [0.5, 0, -0.86], fL: [0.38, 0, -0.12] });
+const SLIPI = P({ p: [0.06, 0.8, -0.09], py: -18, cy: -12, lean: 12, tR: [0.75, -0.35, 0.55], fR: [-0.27, 0.04, 0.12], hL: [0.24, 0.2, 0.06], hR: [0.16, 0.24, -0.08] });
+// pêndulo: "U" grande por baixo do gancho
+const BOBA = P({ p: [0.03, 0.7, 0.14], lean: 16, cy: -60, py: -50, kL: [1, 0, -0.4], kR: [1, 0, 0.4] });
+const BOBB = P({ p: [0.05, 0.6, 0.0], lean: 20, cy: -45, kL: [1, 0, -0.4], kR: [1, 0, 0.4] });
+const BOBC = P({ p: [0.05, 0.72, -0.14], lean: 16, cy: -22, py: -25, kL: [1, 0, -0.4], kR: [1, 0, 0.4] });
+
+// chute de esquerda: pulinho trocando os pés, fica em base canhota e chuta com a esquerda (que ficou atrás)
+const SW_AIR = P({ p: [0.04, 0.95, 0.01], py: 0, cy: 0, fL: [0.06, 0.1, -0.13], fR: [0.08, 0.1, 0.14], tL: [1, -0.4, 0], tR: [1, -0.4, 0] });
+const G_S = MIR(G);
+const SWK_CH = MIR(KICK_CH), SWK = MIR(KICK);
+
+// cotovelada ascendente: o antebraço sobe por fora do rosto, cotovelo na linha do queixo
+const ELB_UP = P({ ...ELBOW_UP, hR: [0.04, 0.5, -0.24], eR: [1, 0.35, -0.1] });
+
+// kizami: o pé da frente desliza primeiro (rente ao chão), o de trás acompanha depois do soco
+const KZ1 = KP({ p: [0.12, 0.8, 0], fL: [0.8, 0.03, -0.1], tL: [0.9, -0.15, -0.3] });
+const KZ2 = KP({ p: [0.24, 0.8, 0], cy: -68, lean: 8, fL: [0.8, 0, -0.1], fR: [-0.44, 0, 0.14], hL: [0.92, 0.2, -0.04], hR: [0.14, 0.1, -0.08] });
+const KZ3 = KP({ ...KZ2, fR: [-0.2, 0.02, 0.14] });
+const KZ4 = KP({ p: [0.12, 0.8, 0], fL: [0.8, 0, -0.1], fR: [-0.44, 0.02, 0.14] });
+
+// passos: frente, trás, lados (a base nunca muda)
+const PS_F1 = P({ p: [0.12, 0.86, 0], fL: [0.62, 0.02, -0.12] });
+const PS_F2 = P({ p: [0.24, 0.86, 0], fL: [0.62, 0, -0.12], fR: [-0.06, 0, 0.12] });
+const PS_B1 = P({ p: [0.12, 0.86, 0], fL: [0.62, 0, -0.12], fR: [-0.3, 0.02, 0.12] });
+const PS_L1 = P({ p: [0, 0.86, -0.15], fL: [0.38, 0.02, -0.42], fR: [-0.3, 0, 0.12] });
+const PS_L2 = P({ p: [0, 0.86, -0.3], fL: [0.38, 0, -0.42], fR: [-0.3, 0, -0.18] });
+const PS_R1 = P({ p: [0, 0.86, -0.15], fL: [0.38, 0, -0.42], fR: [-0.3, 0.02, 0.12] });
+
+// double leg: entra, abraça as DUAS pernas atrás dos joelhos, levanta e ele cai de costas
+const DL_GRAB = P({ p: [0.36, 0.44, 0], py: -20, cy: -10, lean: 48, fL: [0.62, 0, -0.1], kL: [1, -0.7, 0], tL: [0.4, -0.5, 0], fR: [-0.35, 0, 0.16], wL: [1.0, 0.42, -0.06], wR: [1.0, 0.42, 0.18], eL: [0, -0.3, -1], eR: [0, -0.3, 1] });
+const DL_LIFT = P({ p: [0.5, 0.74, 0], py: -5, cy: 0, lean: 26, fL: [0.7, 0, -0.14], fR: [0.12, 0, 0.16], kL: [1, 0, -0.2], kR: [1, 0, 0.2], wL: [0.92, 0.74, -0.08], wR: [0.92, 0.74, 0.16], eL: [0, -0.3, -1], eR: [0, -0.3, 1] });
+const DL_TOP = { ...KNEEL, p: [0.95, 0.5, 0], lean: 40, wL: [1.32, 0.3, -0.14], wR: [1.32, 0.3, 0.14] };
+const PDL0 = P({ p: [0, 0.86, 0], py: -10, cy: -30, lean: 8, fL: [0.06, 0, -0.15], fR: [0.0, 0, 0.15], hL: [0.3, 0.1, 0.18], hR: [0.3, 0.1, -0.2] });
+const PDL1 = P({ ...PDL0, _d: 1.0, lean: 30, p: [0, 0.82, 0], hL: [0.3, -0.25, 0.2], hR: [0.3, -0.25, -0.2] });
+const PDL2 = P({ _d: 1.0, p: [0.0, 1.02, 0], py: 0, cy: 0, lean: -35, fL: [0.2, 0.55, -0.1], fR: [0.2, 0.55, 0.1], kL: [1, -0.2, 0], kR: [1, -0.2, 0], tL: [1, 0.4, 0], tR: [1, 0.4, 0], hL: [0.0, 0.2, 0.4], hR: [0.0, 0.2, -0.4] });
+const PDL3 = { ...LIE, _d: 1.0, p: [-0.4, 0.12, 0], fL: [0.15, 0, -0.26], fR: [0.15, 0, 0.26], kL: [0, 1, -0.3], kR: [0, 1, 0.3], hL: [0.25, 0.05, 0.25], hR: [0.25, 0.05, -0.25], _ord: 'pb mb pt ps pn ph pf mt ms mn mh mf' };
+
+// sprawl: ele entra na perna; você joga as pernas pra trás e afunda o quadril nas costas dele
+const SPR2 = { p: [-0.02, 0.38, 0], py: 0, cy: 0, ay: 0, lean: 76, fL: [-0.95, 0, -0.24], fR: [-0.95, 0, 0.24], kL: [0, -1, 0], kR: [0, -1, 0], tL: [0, -1, 0], tR: [0, -1, 0], wL: [0.42, 0.34, -0.18], wR: [0.42, 0.34, 0.18], eL: [-0.2, 0, -1], eR: [-0.2, 0, 1] };
+const SPR_UP2 = P({ p: [-0.35, 0.6, 0], lean: 30, fL: [-0.05, 0, -0.15], fR: [-0.7, 0, 0.15] });
+const PSH = { ...SHOT, _d: 0.95 };
+const PSFL = { ...PG, _d: 0.75, p: [0, 0.32, 0], lean: 100, fL: [-0.5, 0, -0.15], fR: [-0.5, 0, 0.15], wL: PW(0.75, [-0.18, 0.22, 0.2]), wR: PW(0.75, [-0.18, 0.22, -0.2]), eL: [0, -1, 0.3], eR: [0, -1, -0.3], _ord: 'pb pt ps pn ph pf mb mt ms mn mh mf' };
+const PSKN = { ...PKNEEL, _d: 0.9 };
+
+// fuga de quadril com ele nos 100 kg (do lado de lá): vira de lado pra ele, empurra e tira o quadril, põe o joelho
+const PSC = { ...SAME({ ...TORD3, p: [-0.3, 0.36, 0.6], fL: [-0.45, 0, 0.84], fR: [-0.15, 0, 0.84], wL: [-0.66, 0.08, 0.0], wR: [0.12, 0.16, 0.22] }), _d: 0, _ord: 'mb mt ms mn mh pb pt ps pn ph pf mf' };
+const PSC2 = { ...PSC, _ord: 'mb mt ms mh pb pt ps pn ph pf mn mf' };
+const FU0 = P({ wL: [-0.22, 0.44, 0.08], wR: [-0.3, 0.5, 0.16], eL: [0, 0, -1], eR: [0, 0, -1] }, LIE);
+const FU1 = P({ p: [0.1, 0.18, -0.06], lean: -96, tw: -60, fL: [0.45, 0, -0.22], fR: [0.42, 0, 0.04], kL: [0.2, 1, -0.6], kR: [0.2, 1, 0.2], wL: [-0.16, 0.42, 0.12], wR: [-0.26, 0.5, 0.16] }, LIE);
+const FU2 = P({ ...FU1, p: [0.0, 0.18, -0.36], lean: -100, tw: -64, fL: [0.32, 0, -0.5], fR: [0.36, 0.04, -0.16], wL: [-0.14, 0.42, 0.1], wR: [-0.24, 0.48, 0.14] }, LIE);
+const FU3 = P({ ...FU2, fR: [0.08, 0.3, -0.1], kR: [0.3, 0.6, 1], tR: [1, 0, 0] }, LIE);
+
+// age-uke contra o soco no rosto; cruzado no corpo com o parceiro
+const PKZ = KP({ p: [0.24, 0.8, 0], cy: -68, lean: 6, fL: [0.78, 0, -0.1], fR: [-0.2, 0, 0.14], hL: [0.95, 0.42, -0.04], hR: [0.14, 0.1, -0.08] });
+const PBODY = P({ p: [-0.06, 0.82, 0], lean: 26, cy: -20, py: -30, hR: [0.12, -0.12, -0.22], hL: [0.24, 0.18, 0.06] });
+// </lutas-rev>
 
 const LIMB = { haL: 'armL', elL: 'armL', haR: 'armR', elR: 'armR', anL: 'legL', knL: 'legL', anR: 'legR', knR: 'legR' };
 const T = (id, sport, cat, n, sub, frames, steps, furos, opts = {}) => ({ id, sport, cat, n, sub, frames, steps, furos, props: opts.props, body: opts.body, partner: opts.partner || null, gloves: opts.gloves ?? true, cam: opts.cam ?? 22, ox: opts.ox ?? 0, tilt: opts.tilt ?? 0, zoom: opts.zoom ?? 1,
@@ -274,9 +354,9 @@ export const TECHNIQUES = [
     ['Desça um pouco o peso sobre a perna da frente.', 'O punho desce curto, palma pra cima, cotovelo colado.', 'Gire o quadril da frente e empurre com a perna: o punho sobe.', 'Acerta o queixo e volta pra guarda.'],
     ['Abrir o cotovelo pra fora.', 'Perder a mão de trás do rosto.', 'Subir na ponta dos pés.'], { cam: 8 }),
   T('overhand', ['boxe', 'mma'], 'Socos', 'Cruzado por cima (overhand)', 'Por cima da guarda: arco alto, corpo cai junto.',
-    [F(G, 480, 0), F(OVER_MID, 170, 0, { e: 'load', fx: 'haR' }), F(OVER, 160, 1, { e: 'snap', fx: 'haR', hit: true, hi: ['pel'] }), F(OVER, 110, 2), F(G, 380, 3)],
+    [F(G, 480, 0), F(OVR_UP, 200, 0, { e: 'load', fx: 'haR' }), F(OVR_TOP, 130, 1, { e: 'lin', fx: 'haR' }), F(OVR, 130, 1, { e: 'snap', fx: 'haR', hit: true, hi: ['pel'] }), F(OVR, 140, 2, { hi: ['pel'] }), F(G, 400, 3)],
     ['Troque levemente de nível, cabeça fora da linha.', 'A mão de trás faz um arco por cima, como um laço.', 'O peso do corpo vai junto pra frente.', 'Volte rápido pra guarda: é golpe de risco.'],
-    ['Lançar de muito longe.', 'Cabeça no centro, sem esquiva.', 'Ficar caído pra frente depois do golpe.']),
+    ['Lançar de muito longe.', 'Cabeça no centro, sem esquiva.', 'Ficar caído pra frente depois do golpe.'], { cam: 62, tilt: 18, zoom: 1.05 }),
   // ===== DEFESA =====
   T('bloqueio', SC, 'Defesa', 'Bloqueio (guarda alta)', 'A defesa mais simples: luvas na testa, cotovelos fechados.',
     [F(G, 480, 0), F(BLOCK, 160, 0, { e: 'snap', hi: ['haL', 'haR'] }), F(BLOCK, 380, 1, { hi: ['elL', 'elR'] }), F(G, 300, 2)],
@@ -287,21 +367,21 @@ export const TECHNIQUES = [
     ['Espere o jab chegar perto.', 'A mão de trás dá um tapa curto pra dentro, desviando o soco.', 'Não persiga a mão do adversário: movimento curto.', 'Responda com o direto na hora.'],
     ['Abrir muito a mão (abre o rosto).', 'Aparar cedo demais.', 'Aparar e não contra-atacar.'], { cam: 50 }),
   T('esquiva', SC, 'Defesa', 'Esquiva', 'Sair da linha do soco sem perder a posição.',
-    [F(G, 480, 0), F(SLIP_OUT, 200, 0, { e: 'snap', hi: ['head'] }), F(SLIP_OUT, 180, 1, { hi: ['pel'] }), F(G, 220, 2), F(SLIP_IN, 200, 0, { e: 'snap', hi: ['head'] }), F(SLIP_IN, 160, 1), F(G, 260, 3)],
-    ['Veja o soco vindo, mãos no rosto.', 'Gire o tronco e leve a cabeça pra fora da linha.', 'Dobre um pouco os joelhos: o movimento é das pernas e do quadril.', 'Volte já armado pra contra-atacar.'],
-    ['Esquivar só com o pescoço.', 'Fechar os olhos ou virar o rosto.', 'Esquivar demais e perder o equilíbrio.'], { cam: 70 }),
+    [F(G, 480, 0), F(SLIPO, 200, 0, { e: 'snap', hi: ['head'] }), F(SLIPO, 260, 1, { hi: ['anL', 'pel'] }), F(G, 240, 2), F(SLIPI, 200, 0, { e: 'snap', hi: ['head'] }), F(SLIPI, 240, 1, { hi: ['anR', 'pel'] }), F(G, 300, 3)],
+    ['Veja o soco vindo, mãos no rosto.', 'Gire o pé e o quadril: o ombro vai pra trás e a cabeça sai pra fora do soco.', 'O tronco não tomba pro lado; o giro é que tira a cabeça da linha.', 'Volte já armado pra contra-atacar.'],
+    ['Esquivar só com o pescoço.', 'Inclinar o tronco pro lado em vez de girar.', 'Esquivar demais e perder o equilíbrio.'], { cam: 70 }),
   T('pendulo', ['boxe', 'mma'], 'Defesa', 'Pêndulo', 'Passar por baixo do gancho em "U".',
-    [F(G, 450, 0), F(BOB1, 200, 0, { hi: ['knL', 'knR'] }), F(BOB2, 160, 1, { e: 'lin', fx: 'head' }), F(BOB3, 180, 2, { fx: 'head' }), F(G, 260, 3)],
+    [F(G, 450, 0), F(BOBA, 220, 0, { hi: ['knL', 'knR'], fx: 'head' }), F(BOBB, 180, 1, { e: 'lin', fx: 'head' }), F(BOBC, 200, 2, { fx: 'head' }), F(G, 300, 3)],
     ['Dobre os joelhos: desça com as pernas, não com as costas.', 'Passe a cabeça por baixo do golpe, desenhando um "U".', 'Mãos no rosto o tempo todo.', 'Suba do outro lado, já em posição de bater.'],
     ['Curvar a coluna e olhar pro chão.', 'Descer demais (fica lento pra voltar).', 'Baixar as mãos.'], { cam: 72 }),
   T('recuo', ['boxe'], 'Defesa', 'Recuo e contra (pull counter)', 'Tira a cabeça pra trás e devolve com o direto.',
     [F(G, 480, 0), F(PULL, 180, 0, { e: 'snap', hi: ['head'] }), F(PULL, 120, 1, { hi: ['anR'] }), F(CROSS, 170, 2, { e: 'snap', fx: 'haR', hit: true }), F(G, 300, 3)],
     ['Leia o jab.', 'Desloque o peso pra perna de trás, tirando a cabeça do alcance.', 'Os pés não saem do lugar.', 'Volte com o direto enquanto o braço dele recolhe.'],
     ['Inclinar pra trás só com a cintura.', 'Levantar o queixo.', 'Recuar sem contra-atacar.']),
-  T('pivo', ['boxe', 'muaythai', 'mma'], 'Defesa', 'Pivô', 'Girar sobre o pé da frente pra sair do canto.',
-    [F(G, 520, 0), F(pivot(-35), 220, 0, { hi: ['anL'] }), F(pivot(-70), 240, 1, { fx: 'anR' }), F(pivot(-70), 300, 2), F(G, 500, 3)],
-    ['Peso na ponta do pé da frente.', 'O pé de trás varre o chão em arco.', 'O corpo gira junto, guarda sempre fechada.', 'Agora você está de frente pro lado dele, não pras cordas.'],
-    ['Cruzar os pés.', 'Girar com o peso no calcanhar.', 'Baixar as mãos durante o giro.'], { cam: 40 }),
+  T('pivo', ['boxe', 'muaythai', 'mma'], 'Defesa', 'Pivô', 'Girar sobre um pé pra sair do canto. Funciona nos dois pés.',
+    [F(G, 520, 0, { hi: ['anL'] }), F(pivot(-35), 260, 1, { fx: 'anR', hi: ['anL'] }), F(pivot(-70), 280, 1, { fx: 'anR' }), F(pivot(-70), 360, 2), F(pivot(-70), 300, 3), F(G, 600, 3)],
+    ['Peso na ponta do pé da frente (dá pra fazer também girando no pé de trás).', 'O outro pé varre o chão em arco, longe do pé que gira.', 'O corpo gira junto, guarda sempre fechada.', 'Agora você está de frente pro lado dele, não pras cordas.'],
+    ['Cruzar os pés.', 'Girar com o peso no calcanhar.', 'Baixar as mãos durante o giro.'], { cam: 30, tilt: 55, zoom: 0.95, props: PRINTS(G) }),
   // ===== CHUTES =====
   T('chute', ['muaythai', 'mma'], 'Chutes', 'Chute de direita', 'O golpe símbolo do muay thai: a canela é o taco.',
     [F(G, 450, 0), F(KICK_STEP, 160, 0, { hi: ['anL'] }), F(KICK_CH, 150, 1, { e: 'lin', fx: 'anR', hi: ['pel'] }), F(KICK, 140, 2, { e: 'snap', fx: 'anR', hit: true }), F(KICK, 130, 3, { hi: ['haR'] }), F(KICK_CH, 220, 3), F(G, 320, 3)],
@@ -312,8 +392,8 @@ export const TECHNIQUES = [
     ['Passo pra fora com o pé da frente.', 'Gire o quadril e desça a canela na coxa dele, levemente de cima pra baixo.', 'Mão da frente no rosto: ele pode devolver um soco.', 'Volte pra base.'],
     ['Chutar sem preparar (com socos antes fica mais fácil acertar).', 'Acertar com o pé no joelho (machuca você).', 'Chutar de longe demais.'], { cam: 10 }),
   T('chuteesq', ['muaythai', 'mma'], 'Chutes', 'Chute de esquerda (troca de base)', 'Troca os pés rápido e chuta com a perna da frente.',
-    [F(G, 450, 0), F(SWITCH, 170, 0, { e: 'snap', hi: ['anL', 'anR'] }), F(SW_CH, 150, 1, { e: 'lin', fx: 'anL', hi: ['pel'] }), F(SW_KICK, 140, 2, { e: 'snap', fx: 'anL', hit: true }), F(SW_KICK, 120, 3), F(SW_CH, 220, 3), F(G, 360, 3)],
-    ['Pulo curto trocando os pés de lugar.', 'Gire no pé que ficou na frente e jogue o quadril.', 'A canela esquerda acerta o corpo (fígado do lado dele).', 'Volte pra guarda normal.'],
+    [F(G, 450, 0, { hi: ['anL'] }), F(SW_AIR, 110, 0, { e: 'snap', fx: 'anL', hi: ['anL', 'anR'] }), F(G_S, 110, 0, { hi: ['anR'] }), F(SWK_CH, 150, 1, { e: 'lin', fx: 'anL', hi: ['pel'] }), F(SWK, 140, 2, { e: 'snap', fx: 'anL', hit: true }), F(SWK, 120, 2), F(SWK_CH, 220, 3), F(G_S, 260, 3), F(G, 380, 3)],
+    ['Pulinho curto: o pé esquerdo vai pra trás e o direito pra frente.', 'Agora a esquerda ficou atrás: gire no pé direito e jogue o quadril.', 'A canela esquerda acerta o corpo (fígado do lado dele).', 'Volte pra guarda normal.'],
     ['Troca de base lenta (avisa o chute).', 'Chutar sem girar o pé de apoio.', 'Baixar as duas mãos.'], { cam: 15 }),
   T('teep', ['muaythai', 'mma'], 'Chutes', 'Teep (chute frontal)', 'O "jab" das pernas: empurra e controla a distância.',
     [F(G, 450, 0), F(TEEP_CH, 190, 0, { hi: ['knL'] }), F(TEEP, 150, 1, { e: 'snap', fx: 'anL', hit: true, hi: ['pel'] }), F(TEEP, 140, 2, { hi: ['shL'] }), F(TEEP_CH, 180, 3), F(G, 300, 3)],
@@ -333,21 +413,21 @@ export const TECHNIQUES = [
     ['Bem perto do adversário.', 'Gire o pé de trás e o quadril, como num gancho.', 'A ponta do cotovelo passa na altura da sobrancelha dele.', 'A outra mão protege o rosto.'],
     ['Usar de longe.', 'Abrir o braço (vira tapa).', 'Esquecer a guarda da outra mão.'], { cam: 76, tilt: 22, zoom: 1.15 }),
   T('cotoveladasobe', ['muaythai'], 'Joelhos e cotovelos', 'Cotovelada ascendente', 'De baixo pra cima, por dentro da guarda.',
-    [F(G, 450, 0), F(ELBOW_UP_DIP, 220, 0, { e: 'load', hi: ['knL', 'knR'] }), F(ELBOW_UP, 160, 1, { e: 'snap', fx: 'elR', hit: true }), F(ELBOW_UP, 120, 2), F(G, 340, 3)],
-    ['Dobre os joelhos.', 'Empurre o chão e suba o cotovelo por dentro, na linha do queixo.', 'A mão vai pra trás da sua cabeça.', 'Volte pra guarda.'],
-    ['Subir de longe.', 'Abrir o cotovelo pro lado.', 'Ficar com o rosto aberto embaixo.'], { cam: 4 }),
+    [F(G, 450, 0), F(ELBOW_UP_DIP, 220, 0, { e: 'load', hi: ['knL', 'knR'] }), F(ELB_UP, 160, 1, { e: 'snap', fx: 'elR', hit: true }), F(ELB_UP, 160, 2), F(G, 340, 3)],
+    ['Dobre os joelhos.', 'Empurre o chão e suba o cotovelo por dentro, na linha do queixo.', 'A mão passa do lado da sua orelha.', 'Volte pra guarda.'],
+    ['Subir de longe.', 'Abrir o cotovelo pro lado.', 'Ficar com o rosto aberto embaixo.'], { cam: 38, tilt: 6 }),
   T('checar', ['muaythai', 'mma'], 'Defesa', 'Checar o chute', 'Bloqueia o chute baixo com a canela.',
     [F(G, 480, 0), F(CHECK, 170, 0, { e: 'snap', hi: ['knL'] }), F(CHECK, 360, 1, { hi: ['anL'] }), F(G, 220, 2), F(JAB, 150, 3, { e: 'snap', fx: 'haL', hit: true }), F(G, 260, 3)],
     ['Leia o chute vindo na sua perna da frente.', 'Levante o joelho e vire a canela pra fora, encontrando o chute.', 'Guarda alta: pode vir soco junto.', 'Pise e devolva na hora.'],
     ['Checar com a perna mole (dói igual).', 'Levantar a perna tarde.', 'Baixar a guarda ao checar.'], { cam: 35 }),
   // ===== QUEDAS =====
   T('double', ['mma', 'jiu'], 'Quedas', 'Queda de duas pernas (double leg)', 'Troca de nível, entra fundo e empurra.',
-    [F(G, 450, 0), F(LEVEL, 220, 0, { hi: ['knL', 'knR'] }), F(SHOT, 230, 1, { e: 'snap', fx: 'pel', hi: ['knL'] }), F(DRIVE, 300, 2, { fx: 'pel', hit: true, hi: ['anR'] }), F(DRIVE, 200, 3), F(G, 500, 3)],
-    ['Troque de nível com as pernas, costas retas, olhando pra frente.', 'Passo fundo entre os pés dele; o joelho da frente quase encosta no chão.', 'Abrace atrás dos joelhos e cole a cabeça no peito dele.', 'Empurre com a perna de trás e gire pro lado.'],
+    [F(G, 450, 0), F(LEVEL, 220, 0, { hi: ['knL', 'knR'] }), F(SHOT, 230, 1, { e: 'snap', fx: 'pel', hi: ['knL'] }), F(DL_GRAB, 260, 2, { hi: ['haL', 'haR'] }), F(DL_LIFT, 320, 3, { fx: 'pel', hit: true, hi: ['pel'] }), F(DL_TOP, 420, 3), F(DL_TOP, 420, 3), F(G, 420, 0)],
+    ['Troque de nível com as pernas, costas retas, olhando pra frente.', 'Passo fundo entre os pés dele; o joelho da frente quase encosta no chão.', 'Abrace as duas pernas atrás dos joelhos, juntando uma na outra, cabeça colada no lado dele.', 'Levante o joelho e o quadril, tirando os pés dele do chão: ele cai de costas.'],
     ['Abaixar a cabeça e olhar pro chão.', 'Entrar de longe (dá tempo de ele fazer sprawl).', 'Parar no meio: a queda é um movimento contínuo.'], { cam: 12, ox: -25 }),
   T('sprawl', ['mma', 'jiu'], 'Quedas', 'Sprawl', 'A defesa de queda: tira as pernas e cai com o quadril.',
-    [F(G, 400, 0), F(SPRAWL, 230, 1, { e: 'snap', fx: 'anR', hi: ['anL', 'anR'] }), F(SPRAWL, 320, 2, { hi: ['pel'] }), F(SPRAWL_UP, 280, 3), F(G, 300, 3)],
-    ['O adversário entra nas suas pernas.', 'Jogue as pernas pra trás, bem abertas.', 'Afunde o quadril no chão, peito por cima dele.', 'Levante e volte pra base.'],
+    [F(G, 450, 0), F(G, 260, 0, { hi: ['pel'] }), F(SPR2, 240, 1, { e: 'snap', fx: 'anR', hi: ['anL', 'anR'] }), F(SPR2, 420, 2, { hi: ['pel'] }), F(SPR_UP2, 320, 3), F(G, 380, 3)],
+    ['Ele abaixa e entra nas suas pernas.', 'Jogue as pernas pra trás, bem abertas, longe das mãos dele.', 'Afunde o quadril nas costas dele e empurre a cabeça pra baixo.', 'Levante e volte pra base antes dele.'],
     ['Cair de joelhos (ele termina a queda).', 'Quadril alto: o peso não chega nele.', 'Demorar pra reagir.'], { cam: 10, ox: 70 }),
   // ===== CHÃO =====
   T('ponte', ['jiu', 'mma'], 'Chão', 'Ponte (upa)', 'O motor de toda fuga por baixo.',
@@ -355,8 +435,8 @@ export const TECHNIQUES = [
     ['Deitado, pés plantados perto do quadril.', 'Empurre o chão com os pés e jogue o quadril pro teto.', 'O peso vai pros ombros (nunca pro pescoço).', 'Desça controlando.'],
     ['Pés longe do quadril: a ponte perde força.', 'Empurrar com o pescoço.', 'Fazer devagar: a ponte é explosiva.'], { gloves: false, cam: 25, ox: 15, zoom: 1.3 }),
   T('fuga', ['jiu', 'mma'], 'Chão', 'Fuga de quadril', 'Criar espaço por baixo e recuperar a guarda.',
-    [F(LIE, 460, 0), F(SHRIMP1, 260, 1, { hi: ['anL'] }), F(SHRIMP2, 300, 2, { fx: 'pel', hi: ['pel', 'haL', 'haR'] }), F(SHRIMP2, 260, 3, { hi: ['knR'] }), F(LIE, 460, 3)],
-    ['De costas, um pé plantado no chão.', 'Empurre o chão e vire de lado, apoiado no ombro.', 'Leve o quadril pra trás enquanto as mãos empurram ("moldura").', 'Recolha o joelho pro espaço que abriu.'],
+    [F(FU0, 520, 0, { hi: ['haL', 'haR'] }), F(FU1, 300, 1, { hi: ['anL', 'anR'] }), F(FU2, 340, 2, { fx: 'pel', hi: ['pel', 'haL', 'haR'] }), F(FU3, 300, 3, { hi: ['knR'] }), F(FU3, 420, 3), F(FU0, 520, 0)],
+    ['Ele está nos 100 kg: mãos fazendo moldura no pescoço e no ombro dele.', 'Pés plantados: vire de lado, de frente pra ele, apoiado no ombro.', 'Leve o quadril pra trás enquanto as mãos empurram ("moldura").', 'Recolha o joelho pro espaço que abriu.'],
     ['Ficar reto de costas (o quadril não sai).', 'Empurrar com os braços esticados sem mover o quadril.', 'Esquecer de colocar o joelho no espaço.'], { gloves: false, cam: 30, ox: 25, zoom: 1.3 }),
   T('levantada', ['jiu', 'mma'], 'Chão', 'Levantada técnica', 'Levantar do chão sem se expor.',
     [F(SIT, 520, 0, { hi: ['haR'] }), F(STAND1, 300, 1, { fx: 'anR', hi: ['haR', 'anL'] }), F(STAND1, 200, 2), F(STAND2, 340, 3), F(STAND2, 400, 3)],
@@ -386,9 +466,9 @@ export const TECHNIQUES = [
     ['Deixar os dois braços dele do mesmo lado (não é triângulo, é só guarda).', 'Ficar reto de frente pra ele (corte o ângulo virando o quadril).', 'Esquecer de puxar a cabeça (ele posta e escapa).'], { gloves: false, cam: 30, ox: 15, zoom: 1.3 }),
   // ===== NOVAS (v3.31): karatê, movimentação, chute alto, clinch, single leg, armlock =====
   T('kizami', ['karate'], 'Socos', 'Kizami-zuki', 'O soco da mão da frente com deslize: rápido, pra marcar ponto.',
-    [F(KA, 500, 0), F(KIZ_SL, 170, 0, { hi: ['anL'] }), F(KIZ, 130, 1, { e: 'snap', fx: 'haL', hit: true }), F(KIZ, 150, 2, { hi: ['shL'] }), F(KA, 380, 3)],
-    ['Kamae: de lado, mão da frente na altura do peito.', 'O pé da frente desliza e o soco sai junto, reto.', 'Ombro alinhado, punho gira no fim, quadril um pouco à frente.', 'Volta deslizando pra distância.'],
-    ['Soltar o soco depois do passo (chega atrasado).', 'Puxar o braço pra trás antes (avisa o golpe).', 'Ficar parado na frente depois de pontuar.'], { gloves: false, cam: 16 }),
+    [F(KA, 500, 0), F(KZ1, 170, 1, { fx: 'anL', hi: ['anL'] }), F(KZ2, 120, 1, { e: 'snap', fx: 'haL', hit: true }), F(KZ3, 160, 2, { fx: 'anR', hi: ['anR'] }), F(KZ4, 200, 3, { fx: 'anR', hi: ['anR'] }), F(KA, 260, 3, { fx: 'anL' })],
+    ['Kamae: de lado, mão da frente na altura do peito.', 'O pé da frente desliza rente ao chão e o soco sai junto, reto.', 'O pé de trás desliza atrás e recupera a base.', 'Volta deslizando: primeiro o pé de trás, depois o da frente.'],
+    ['Soltar o soco depois do passo (chega atrasado).', 'Puxar o braço pra trás antes (avisa o golpe).', 'Ficar parado na frente depois de pontuar.'], { gloves: false, cam: 30, tilt: 22, props: PRINTS(KA) }),
   T('gyaku', ['karate'], 'Socos', 'Gyaku-zuki', 'O soco reverso: a mão de trás, com a força do quadril.',
     [F(KA, 480, 0), F(GYA_L, 150, 0, { e: 'load' }), F(GYA, 160, 1, { e: 'snap', fx: 'haR', hit: true, hi: ['pel', 'anR'] }), F(GYA, 140, 2, { hi: ['haL'] }), F(KA, 380, 3)],
     ['Da kamae, o quadril começa o giro.', 'O pé de trás empurra o chão e o quadril fica de frente.', 'A mão de trás sai reta e a da frente puxa pra cintura (hikite).', 'Volta pra kamae protegendo o rosto.'],
@@ -422,9 +502,9 @@ export const TECHNIQUES = [
     ['Dobre os joelhos e incline pro lado da frente.', 'Gire o pé e o quadril, como no cruzado.', 'O soco entra em arco na altura da costela.', 'Sobe já em guarda, mão de trás no rosto.'],
     ['Abaixar só o tronco.', 'Abrir demais o braço (fica lento).', 'Ficar embaixo depois do golpe.'], { cam: 40 }),
   T('passos', ['boxe', 'muaythai', 'karate'], 'Movimentação', 'Passos: entra, sai e lateral', 'O pé do lado pra onde você vai se move primeiro.',
-    [F(G, 460, 0), F(STEP_F1, 200, 0, { hi: ['anL'] }), F(STEP_F2, 200, 1, { hi: ['anR'] }), F(STEP_L1, 220, 2, { hi: ['anL'] }), F(STEP_L2, 220, 2, { hi: ['anR'] }), F(STEP_F2, 260, 3), F(G, 360, 3)],
-    ['Pra frente: o pé da frente anda, o de trás acompanha.', 'A distância entre os pés não muda.', 'Pro lado: o pé daquele lado vai primeiro, o outro acompanha.', 'Mãos na guarda o tempo todo.'],
-    ['Cruzar os pés.', 'Pular em vez de deslizar.', 'Andar com o peso todo no calcanhar.'], { cam: 55 }),
+    [F(G, 460, 0), F(PS_F1, 220, 0, { fx: 'anL', hi: ['anL'] }), F(PS_F2, 220, 0, { fx: 'anR', hi: ['anR'] }), F(PS_B1, 220, 1, { fx: 'anR', hi: ['anR'] }), F(G, 240, 1, { fx: 'anL', hi: ['anL'] }), F(PS_L1, 240, 2, { fx: 'anL', hi: ['anL'] }), F(PS_L2, 240, 2, { fx: 'anR', hi: ['anR'] }), F(PS_R1, 240, 2, { fx: 'anR', hi: ['anR'] }), F(G, 300, 3, { fx: 'anL', hi: ['anL'] })],
+    ['Pra frente: o pé da frente anda, o de trás acompanha.', 'Pra trás: o pé de trás sai primeiro.', 'Pro lado: o pé daquele lado vai primeiro, o outro acompanha.', 'A distância entre os pés não muda; mãos na guarda.'],
+    ['Cruzar os pés.', 'Pular em vez de deslizar.', 'Andar com o peso todo no calcanhar.'], { cam: 35, tilt: 55, zoom: 0.95, props: PRINTS(G) }),
   T('chutealto', ['muaythai'], 'Chutes', 'Chute alto (na cabeça)', 'O mesmo chute de direita, só que na altura da cabeça.',
     [F(G, 450, 0), F(KICK_STEP, 160, 0, { hi: ['anL'] }), F(KICK_CH, 160, 1, { e: 'lin', fx: 'anR', hi: ['pel'] }), F(HKICK, 150, 2, { e: 'snap', fx: 'anR', hit: true }), F(HKICK, 130, 3), F(KICK_CH, 220, 3), F(G, 320, 3)],
     ['Passo pra fora com o pé da frente.', 'Gire o pé de apoio e jogue o quadril mais pra cima.', 'A canela acerta o pescoço ou a cabeça; o tronco inclina pra trás.', 'O braço da frente protege o rosto o tempo todo.'],
@@ -472,14 +552,16 @@ const qOf = (t, i) => { for (let j = i; j >= 0; j--) if (t.frames[j].q) return t
 const DUO = {
   bloqueio: { o: { d: 1.15 }, q: [G, CROSS_LOAD, CROSS, G] },
   aparada: { o: { d: 1.1 }, q: [G, JAB, JAB, G, PHIT, G] },
-  esquiva: { o: { d: 1.1 }, q: [G, JAB, JAB, G, CROSS, CROSS, G] },
-  pendulo: { o: { d: 1.0 }, q: [G, HOOK_LOAD, HOOK_MID, HOOK, G] },
+  esquiva: { o: { d: 1.1, cam: 15, tilt: 50, fit: true, zmax: 1.05, props: PRINTS(G) }, q: [G, JAB, JAB, G, CROSS, CROSS, G] },
+  pendulo: { o: { d: 1.0, cam: 20, tilt: 32, fit: true, zmax: 1.05 }, q: [G, HOOK_LOAD, HOOK_MID, HOOK, G] },
   recuo: { o: { d: 1.12 }, q: [G, JAB, JAB, PHIT, G] },
   checar: { o: { d: 1.25 }, q: [G, LOWKICK, LOWKICK, Q(G, { _d: 1.08 }), Q(PHIT, { _d: 1.08 }), G] },
   clinch: { o: { d: 0.8 }, q: [Q(G, { _d: 1.0 }), G, PDOWN, PKNEED, PDOWN, Q(G, { _d: 1.0 })] },
-  ageuke: { o: { d: 1.3, gloves: false }, q: [KA, KIZ_SL, KIZ, KIZ, KA] },
-  sprawl: { o: { d: 1.15, ox: 8, zoom: 0.85 }, q: [G, Q(PSHOOT, { _d: 0.92 }), Q(PFLAT, { _d: 0.6 }), Q(PKNEEL, { _d: 0.85 }), G] },
-  double: { o: { d: 1.12 }, q: [G, G, PGRAB, PFALL, PDOWNB, G] },
+  ageuke: { o: { d: 1.3, gloves: false, cam: 40, tilt: 10, fit: true, zmax: 1.05 }, q: [KA, KIZ_SL, PKZ, PKZ, KA] },
+  sprawl: { o: { d: 1.15, cam: 30, tilt: 22, fit: true, zmax: 1.05 }, q: [G, PSH, PSFL, PSFL, PSKN, G] },
+  double: { o: { d: 1.12, cam: 30, tilt: 14, fit: true, zmax: 1.0 }, q: [G, G, PDL1, PDL1, PDL2, PDL3, PDL3, G] },
+  fuga: { o: { d: 0, gloves: false, cam: 25, tilt: 35, fit: true }, q: [PSC, PSC, PSC, PSC2, PSC2, PSC] },
+  ganchocorpo: { o: { d: 1.0, cam: 40, tilt: 12, fit: true, zmax: 1.05 }, q: [G, G, PBODY, PBODY, G] },
   singleleg: { o: { d: 1.05, gloves: false }, q: [G, G, PSL1, PSL1, PSL2, PFALL, G] }
 };
 DUO.agarrachute = { o: { d: 1.28 }, q: [G, KICK_CH, PBKICK, PCAUGHT, Q(PCAUGHT, { lean: -30 }), G] };
@@ -509,11 +591,15 @@ function fitView(t) {
     const qa = qOf(t, i), qb = qOf(t, (i + 1) % n), q = qa && qb ? mix(qa, qb, k) : qa || qb;
     if (q) add(placePartner(solve(q), q._d ?? t.partner.d ?? 1.1, q._dz ?? 0));
   }
-  const PAD = 17, s = Math.sin(T), Z = Math.min(t.partner.zmax ?? 1.3, (230 - 2 * PAD) / ((u1 - u0) * 96), (200 - 2 * PAD) / ((v1 - v0) * 96));
+  const tg = targetOf(t); if (tg) add({ tg });
+  const PAD = 17, s = Math.sin(T), Z = Math.min(t.partner?.zmax ?? 1.3, (230 - 2 * PAD) / ((u1 - u0) * 96), (200 - 2 * PAD) / ((v1 - v0) * 96));
   const cx = 100 + (u0 + u1) / 2 * 96 * Z, cy = 150 + 40 * Z - 66 * s - (v0 + v1) / 2 * 96 * Z;
   t.zoom = +Z.toFixed(3); t.ox = Math.round(115 - cx); t.oy = Math.round(100 - cy);
 }
-for (const t of TECHNIQUES) { const x = DUO[t.id]; if (!x) continue; t.partner = x.o; t.cam = x.o.cam ?? 12; t.ox = x.o.ox ?? -Math.round((x.o.d ?? 1.1) * 46); t.zoom = x.o.zoom ?? 0.92; if (x.o.tilt) t.tilt = x.o.tilt; t.frames.forEach((f, i) => { if (x.q[i]) f.q = x.q[i]; }); if (x.o.fit) fitView(t); }
+for (const t of TECHNIQUES) { const x = DUO[t.id]; if (!x) continue; t.partner = x.o; t.cam = x.o.cam ?? 12; t.ox = x.o.ox ?? -Math.round((x.o.d ?? 1.1) * 46); t.zoom = x.o.zoom ?? 0.92; if (x.o.tilt) t.tilt = x.o.tilt; if (x.o.props) t.props = x.o.props; t.frames.forEach((f, i) => { if (x.q[i]) f.q = x.q[i]; }); if (x.o.fit) fitView(t); }
+// revisão v3.34: enquadramento automático também nas técnicas solo refeitas
+for (const t of TECHNIQUES) if (['overhand', 'pivo', 'chuteesq', 'cotoveladasobe', 'kizami', 'passos'].includes(t.id)) fitView(t);
+for (const t of TECHNIQUES) if (['pivo', 'kizami', 'passos', 'esquiva'].includes(t.id)) t.noshadow = true;
 
 export const CATS = ['Socos', 'Chutes', 'Joelhos e cotovelos', 'Defesa', 'Movimentação', 'Quedas', 'Chão', 'Guarda e passagem'];
 
@@ -539,10 +625,10 @@ export function targetOf(t) {
 // um quadro qualquer (folha de revisão): i = índice do quadro
 // parceiro (segundo boneco): q = pose dele no quadro (mesma convenção, olhando pra +X); _d = distância (m)
 function partnerOf(t, q) { if (!t.partner || !q) return null; return { J: placePartner(solve(q), q._d ?? t.partner.d ?? 1.1, q._dz ?? 0), gloves: t.partner.gloves ?? t.gloves, front: !!(q._front ?? t.partner.front), ord: q._ord ?? t.partner.ord ?? null, act: q._act ? q._act.split(' ') : null }; }
-export function techFrameSVG(t, i) { const k = Math.max(0, Math.min(i, t.frames.length - 1)), f = t.frames[k], J = solve(f.p); return draw(J, { gloves: t.gloves, cam: t.cam, ox: t.ox, oy: t.oy, act: t.act, tilt: t.tilt, zoom: t.zoom, target: targetOf(t), props: t.props?.(J), partner: partnerOf(t, qOf(t, k)), ...(t.body || {}) }); }
+export function techFrameSVG(t, i) { const k = Math.max(0, Math.min(i, t.frames.length - 1)), f = t.frames[k], J = solve(f.p); return draw(J, { gloves: t.gloves, cam: t.cam, ox: t.ox, oy: t.oy, noshadow: t.noshadow, act: t.act, tilt: t.tilt, zoom: t.zoom, target: targetOf(t), props: t.props?.(J), partner: partnerOf(t, qOf(t, k)), ...(t.body || {}) }); }
 // meio do caminho entre o quadro i e o próximo (folha de revisão: confere a transição)
-export function midFrameSVG(t, i, k = 0.5) { const a = t.frames[i], b = t.frames[(i + 1) % t.frames.length], J = solve(mix(a.p, b.p, k)), qa = qOf(t, i), qb = qOf(t, (i + 1) % t.frames.length); return draw(J, { gloves: t.gloves, cam: t.cam, ox: t.ox, oy: t.oy, tilt: t.tilt, zoom: t.zoom, partner: partnerOf(t, qa && qb ? mix(qa, qb, k) : qa || qb) }); }
-export function thumbSVG(t) { const k = Math.max(0, t.frames.findIndex(f => f.hit)); return draw(solve(peak(t)), { gloves: t.gloves, cam: t.cam, ox: t.ox, oy: t.oy, act: t.act, tilt: t.tilt, zoom: t.zoom, target: targetOf(t), partner: partnerOf(t, qOf(t, k || Math.floor(t.frames.length / 2))) }); }
+export function midFrameSVG(t, i, k = 0.5) { const a = t.frames[i], b = t.frames[(i + 1) % t.frames.length], J = solve(mix(a.p, b.p, k)), qa = qOf(t, i), qb = qOf(t, (i + 1) % t.frames.length); return draw(J, { gloves: t.gloves, cam: t.cam, ox: t.ox, oy: t.oy, noshadow: t.noshadow, tilt: t.tilt, zoom: t.zoom, partner: partnerOf(t, qa && qb ? mix(qa, qb, k) : qa || qb) }); }
+export function thumbSVG(t) { const k = Math.max(0, t.frames.findIndex(f => f.hit)); return draw(solve(peak(t)), { gloves: t.gloves, cam: t.cam, ox: t.ox, oy: t.oy, noshadow: t.noshadow, act: t.act, tilt: t.tilt, zoom: t.zoom, target: targetOf(t), partner: partnerOf(t, qOf(t, k || Math.floor(t.frames.length / 2))) }); }
 
 // ---------- animação ----------
 export function animate(el, tech, onStep) {
@@ -568,7 +654,7 @@ export function animate(el, tech, onStep) {
     const since = now - burstT;
     if (burstT && since < 260 * speed) { if (a.fx) burstP = J[a.fx]; burst = burstP ? { p: burstP, s: 1.15 - since / (260 * speed) * 0.6 } : null; }
     const show = k > 0.5 ? b : a;
-    el.innerHTML = draw(J, { gloves: tech.gloves, partner: partnerOf(tech, pq), hi: show.hi, trail: trail.length > 1 ? trail : null, burst, cam: tech.cam, ox: tech.ox, oy: tech.oy, act: tech.act, tilt: tech.tilt, zoom: tech.zoom, target, path: path.length > 2 ? path : null, props: tech.props ? tech.props(J) : null, ...(tech.body || {}) });
+    el.innerHTML = draw(J, { gloves: tech.gloves, partner: partnerOf(tech, pq), hi: show.hi, trail: trail.length > 1 ? trail : null, burst, cam: tech.cam, ox: tech.ox, oy: tech.oy, noshadow: tech.noshadow, act: tech.act, tilt: tech.tilt, zoom: tech.zoom, target, path: path.length > 2 ? path : null, props: tech.props ? tech.props(J) : null, ...(tech.body || {}) });
     if (show.step !== lastStep) { lastStep = show.step; onStep && onStep(show.step); }
     raf = requestAnimationFrame(frame);
   }
