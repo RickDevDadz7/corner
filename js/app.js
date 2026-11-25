@@ -1936,7 +1936,8 @@ views.perfil = () => `<section class="head"><h1>Perfil e ajustes</h1></section>
 // tutorial: troca de tela sem animação de rolagem
 const tourGo = h => { if (location.hash !== h) { try { history.pushState(null, '', h); } catch (e) { location.hash = h; } } go(true); };
 // ---------------- Roteador ----------------
-const ICONS = { hoje: 'M3 12l9-8 9 8M5 10v10h14V10', nutri: 'M12 3c4 3 6 6 6 10a6 6 0 0 1-12 0c0-4 2-7 6-10z', treino: 'M3 10v4M6 7v10M18 7v10M21 10v4M6 12h12', esporte: 'M8 4h8v5a4 4 0 0 1-8 0zM8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M9 21h6M10 17h4', coach: 'M4 5h16v11H8l-4 4z' };
+const GLOVE = 'M7 4h7a4 4 0 0 1 4 4v4a6 6 0 0 1-6 6H9a4 4 0 0 1-4-4V6a2 2 0 0 1 2-2zM9 18v3h6v-3', TROPHY = 'M8 4h8v5a4 4 0 0 1-8 0zM8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M9 21h6M10 17h4';
+const ICONS = { hoje: 'M3 12l9-8 9 8M5 10v10h14V10', nutri: 'M12 3c4 3 6 6 6 10a6 6 0 0 1-12 0c0-4 2-7 6-10z', treino: 'M3 10v4M6 7v10M18 7v10M21 10v4M6 12h12', esporte: '', coach: 'M4 5h16v11H8l-4 4z' };
 const ALIAS = { boxe: 'esporte' };
 function render() {
   const keepY = window.scrollY;
@@ -1952,7 +1953,11 @@ function render() {
   $('#nav').hidden = false; $('#topbar').hidden = false;
   const v = views[route] ? route : 'hoje';
   app.innerHTML = views[v](arg);
-  const tabs = [['hoje', 'Hoje'], ['nutri', 'Nutrição'], ['treino', 'Força'], ['esporte', 'Esporte'], ['coach', 'Coach']]; // aba geral: lutas, corrida e o que vier
+  // um esporte só: a aba leva o nome dele (e a luva se for luta); mais de um: "Esporte" com troféu
+  const ms = mySports(), one = ms.length === 1 ? ms[0] : null;
+  const spLabel = one ? SPORTS[one].n : 'Esporte';
+  ICONS.esporte = one && SPORTS[one].combat ? GLOVE : TROPHY;
+  const tabs = [['hoje', 'Hoje'], ['nutri', 'Nutrição'], ['treino', 'Força'], ['esporte', spLabel], ['coach', 'Coach']];
   $('#nav').innerHTML = tabs.map(([id, label]) => `<a href="#${id}" class="${(v === id || ((v === 'sessao' || v === 'rotinas' || v === 'rotina' || v === 'ver' || v === 'resumo' || v === 'wk' || v === 'evo' || v === 'demo' || v === 'coluna') && id === 'treino') || (v === 'cardapio' && id === 'nutri') || ((v === 'tecnica' || v === 'tecnicas') && id === 'esporte')) ? 'on' : ''}"><svg viewBox="0 0 24 24"><path d="${ICONS[id]}"/></svg><span>${esc(label)}</span></a>`).join('');
   bindAfter(v, arg);
   if (window.scrollY !== keepY) window.scrollTo(0, keepY);
