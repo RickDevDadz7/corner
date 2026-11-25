@@ -88,11 +88,11 @@ export function merge(local, remote) {
     }
   }
   // listas simples
-  for (const key of ['workouts', 'sessions']) L[key] = unionById(a.logs[key], RL[key], del).sort(byDate);
+  for (const key of ['workouts', 'sessions', 'mob']) L[key] = unionById(a.logs[key], RL[key], del).sort(byDate);
   return out;
 }
 
-const sig = S => JSON.stringify([S.meta?.pt, Object.keys(S.del || {}).length, S.logs.workouts.length, S.logs.workouts.reduce((a, w) => a + (+w.t || 0), 0), S.logs.sessions.length,
+const sig = S => JSON.stringify([S.meta?.pt, Object.keys(S.del || {}).length, S.logs.workouts.length, S.logs.workouts.reduce((a, w) => a + (+w.t || 0), 0), S.logs.sessions.length, (S.logs.mob || []).length,
   Object.values(S.logs.food).flat().length, Object.values(S.logs.water).flat().length, Object.keys(S.logs.weights).length, JSON.stringify(S.prog)]);
 
 let running = null;

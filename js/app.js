@@ -13,6 +13,7 @@ import { CONDITIONS, COND_GROUPS, BODY, condsOf, condFlag, condRestr, bodyOf, ca
 import { habits, daySchedule, hm } from './schedule.js';
 import { startTour, tourSeen, touring } from './tour.js';
 import * as RT from './rtimer.js';
+import { MOB, MOB_IDS, MCATS, REGIONS, MOMENTS, LVL, SPORT_REG, buildRoutine, phasesOfRoutine, cleanRoutineMob, regionsOfMuscles } from './mobility.js';
 import { VERT, VY, VR, SAG0, spineOf, spineEmpty, dragSpine, spineSummary, complements, spineTips } from './spine.js';
 const buildPlan = p => plan_(p, S.prog);
 // trocas feitas pela pessoa (exercício estagnado) na rotina recomendada: {de: para}
@@ -155,7 +156,7 @@ const KEY = 'ronin:v1', OLD_KEY = 'corner:v1';
 const KEY_API = 'ronin:apikey', OLD_API = 'corner:apikey';
 const blank = () => ({
   profile: null,
-  logs: { weights: {}, food: {}, water: {}, workouts: [], sessions: [] },
+  logs: { weights: {}, food: {}, water: {}, workouts: [], sessions: [], mob: [] },
   settings: { adaptive: true, model: 'claude-sonnet-5-5' }, chat: [], weak: [], prog: {},
   boxGen: { minutes: 30, saco: false, partner: false, kind: 'intervalado' },
   timer: { preset: '', rounds: 3, work: 180, rest: 60, voice: true, calls: false, program: null },
@@ -1169,6 +1170,7 @@ views.treino = () => {
   ${draftBanner()}
   ${clearanceCard()}
   ${blockBanner(plan)}
+  ${todayW && !mobLog().some(x => x.date === today() && x.kind === 'depois') && S.ui.mobNo !== today() ? `<div class="card row between mpost"><div><b>Desaceleração</b><small class="muted"> · 5 min</small></div><div class="row gap"><button class="btn small primary" data-act="mobPost" data-sport="forca">Fazer</button><button class="linkbtn" data-act="mobNo" aria-label="Agora não">×</button></div></div>` : `<a class="card link mobl" href="#mobilidade"><b>Mobilidade</b><span class="go">→</span></a>`}
   ${plan.swapped.length && injuriesOf(S.profile).length ? `<div class="card care small" id="t-pain"><b>Treino ajustado pela dor marcada no perfil (${esc(injuriesOf(S.profile).map(k => INJURIES[k].n.toLowerCase()).join(', '))}):</b> ${esc([...new Map(plan.swapped.map(x => [x.join(), x])).values()].map(([a, b]) => `${EXERCISES[a].n} → ${EXERCISES[b].n}`).join('; '))}. Quando melhorar, desmarque no perfil e o treino volta ao original.</div>` : ''}
   <div class="card rcard" id="t-rotina">
     <div class="row between"><small class="cat">Minha rotina</small><span class="rbadge">Ativa</span></div>
@@ -1460,7 +1462,8 @@ views.sessao = (idx) => {
   return `<section class="head"><div><a href="#treino" class="backlink">← Força</a><h1>${esc(day.name)}</h1></div><a class="chip" href="#ver-${day.idx}">Ver treino</a></section>
   <div class="card sprog" id="sprog"><div class="row between"><b class="mono">${doneN} de ${planned} séries</b><span class="mono" id="sessClock">${clockTxt()}</span></div>
     <div class="kbar"><div style="width:${planned ? Math.round(doneN / planned * 100) : 0}%"></div></div>
-    <small class="muted">Aqueça 5–10 min e faça 1–2 séries leves no primeiro composto. Potência primeiro, sempre descansado.</small>
+    ${doneN ? '' : `<button class="btn small block mt" data-act="mobPre" data-sport="forca" data-sid="${day.idx}">Fazer aquecimento · 8 min</button>`}
+    <small class="muted">Depois, 1–2 séries leves no primeiro exercício.</small>
     ${plan.auto && plan.ci.deload ? '<p class="small note">Semana leve: metade das séries e ~10% menos carga. Saia do treino com energia sobrando.</p>' : ''}${preTrainTips()}</div>
   ${doneN ? '' : earlyWarn(plan, day)}
   ${day.items.map((it, xi) => {
@@ -1714,7 +1717,7 @@ function paintRun() {
       <div class="t-center"><div class="t-time mono">${mmss(left)}</div><div class="t-lab">${esc(lab)}</div></div></div>
     <div class="combo run-combo" aria-live="polite">${p.k === 'round' && !RUN.done ? esc(TM.combo) : ''}</div>
     <div class="tinfo run-info">${prog() && !RUN.done && showR.t ? `<b>${esc(showR.t)}</b><span>${esc(showR.f || '')}</span>` : ''}</div>
-    <div class="run-ctl">${RUN.done ? `<button class="btn primary block" data-act="runEnd">Fechar</button>`
+    <div class="run-ctl">${RUN.done ? `<button class="btn primary block" data-act="mobPost" data-close="1" data-sport="${esc(runSport())}">Desaceleração · 5 min</button><button class="btn block" data-act="runEnd">Fechar</button>`
       : `<button class="btn primary run-main" data-act="runPause">${RUN.paused ? '▶ Continuar' : '❚❚ Pausar'}</button>
       <div class="row gap">${p.k === 'round' ? `<button class="btn grow" data-act="runNext"${p.r >= N ? ' disabled' : ''}>Próximo round ⏭</button>` : `<button class="btn grow" data-act="runSkip">${p.k === 'prep' ? 'Começar já' : 'Pular descanso'} ⏭</button>`}
       <button class="btn grow ${TM.endArm && Date.now() - TM.endArm < 3000 ? 'danger' : 'ghost'}" data-act="runEnd">${TM.endArm && Date.now() - TM.endArm < 3000 ? 'Encerrar?' : 'Encerrar'}</button></div>
@@ -1738,6 +1741,147 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden && RU
 setTimeout(restRestore, 400);
 if (RUN) { if (RUN.done) { RUN = null; RT.persist(null); } else { runLoop(true); setTimeout(() => { tick(); paintRun(); }, 300); } }
 
+// ---------------- Mobilidade ----------------
+// aquecimento, alongamento, mobilidade e desaceleração (dados e gerador em mobility.js; cronômetro no rtimer)
+const MOB_KEY = 'ronin:mob';
+let MRUN = RT.restore(MOB_KEY), MIV = null, mAnim = null, mobR = null, mobTab = '', mobQ = '';
+const MV = { x: -1, cd: -1, endArm: 0, min: false };
+const mobFavs = () => (Array.isArray(S.ui.mobFav) ? S.ui.mobFav : []).filter(id => MOB[id]);
+const mobSaved = () => (Array.isArray(S.ui.mobSaved) ? S.ui.mobSaved : []).map(cleanRoutineMob).filter(Boolean).slice(0, 10);
+const mobLog = () => (Array.isArray(S.logs.mob) ? S.logs.mob : []);
+const mobOpt = () => ({ moment: 'antes', sport: mySports()[0] || 'geral', region: '', min: 10, ...(S.ui.mobOpt || {}) });
+const mobSportName = id => id === 'forca' ? 'Musculação' : id === 'geral' ? 'Geral' : SPORTS[id]?.n || 'Geral';
+// regiões da sessão de força de hoje (aquecimento específico pros movimentos programados)
+function forcaRegs(idx) { const day = activePlan().days[+idx || 0]; if (!day) return []; const ks = new Set(); for (const it of day.items) for (const [m, f] of Object.entries(EXERCISES[it.ex]?.m || {})) if (f >= 1) ks.add(m); return regionsOfMuscles([...ks]); }
+function mobBuild(o = {}) {
+  const opt = { ...mobOpt(), ...o }, regs = opt.sport === 'forca' ? forcaRegs(opt.sid) : null;
+  return { ...buildRoutine({ moment: opt.moment, sport: opt.sport, region: opt.region, min: +opt.min, level: level(), regs, seed: Date.now() % 100000, favs: mobFavs() }), min: +opt.min };
+}
+const mobMin = R => Math.max(1, Math.round(R.sec / 60));
+function mobListHTML(R) {
+  return `<ol class="mlist">${R.items.map(it => { const m = MOB[it.id]; return `<li><a href="#mob-${it.id}"><b>${esc(m.n)}</b><small>${esc(MCATS[m.cat])}${m.side ? ' · cada lado' : ''}</small></a><span class="mono small">${mmss(m.side ? it.sec / 2 : it.sec)}${m.side ? ' ×2' : ''}</span></li>`; }).join('')}</ol>`;
+}
+views.mobilidade = () => {
+  const o = mobOpt(), log = mobLog(), d30 = log.filter(x => (Date.now() - new Date(x.date + 'T12:00').getTime()) < 30 * 864e5), wk = log.filter(x => (Date.now() - new Date(x.date + 'T12:00').getTime()) < 7 * 864e5);
+  const sports = [...mySports(), 'forca', 'geral'], favs = mobFavs(), saved = mobSaved();
+  const lib = MOB_IDS.filter(id => { const m = MOB[id];
+    if (mobTab === 'fav' ? !favs.includes(id) : mobTab && m.cat !== mobTab) return false;
+    if (S.ui.mobReg && !m.reg.includes(S.ui.mobReg)) return false;
+    if (S.ui.mobLvl && m.lvl > +S.ui.mobLvl) return false;
+    if (S.ui.mobSp && m.sp && !m.sp.includes(S.ui.mobSp)) return false;
+    return !mobQ || norm(m.n).includes(norm(mobQ)); });
+  return `<section class="head"><h1>Mobilidade</h1><div class="chip">${d30.reduce((a, x) => a + (+x.min || 0), 0)} min / 30 dias</div></section>
+  <div class="card" id="m-build"><h3>Montar rotina</h3>
+    <div class="segs small wrap">${Object.entries(MOMENTS).map(([k, n]) => `<button class="${o.moment === k ? 'on' : ''}" data-act="mobOpt" data-k="moment" data-v="${k}">${n}</button>`).join('')}</div>
+    <div class="grid2 form mt"><label>Para${sel('mobSport', Object.fromEntries(sports.map(s => [s, mobSportName(s)])), sports.includes(o.sport) ? o.sport : sports[0])}</label>
+      <label>Região${sel('mobRegion', { '': 'Todas', ...REGIONS }, o.region)}</label></div>
+    <div class="chips mt">${[5, 10, 15, 20, 30].map(n => `<button class="chipbtn ${+o.min === n ? 'on' : ''}" data-act="mobOpt" data-k="min" data-v="${n}">${n} min</button>`).join('')}</div>
+    <button class="btn primary block mt" data-act="mobMake">Montar</button>
+    ${mobR ? `<div class="mres"><div class="row between"><b>${esc(MOMENTS[mobR.moment])} · ${esc(mobSportName(mobR.sport))}</b><span class="mono small">~${mobMin(mobR)} min</span></div>${mobListHTML(mobR)}
+      <button class="btn primary block" data-act="mobGo">Começar</button>
+      <div class="row gap mt"><button class="btn small grow" data-act="mobMake">↻ Outra</button><button class="btn small grow" data-act="mobSave">☆ Salvar</button></div></div>` : ''}
+  </div>
+  ${saved.length ? `<div class="card"><h3>Suas rotinas</h3><ul class="list">${saved.map((R, i) => `<li><div class="grow"><b>${esc(R.name || MOMENTS[R.moment])}</b><small>${esc(mobSportName(R.sport))} · ${R.items.length} exercícios · ~${mobMin(R)} min</small></div><button class="btn small" data-act="mobRun" data-i="${i}">▶</button><button class="linkbtn" data-act="mobDel" data-i="${i}" aria-label="Apagar">×</button></li>`).join('')}</ul></div>` : ''}
+  <div class="card" id="m-lib"><h3>Exercícios</h3>
+    <div class="chips">${[['', 'Todos'], ...Object.entries(MCATS), ['fav', '★ Favoritos']].map(([k, n]) => `<button class="chipbtn ${mobTab === k ? 'on' : ''}" data-act="mobTab" data-v="${k}">${n}</button>`).join('')}</div>
+    <div class="form mt"><input id="mobQ" type="search" placeholder="Buscar exercício" value="${esc(mobQ)}" autocomplete="off"></div>
+    <details class="mt" ${S.ui.mobReg || S.ui.mobLvl || S.ui.mobSp ? 'open' : ''}><summary class="small"><b>Filtros</b></summary><div class="grid3 form small mt">
+      <label>Região${sel('mobReg', { '': 'Todas', ...REGIONS }, S.ui.mobReg || '')}</label>
+      <label>Modalidade${sel('mobSp', { '': 'Todas', ...Object.fromEntries(SPORT_IDS.filter(id => !SPORTS[id].retired || mySports().includes(id)).map(id => [id, SPORTS[id].n])) }, S.ui.mobSp || '')}</label>
+      <label>Nível${sel('mobLvl', { '': 'Todos', 1: 'Iniciante', 2: 'Intermediário', 3: 'Avançado' }, S.ui.mobLvl || '')}</label></div></details>
+    <ul class="list mlib">${lib.map(id => { const m = MOB[id]; return `<li><a class="grow" href="#mob-${id}"><b>${esc(m.n)}</b><small>${esc(m.reg.map(r => REGIONS[r]).join(', '))} · ${m.d} s${m.side ? ' cada lado' : ''} · ${LVL[m.lvl]}</small></a><button class="star ${favs.includes(id) ? 'on' : ''}" data-act="mobFav" data-id="${id}" aria-label="Favorito">${favs.includes(id) ? '★' : '☆'}</button></li>`; }).join('') || '<li class="muted small">Nenhum exercício com esses filtros.</li>'}</ul>
+  </div>
+  ${log.length ? `<div class="card"><h3>Histórico</h3><p class="small">${wk.length} ${wk.length === 1 ? 'sessão' : 'sessões'} nesta semana · ${log.reduce((a, x) => a + (+x.min || 0), 0)} min no total</p>
+    <ul class="list">${log.slice(-5).reverse().map(x => `<li><div class="grow"><b>${esc(MOMENTS[x.kind] || 'Mobilidade')}</b><small>${esc(x.date.split('-').reverse().slice(0, 2).join('/'))} · ${+x.min || 0} min${SPORT_REG[x.sport] ? ' · ' + esc(mobSportName(x.sport)) : ''}</small></div></li>`).join('')}</ul></div>` : ''}
+  <p class="small muted pad">Desconforto leve é normal. Dor aguda, formigamento ou tontura: pare.</p>`;
+};
+views.mob = id => {
+  const m = MOB[id]; if (!m) { location.hash = '#mobilidade'; return ''; }
+  const fav = mobFavs().includes(id);
+  return `<section class="head"><div><a href="#mobilidade" class="backlink">← Mobilidade</a><h1>${esc(m.n)}</h1></div><button class="star big ${fav ? 'on' : ''}" data-act="mobFav" data-id="${id}" aria-label="Favorito">${fav ? '★' : '☆'}</button></section>
+  ${m.ex && hasDemo(m.ex) ? `<div class="card panel center"><div id="techFig" class="techfig"></div></div>` : ''}
+  <div class="card"><p class="small"><b>${esc(MCATS[m.cat])}</b> · ${esc(m.reg.map(r => REGIONS[r]).join(', '))} · ${m.d} s${m.side ? ' cada lado' : ''} · ${LVL[m.lvl]}</p>
+    <h3>Como fazer</h3><ol class="steps">${m.how.map(h => `<li>${esc(h)}</li>`).join('')}</ol>
+    ${m.err.length ? `<h3>Erros comuns</h3><ul class="small">${m.err.map(h => `<li>${esc(h)}</li>`).join('')}</ul>` : ''}
+    ${m.care ? `<p class="small note">${esc(m.care)}</p>` : ''}
+    <button class="btn primary block mt" data-act="mobOne" data-id="${id}">Fazer agora</button></div>`;
+};
+// ----- execução -----
+function mobStart(R, o = {}) {
+  if (!R?.items?.length) return;
+  audio(); mAnimStop();
+  MRUN = RT.start(phasesOfRoutine(R), { R: { items: R.items, moment: R.moment, sport: R.sport, region: R.region || '', sec: R.sec, name: R.name || '' }, from: o.from || '' }, Date.now(), MOB_KEY);
+  Object.assign(MV, { x: -1, cd: -1, endArm: 0, min: false });
+  say(MOB[R.items[0].id].n); lockScreen(true); mobLoop(true); paintMob();
+}
+function mobLoop(on) { clearInterval(MIV); MIV = on ? setInterval(mobTick, 250) : null; }
+function mobTick() {
+  if (!MRUN) return;
+  const ev = RT.catchUp(MRUN);
+  if (ev.length) { const p = ev[ev.length - 1]; if (p.k === 'done') mobFinish(); else if (p.k === 'round') { bell(1); if (ev.length === 1) { const m = MOB[MRUN.meta.R.items[p.x]?.id]; if (m) say(p.s ? `${m.n}. ${p.s}` : m.n); } } }
+  if (MRUN && !MRUN.done && !MRUN.paused) { const p = RT.cur(MRUN), left = RT.leftOf(MRUN); if (p.k !== 'round' && left <= 3 && left >= 1 && MV.cd !== left) { MV.cd = left; beep(); } if (p.k === 'round') MV.cd = -1; }
+  paintMob();
+}
+function mobSaveLog() {
+  if (!MRUN || MRUN.saved) return;
+  const min = RT.minutesDone(MRUN); if (min < 1) return;
+  if (!Array.isArray(S.logs.mob)) S.logs.mob = [];
+  const R = MRUN.meta.R;
+  S.logs.mob.push({ id: newId(), date: today(), kind: MOMENTS[R.moment] ? R.moment : 'antes', sport: SPORT_REG[R.sport] ? R.sport : 'geral', min, rounds: RT.roundsDone(MRUN) });
+  MRUN.saved = true; RT.persist(MRUN); save();
+}
+function mobFinish() { bell(2); say('Rotina concluída.'); mobLoop(false); lockScreen(false); mobSaveLog(); paintMob(); }
+function mobClose() { MRUN = null; RT.persist(null, MOB_KEY); mobLoop(false); mAnimStop(); lockScreen(false); try { speechSynthesis.cancel(); } catch (e) { } $('#mrun')?.remove(); $('#mrunbar')?.remove(); document.body.classList.remove('running', 'runmin'); if (location.hash.startsWith('#mobilidade')) render(); }
+function mobEnd() {
+  if (MRUN?.done) { mobClose(); return; }
+  if (Date.now() - MV.endArm > 3000) { MV.endArm = Date.now(); paintMob(); return; }
+  mobSaveLog(); mobClose();
+}
+function mAnimStop() { if (mAnim) { try { mAnim.stop(); } catch (e) { } mAnim = null; } }
+function paintMob() {
+  let el = $('#mrun'), bar = $('#mrunbar');
+  if (!MRUN) { el?.remove(); bar?.remove(); return; }
+  const R = MRUN.meta.R, p = RT.cur(MRUN), left = RT.leftOf(MRUN), it = R.items[p.x] || R.items[0], m = MOB[it.id];
+  const N = RT.roundsTotal(MRUN), nextP = MRUN.phases.slice(MRUN.i + 1).find(q => q.k === 'round'), nx = nextP && MOB[R.items[nextP.x]?.id];
+  const lab = MRUN.done ? 'Rotina concluída' : MRUN.paused ? 'Pausado' : p.k === 'round' ? (p.s || (m.cat === 'al' ? 'Segura' : m.cat === 'rel' ? 'Solta o corpo' : 'Em movimento')) : p.k === 'prep' ? 'Prepare-se' : 'Próximo';
+  document.body.classList.toggle('running', !MV.min); document.body.classList.toggle('runmin', MV.min);
+  if (MV.min) {
+    el?.remove(); mAnimStop(); MV.x = -1;
+    if (!bar) { bar = document.createElement('button'); bar.id = 'mrunbar'; bar.className = 'runbar'; bar.dataset.act = 'mobOpen'; document.body.appendChild(bar); }
+    bar.innerHTML = `<span>${esc(m.n)}</span><b class="mono">${mmss(left)}</b><span aria-hidden="true">▴</span>`; return;
+  }
+  bar?.remove();
+  if (!el) { el = document.createElement('div'); el.id = 'mrun'; el.className = 'run mrun'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', 'Rotina de mobilidade'); el.innerHTML = '<div class="run-top"></div><div class="run-segs"></div><div class="mrun-fig" id="mrunFig"></div><div class="mrun-body"></div><div class="run-ctl"></div>'; document.body.appendChild(el); MV.x = -1; }
+  el.className = 'run mrun ph-' + (MRUN.done ? 'done' : p.k === 'round' ? 'round' : 'rest');
+  el.querySelector('.run-top').innerHTML = `<button class="linkbtn" data-act="mobMin" aria-label="Minimizar">▾ ${esc(MOMENTS[R.moment] || 'Mobilidade')}</button><span class="small mono">${MRUN.done ? `${RT.minutesDone(MRUN)} min` : `${Math.min(N, p.r)}/${N} · ${mmss(RT.totalLeft(MRUN))}`}</span>`;
+  el.querySelector('.run-segs').innerHTML = MRUN.phases.filter(q => q.k === 'round').map(q => `<i class="${MRUN.done || q.r < p.r || (q.r === p.r && p.k === 'round' && false) ? 'ok' : q.r === p.r && p.k === 'round' ? 'on' : ''}"></i>`).join('');
+  const showX = MRUN.done ? -2 : p.x;
+  if (MV.x !== showX) { // figura só troca quando muda o exercício
+    MV.x = showX; mAnimStop(); const f = el.querySelector('#mrunFig');
+    if (!MRUN.done && m.ex && hasDemo(m.ex)) { f.hidden = false; f.innerHTML = '<div class="techfig"></div>'; mAnim = exAnimate(f.firstChild, m.ex, null, myFig()); } else { f.hidden = true; f.innerHTML = ''; }
+  }
+  el.querySelector('.mrun-body').innerHTML = MRUN.done ? `<h2>Feito!</h2><p class="small">${RT.minutesDone(MRUN)} min de ${esc((MOMENTS[R.moment] || 'mobilidade').toLowerCase())}.</p>`
+    : `<h2>${esc(m.n)}</h2><div class="t-time mono">${mmss(left)}</div><div class="t-lab">${esc(lab)}</div>
+      <p class="small mhow">${esc(m.how[0] || '')}</p>${nx && p.k === 'round' ? `<p class="small muted">Depois: ${esc(nx.n)}</p>` : ''}`;
+  el.querySelector('.run-ctl').innerHTML = MRUN.done ? `<button class="btn primary block" data-act="mobEnd">Fechar</button>${R.name ? '' : '<button class="btn block" data-act="mobSaveRun">☆ Salvar rotina</button>'}`
+    : `<div class="row gap"><button class="btn grow" data-act="mobPrev" aria-label="Voltar">⏮</button><button class="btn primary grow run-main" data-act="mobPause">${MRUN.paused ? '▶' : '❚❚'}</button><button class="btn grow" data-act="mobNext" aria-label="Avançar">⏭</button></div>
+      <button class="btn block ${MV.endArm && Date.now() - MV.endArm < 3000 ? 'danger' : 'ghost'}" data-act="mobEnd">${MV.endArm && Date.now() - MV.endArm < 3000 ? 'Encerrar?' : 'Encerrar'}</button>`;
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden && MRUN) { mobTick(); if (!MRUN?.done && !MRUN?.paused) lockScreen(true); } });
+if (MRUN) { if (MRUN.done) { MRUN = null; RT.persist(null, MOB_KEY); } else { mobLoop(true); setTimeout(() => paintMob(), 300); } }
+// atalho "Fazer aquecimento" / "Desaceleração" a partir dos treinos
+function mobQuick(moment, sport, sid, min = moment === 'antes' ? 8 : 5) { mobStart(mobBuild({ moment, sport, region: '', min, sid }), { from: sport }); }
+
+// mobilidade: selects da rotina e filtros da biblioteca
+document.addEventListener('change', e => {
+  const t = e.target; if (!t.closest?.('#m-build, #m-lib')) return;
+  if (t.name === 'mobSport' || t.name === 'mobRegion') { S.ui.mobOpt = { ...mobOpt(), [t.name === 'mobSport' ? 'sport' : 'region']: t.value }; mobR = null; save(true); render(); }
+  if (['mobReg', 'mobSp', 'mobLvl'].includes(t.name)) { S.ui[t.name] = t.value; save(true); render(); }
+});
+document.addEventListener('input', e => {
+  if (e.target.id !== 'mobQ') return; mobQ = e.target.value.slice(0, 40); render();
+  const q = $('#mobQ'); if (q) { q.focus(); q.setSelectionRange(q.value.length, q.value.length); }
+});
 // ---------------- Esporte ----------------
 let genSession = null, genFor = null;
 views.esporte = arg => {
@@ -1766,7 +1910,7 @@ views.esporte = arg => {
     </div>
     ${SP.combos ? `<label class="switch"><input type="checkbox" data-act="callsToggle" ${c.calls ? 'checked' : ''}> Chamar combinações no modo livre</label>` : ''}`}
     <label class="switch"><input type="checkbox" data-act="voiceToggle" ${c.voice ? 'checked' : ''}> Voz (fala ${SP.combos ? 'as combinações e ' : ''}os rounds em português)</label>
-    <div class="row gap mt"><button id="tStart" class="btn primary grow" data-act="tToggle">Iniciar</button></div>
+    <div class="row gap mt"><button id="tStart" class="btn primary grow" data-act="tToggle">Iniciar</button><button class="btn ghost" data-act="mobPre" data-sport="${id}">Aquecer</button></div>
   </div>
 
   <div class="card">
@@ -1788,6 +1932,7 @@ views.esporte = arg => {
       <button class="btn primary block" data-act="loadProg">Carregar no timer ↑</button>` : `<p class="small muted">${SP.combos ? 'Monta os rounds com tema, foco e combinações faladas, usando seus pontos fracos marcados abaixo.' : id === 'corrida' ? 'Monta aquecimento, blocos e volta à calma com o timer marcando cada parte.' : 'Monta os rounds com drills, posições e o foco nos seus pontos fracos.'}</p>`}
   </div>
 
+  <a class="card link mobl" href="#mobilidade"><b>Mobilidade</b><span class="go">→</span></a>
   ${techs.length ? `<a class="card link panel" href="#tecnicas"><small class="cat">Biblioteca</small><h3>${techs.length} técnicas de ${esc(SP.n.toLowerCase())}</h3>
     <div class="techgrid mini">${techs.slice(0, 3).map(t => `<span class="tech"><span class="tech-thumb">${thumbSVG(t)}</span><b>${esc(t.n)}</b></span>`).join('')}</div>
     <p class="small muted">${[...new Set(techs.map(t => t.cat))].join(' · ')}</p><span class="go">Abrir →</span></a>` : ''}
@@ -2216,6 +2361,7 @@ function bindAfter(v, arg) {
       const n = Math.max(1, Math.round(num(i.value) || 1)); S.timer[i.dataset.tm] = n; S.timer.preset = 'custom'; save(); if (!RUN) paintTimer();
     }));
   }
+  if (v === 'mob' && MOB[arg]?.ex && hasDemo(MOB[arg].ex) && $('#techFig')) anim = exAnimate($('#techFig'), MOB[arg].ex, null, myFig());
   if (v === 'demo' && hasDemo(arg)) anim = exAnimate($('#techFig'), arg, i => document.querySelectorAll('#techSteps li').forEach(li => li.classList.toggle('on', +li.dataset.i === i)), myFig());
   if (v === 'tecnica') {
     const t = TECHNIQUES.find(x => x.id === arg);
@@ -2450,6 +2596,25 @@ document.addEventListener('click', async e => {
   if (a === 'sport') { S.ui.sport = el.dataset.id; save(true); timerReset(); render(); }
   if (a === 'preset') { const p = SPORTS[curSport()].presets.find(x => x.id === el.dataset.id); Object.assign(S.timer, { preset: p.id, rounds: p.rounds, work: p.work, rest: p.rest, program: null }); save(true); timerReset(); render(); }
   if (a === 'tToggle') timerToggle();
+  if (a === 'mobOpt') { const k = el.dataset.k, v = el.dataset.v; if (k === 'moment' && MOMENTS[v] || k === 'min' && [5, 10, 15, 20, 30].includes(+v)) { S.ui.mobOpt = { ...mobOpt(), [k]: k === 'min' ? +v : v }; mobR = null; save(true); render(); } }
+  if (a === 'mobMake') { mobR = mobBuild(); render(); }
+  if (a === 'mobGo' && mobR) mobStart(mobR);
+  if (a === 'mobSave' && mobR) { const list = mobSaved(); list.unshift({ ...mobR, name: `${MOMENTS[mobR.moment]} · ${mobSportName(mobR.sport)} · ${mobMin(mobR)} min` }); S.ui.mobSaved = list.slice(0, 10); save(true); toast('Rotina salva'); render(); }
+  if (a === 'mobSaveRun' && MRUN) { const R0 = MRUN.meta.R, list = mobSaved(); list.unshift({ ...R0, name: `${MOMENTS[R0.moment]} · ${mobSportName(R0.sport)} · ${mobMin(R0)} min` }); S.ui.mobSaved = list.slice(0, 10); MRUN.meta.R.name = list[0].name; save(true); toast('Rotina salva'); paintMob(); }
+  if (a === 'mobRun') { const R0 = mobSaved()[+el.dataset.i]; if (R0) mobStart(R0); }
+  if (a === 'mobDel') { const list = mobSaved(); list.splice(+el.dataset.i, 1); S.ui.mobSaved = list; save(true); render(); }
+  if (a === 'mobTab') { mobTab = ['', 'fav', ...Object.keys(MCATS)].includes(el.dataset.v) ? el.dataset.v : ''; render(); }
+  if (a === 'mobFav' && MOB[el.dataset.id]) { const f = mobFavs(), id = el.dataset.id; S.ui.mobFav = f.includes(id) ? f.filter(x => x !== id) : [...f, id]; save(true); render(); }
+  if (a === 'mobOne' && MOB[el.dataset.id]) { const id = el.dataset.id, m = MOB[id]; mobStart({ items: [{ id, sec: m.d * (m.side ? 2 : 1) }], moment: m.cat === 'rel' ? 'depois' : m.cat === 'al' ? 'flex' : 'antes', sport: 'geral', sec: m.d * (m.side ? 2 : 1), name: m.n }); }
+  if (a === 'mobPause' && MRUN) { if (MRUN.paused) { RT.resume(MRUN); lockScreen(true); } else RT.pause(MRUN); paintMob(); }
+  if (a === 'mobNext' && MRUN) { RT.nextRound(MRUN); if (MRUN.done) mobFinish(); else { bell(1); const p = RT.cur(MRUN); say(MOB[MRUN.meta.R.items[p.x]?.id]?.n || ''); } paintMob(); }
+  if (a === 'mobPrev' && MRUN) { RT.prevRound(MRUN); paintMob(); }
+  if (a === 'mobEnd') mobEnd();
+  if (a === 'mobNo') { S.ui.mobNo = today(); save(true); render(); }
+  if (a === 'mobMin') { MV.min = true; paintMob(); }
+  if (a === 'mobOpen') { MV.min = false; paintMob(); }
+  if (a === 'mobPre') mobQuick('antes', el.dataset.sport || 'geral', el.dataset.sid);
+  if (a === 'mobPost') { if (el.dataset.close && RUN) runClose(); mobQuick('depois', el.dataset.sport || 'geral'); }
   if (a === 'runPause') runPause();
   if (a === 'runSkip' && RUN) { RT.skipRest(RUN); onPhase(RT.cur(RUN)); tick(); }
   if (a === 'runNext' && RUN) { RT.nextRound(RUN); onPhase(RUN.done ? { k: 'done' } : RT.cur(RUN)); tick(); }

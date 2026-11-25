@@ -14,6 +14,22 @@ export const MAJOR = ['peito', 'costas', 'ombros', 'quad', 'post', 'glut'];
 
 export const EVIDENCE = [
   {
+    id: 'alongar-antes', cat: 'Mobilidade', tags: ['alongamento', 'aquecimento', 'mobilidade', 'flexibilidade'],
+    title: 'Alongar antes ou depois?',
+    do: 'Antes do treino: aquecimento dinâmico e mobilidade. Alongamento parado, só curto (até ~30 s por músculo). Pra ganhar flexibilidade, alongue em outro momento e some tempo na semana.',
+    why: 'Revisões mostram que alongamento estático longo logo antes de esforço explosivo pode reduzir um pouco força e potência; curto e dentro de um aquecimento completo, o efeito é pequeno. A flexibilidade melhora com o tempo total de alongamento acumulado ao longo das semanas.',
+    level: 'B',
+    refs: ['Behm DG et al. (2016) Appl Physiol Nutr Metab 41:1–11', 'Thomas E et al. (2018) Int J Sports Med 39:243–254']
+  },
+  {
+    id: 'desacelerar', cat: 'Mobilidade', tags: ['desaceleração', 'volta à calma', 'recuperação', 'alongamento'],
+    title: 'Desaceleração depois do treino',
+    do: 'Faça se gostar: 5–10 min leves ajudam a baixar o ritmo. Não é obrigatório.',
+    why: 'A volta à calma não mostrou acelerar a recuperação muscular nem evitar dor tardia de forma consistente. Também não há garantia de prevenção de lesões. É um momento confortável pra respirar e soltar o corpo.',
+    level: 'B',
+    refs: ['Van Hooren B, Peake JM (2018) Sports Med 48:1575–1595']
+  },
+  {
     id: 'prot-total', cat: 'Nutrição', tags: ['proteina', 'proteína', 'massa', 'hipertrofia', 'comer'],
     title: 'Quanto de proteína por dia',
     do: 'Mire em 1,6 g/kg/dia. Até ~2,2 g/kg é a margem de segurança pra quem quer garantir.',

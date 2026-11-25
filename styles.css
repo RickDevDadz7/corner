@@ -851,3 +851,23 @@ body.running #restbar{display:none}
 .runbar b{font-size:22px}
 .runbar.ph-round{background:var(--acc);border-color:var(--acc);box-shadow:4px 4px 0 var(--ink)}
 body.runmin #app{padding-bottom:calc(150px + var(--safe-b))}
+/* mobilidade (v3.37) */
+.segs.wrap{flex-wrap:wrap}.segs.wrap button{flex:1 1 45%}
+.mlist{list-style:none;margin:10px 0;padding:0;counter-reset:m}
+.mlist li{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid rgba(var(--ink-rgb),.12);counter-increment:m}
+.mlist li::before{content:counter(m);font:900 12px var(--font);width:20px;color:var(--acc)}
+.mlist a{flex:1;color:inherit;text-decoration:none}.mlist a b{display:block}.mlist small{opacity:.7}
+.mres{margin-top:12px;border-top:2px solid var(--ink);padding-top:10px}
+.mlib li{display:flex;align-items:center;gap:8px}.mlib a{color:inherit;text-decoration:none}.mlib a b{display:block}
+.star{background:none;border:0;font-size:22px;line-height:1;cursor:pointer;color:var(--ink);padding:4px}
+.star.on{color:var(--acc)}.star.big{font-size:30px}
+.mobl{display:flex;justify-content:space-between;align-items:center;padding:12px 16px}
+.mpost{align-items:center}
+.mrun .mrun-fig{flex:0 1 auto;max-height:36vh;display:flex;justify-content:center}
+.mrun .mrun-fig .techfig{width:min(70vw,34vh,280px)}
+.mrun-body{text-align:center;display:flex;flex-direction:column;align-items:center;gap:2px}
+.mrun-body h2{margin:4px 0 0;font-size:clamp(22px,6vw,30px);line-height:1.1}
+.mrun-body .t-time{font-size:clamp(48px,13vw,68px);line-height:1}
+.mrun-body .mhow{max-width:34ch;margin:6px auto 0}
+.mrun.ph-rest .mrun-body .t-time{color:var(--muted)}
+.steps{padding-left:20px}.steps li{margin:4px 0}
