@@ -1904,7 +1904,7 @@ views.esporte = arg => {
     ${P ? `<p class="small"><b>Treino carregado (${esc(SPORTS[P[0].sport]?.n || '')}):</b> ${P.length} ${P[0].sport === 'corrida' ? 'blocos' : 'rounds'} · ~${Math.round(P.reduce((a, x) => a + x.work + x.rest, 0) / 60)} min <button class="linkbtn" data-act="unloadProg">trocar pra modo livre</button></p>` : `
     ${(() => { const on = SP.presets.find(p => p.rounds === +c.rounds && p.work === +c.work && p.rest === +c.rest)?.id || 'custom';
       return `<div class="pgrid">${SP.presets.map(p => `<button class="${on === p.id ? 'on' : ''}" data-act="preset" data-id="${p.id}"><b>${esc(p.n)}</b><small>${p.rounds} × ${mmss(p.work)} · pausa ${mmss(p.rest)}</small></button>`).join('')}
-      <button class="${on === 'custom' ? 'on' : ''}" data-act="presetCustom"><b>Personalizado</b><small>${on === 'custom' ? `${+c.rounds} × ${mmss(+c.work)}· pausa ${mmss(+c.rest)}` : 'do seu jeito'}</small></button></div>`; })()}
+      <button class="${on === 'custom' ? 'on' : ''}" data-act="presetCustom"><b>Personalizado</b><small>${on === 'custom' ? `${+c.rounds} × ${mmss(+c.work)} · pausa ${mmss(+c.rest)}` : 'do seu jeito'}</small></button></div>`; })()}
     <div class="grid3 small">
       <label>Rounds<input data-tm="rounds" inputmode="numeric" value="${esc(c.rounds)}"></label>
       <label>Round (s)<input data-tm="work" inputmode="numeric" value="${esc(c.work)}"></label>
