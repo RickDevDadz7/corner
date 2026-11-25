@@ -49,6 +49,9 @@ export function resume(tr, now = Date.now()) {
   if (!tr.auto) tr.newSeg = true; // pausa manual: o caminho feito parado não entra na distância
   tr.auto = false; tr.mv = now;
 }
+// volta manual (botão "Volta"): guarda distância e tempo ativo no momento
+export function lap(tr, now = Date.now()) { if (tr.done) return null; (tr.laps ||= []).push([Math.round(tr.dist), Math.round(activeSec(tr, now))]); return tr.laps.length; }
+export function lapNow(tr, now = Date.now()) { const L = tr.laps || [], l = L[L.length - 1] || [0, 0]; return { n: L.length + 1, m: tr.dist - l[0], s: activeSec(tr, now) - l[1] }; }
 export function finish(tr, now = Date.now()) { if (tr.done) return; if (!tr.paused) flush(tr); if (!tr.paused) tr.pausedAt = now; tr.doneAt = tr.paused ? tr.pausedAt : now; tr.done = true; }
 
 // Kalman (posição), Q em m/s: quanto a pessoa pode se mexer entre leituras
@@ -147,6 +150,18 @@ export function splits(pts) {
   }
   return out;
 }
+// série pra gráfico: a cada 200 m, pace do trecho (s/km) e altitude suavizada (m)
+export function series(pts, step = 200) {
+  const { D, T } = cum(pts), ps = [], al = []; let k = 1, prevT = 0, ema = null;
+  for (let i = 0; i < D.length; i++) {
+    if (pts[i][3] != null) ema = ema == null ? pts[i][3] : ema + 0.25 * (pts[i][3] - ema);
+    while (i && D[i] >= k * step) {
+      const f = D[i] === D[i - 1] ? 1 : (k * step - D[i - 1]) / (D[i] - D[i - 1]), t = T[i - 1] + f * (T[i] - T[i - 1]);
+      ps.push(Math.round((t - prevT) / step * 1000)); al.push(ema == null ? null : Math.round(ema)); prevT = t; k++;
+    }
+  }
+  return { ps, al: al.some(x => x != null) ? al : null };
+}
 // melhores trechos contínuos (1 km, 5 km...) dentro da corrida: janela deslizante
 export function bestEfforts(pts, targets = EFFORTS) {
   const { D, T } = cum(pts), out = {};
@@ -216,7 +231,10 @@ export function summary(tr, kg) {
   const simp = simplify(tr.pts), cut = [], gap = [];
   simp.forEach((p, i) => { if (i && p[4] === 1) cut.push(i); if (p[4] === 2) gap.push(i); });
   const up = tr.up == null ? null : Math.round(tr.up);
-  return { sec, km: Math.round(m / 10) / 100, min: Math.max(1, Math.round(sec / 60)), up, kcal: kcalRun(kg, m, sec, up || 0), sp, be,
+  const se = series(tr.pts), fast = se.ps.length ? Math.min(...se.ps) : 0;
+  const laps = (tr.laps || []).concat(tr.laps?.length ? [[Math.round(m), sec]] : []).map((l, i, A) => [l[0] - (A[i - 1]?.[0] || 0), l[1] - (A[i - 1]?.[1] || 0)]).filter(l => l[0] > 0 || l[1] > 0);
+  const tot = Math.round(((tr.doneAt || Date.now()) - tr.start) / 1000);
+  return { sec, tot, km: Math.round(m / 10) / 100, min: Math.max(1, Math.round(sec / 60)), up, kcal: kcalRun(kg, m, sec, up || 0), sp, be, ps: se.ps, ...(se.al ? { al: se.al } : {}), ...(fast ? { mx: fast } : {}), ...(laps.length > 1 ? { lp: laps } : {}),
     rt: encode(simp.map(p => [p[0], p[1]])), ...(cut.length ? { cut } : {}), ...(gap.length ? { gap } : {}), ...(tr.gapM > 50 ? { gkm: Math.round(tr.gapM / 10) / 100 } : {}) };
 }
 // trechos do percurso salvo, pra desenhar: [{pts, dash}]

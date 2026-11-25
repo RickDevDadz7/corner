@@ -519,7 +519,7 @@ views.onboarding = () => {
     <label class="check"><input type="checkbox" name="autoVol" ${p.autoVol === false ? '' : 'checked'}><span>Subir o volume sozinho em ciclos (com semana leve)</span></label>`)}
     ${healthBox(p)}
     ${restrBox(restrOfProfile(p))}
-    <button class="btn primary" type="submit">${S.profile ? 'Salvar' : 'Montar meu plano'}</button>
+    ${S.profile ? '<p class="small muted pfst" id="pfStatus" aria-live="polite">Mudou, salvou: o plano se ajusta sozinho.</p>' : '<button class="btn primary" type="submit">Montar meu plano</button>'}
     <p class="muted small">Não substitui nutricionista ou médico se você tem alguma condição de saúde.</p>
   </form>`;
 };
@@ -1757,7 +1757,7 @@ function gpsOpt() {
   const o = S.ui.gps && typeof S.ui.gps === 'object' ? S.ui.gps : {};
   return { mode: GMODES[o.mode] ? o.mode : 'livre', km: +o.km > 0 && +o.km <= 100 ? +o.km : 5, min: +o.min >= 5 && +o.min <= 300 ? +o.min : 30,
     pace: +o.pace >= 150 && +o.pace <= 900 ? +o.pace : 360, every: [0, 0.5, 1].includes(+o.every) ? +o.every : 1, auto: !!o.auto, goal: +o.goal >= 0 && +o.goal <= 300 ? +o.goal : 0,
-    sync: o.sync !== false, hide: o.hide !== false };
+    sync: o.sync !== false, hide: o.hide !== false, shoe: typeof o.shoe === 'string' && /^[a-z0-9]{1,20}$/.test(o.shoe) ? o.shoe : '' };
 }
 const setGps = patch => { S.ui.gps = { ...gpsOpt(), ...patch }; save(true); };
 const hms = s => { s = Math.max(0, Math.round(s)); const h = Math.floor(s / 3600); return h ? `${h}:${String(Math.floor(s % 3600 / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}` : mmss(s); };
@@ -1802,6 +1802,21 @@ function routeSVG(coords, cut = [], gap = [], w = 120, h = 80, cls = '') {
 }
 const runCoords = r => r && typeof r.rt === 'string' ? G.decode(r.rt) : [];
 const idxList = v => Array.isArray(v) ? v.filter(n => Number.isInteger(n) && n > 0 && n < 50000) : [];
+const numList = (v, lo, hi) => Array.isArray(v) ? v.map(x => Number.isFinite(+x) && x !== null && +x >= lo && +x <= hi ? +x : null).slice(0, 3000) : [];
+// tênis: km já usados antes do app + corridas marcadas com ele
+const shoeList = () => (Array.isArray(S.ui.shoes) ? S.ui.shoes : []).filter(x => x && typeof x.id === 'string' && /^[a-z0-9]{1,20}$/.test(x.id)).map(x => ({ id: x.id, n: String(x.n || 'Tênis').slice(0, 40), base: Math.max(0, Math.min(3000, +x.base || 0)), off: !!x.off }));
+const shoeKm = id => (shoeList().find(x => x.id === id)?.base || 0) + runLog().filter(r => r.sh === id).reduce((a, r) => a + (+r.km || 0), 0);
+const runName = r => typeof r.nm === 'string' && r.nm.trim() ? r.nm.trim().slice(0, 60) : (h => `Corrida ${h < 5 ? 'de madrugada' : h < 12 ? 'de manhã' : h < 18 ? 'à tarde' : 'à noite'}`)(+r.start ? new Date(+r.start).getHours() : 12);
+// gráfico de linha (pace invertido: mais rápido fica em cima)
+function lineChart(vals, { inv = false, fmtv = v => v, cls = '', area = false } = {}) {
+  const v = vals.map((x, i) => [i, x]).filter(p => p[1] != null); if (v.length < 2) return '';
+  const W = 320, H = 96, ys = v.map(p => p[1]), lo = Math.min(...ys), hi = Math.max(...ys), span = hi - lo || 1, n = vals.length - 1 || 1;
+  const X = i => 30 + i / n * (W - 34), Y = y => 6 + (inv ? (y - lo) / span : (hi - y) / span) * (H - 18);
+  const d = v.map((p, i) => (i ? 'L' : 'M') + X(p[0]).toFixed(1) + ',' + Y(p[1]).toFixed(1)).join('');
+  return `<svg class="lchart ${cls}" viewBox="0 0 ${W} ${H}" aria-hidden="true">${area ? `<path class="la" d="${d}L${X(v[v.length - 1][0]).toFixed(1)},${H - 12}L${X(v[0][0]).toFixed(1)},${H - 12}Z"/>` : ''}<path class="ll" d="${d}"/>
+    <text x="0" y="${(inv ? Y(lo) : Y(hi)) + 4}">${esc(fmtv(inv ? lo : hi))}</text><text x="0" y="${(inv ? Y(hi) : Y(lo)) + 4}">${esc(fmtv(inv ? hi : lo))}</text>
+    <line x1="30" x2="${W - 4}" y1="${H - 12}" y2="${H - 12}"/><text x="30" y="${H - 1}">0</text><text x="${W - 4}" y="${H - 1}" text-anchor="end">${kmTxt(n * 0.2 + 0.2, 1)} km</text></svg>`;
+}
 
 // --- Leaflet (carrega só quando precisa) ---
 let leafletP = null;
@@ -1955,6 +1970,7 @@ function gpsEnd() {
   const rec = { id: newId(), sport: 'corrida', date: dayKey(new Date(GPS.start)), start: GPS.start, src: 'gps', mode: o.mode, type: o.mode === 'intervalado' || o.mode === 'tiros' ? 'intervalado' : sum.km >= 15 ? 'longo' : 'leve', ...sum };
   rec.types = [rec.type];
   if (!(rec.up > 0)) delete rec.up;
+  const sh = shoeList().find(x => x.id === gpsOpt().shoe && !x.off); if (sh) rec.sh = sh.id;
   S.logs.sessions.push(rec); save();
   GV.prs = Object.entries(rec.be || {}).filter(([L, s]) => !before[L] || s < before[L].s).map(([L, s]) => [+L, s]);
   if (!(before[10000] || before[5000] || before[1000])) GV.prs = GV.prs.filter(([L]) => L >= 5000); // primeira corrida: não enche de "recorde"
@@ -2030,7 +2046,7 @@ function paintGps() {
     const sp = Array.isArray(rec.sp) ? rec.sp.filter(x => x > 0) : [];
     body.innerHTML = `<div class="g-done"><h2>${GV.prs.length ? '<span class="pr">Recorde!</span> ' : ''}Corrida registrada</h2>
       <div class="g-grid"><div><small>Distância</small><b class="big">${kmTxt(rec.km)}<i>km</i></b></div><div><small>Tempo</small><b class="big mono">${hms(rec.sec)}</b></div>
-      <div><small>Ritmo médio</small><b>${paceTxt(rec.sec / rec.km)}<i>/km</i></b></div><div><small>Gasto</small><b>~${rec.kcal}<i>kcal</i></b></div></div>
+      <div><small>Pace médio</small><b>${paceTxt(rec.sec / rec.km)}<i>/km</i></b></div><div><small>Gasto</small><b>~${rec.kcal}<i>kcal</i></b></div></div>
       ${GV.prs.length ? `<p class="prs">${GV.prs.map(([L, x]) => `<span>★ ${esc(G.EFF_N[L])} em <b>${hms(x)}</b></span>`).join('')}</p>` : ''}
       ${sp.length ? splitBars(sp, 4) : ''}
       <div class="run-ctl"><button class="btn primary block" data-act="mobPost" data-gclose="1" data-sport="corrida">Desaceleração · 5 min</button>
@@ -2045,13 +2061,13 @@ function paintGps() {
   const armed = GV.endArm && Date.now() - GV.endArm < 3000;
   body.innerHTML = `${blk}
     <div class="g-main"><div class="g-km"><small>Distância</small><b class="big">${kmTxt(s.km)}</b><i>km</i></div><div class="g-t"><small>${GPS.paused ? (GPS.auto ? 'Pausa automática' : 'Pausado') : 'Tempo'}</small><b class="big mono">${hms(s.t)}</b></div></div>
-    <div class="g-grid g3"><div><small>Ritmo agora</small><b>${s.cur ? paceTxt(s.cur) : '–:––'}<i>/km</i></b></div><div><small>Médio</small><b>${s.avg ? paceTxt(s.avg) : '–:––'}<i>/km</i></b></div>
+    <div class="g-grid g3"><div><small>Pace agora</small><b>${s.cur ? paceTxt(s.cur) : '–:––'}<i>/km</i></b></div><div><small>Pace médio</small><b>${s.avg ? paceTxt(s.avg) : '–:––'}<i>/km</i></b></div>
       <div><small>${s.up != null ? 'Subida' : 'Velocidade'}</small><b>${s.up != null ? Math.round(s.up) + '<i>m</i>' : (s.avg ? (3600 / s.avg).toFixed(1).replace('.', ',') : '0') + '<i>km/h</i>'}</b></div></div>
     ${goal ? `<div class="g-prog"><i style="width:${Math.min(100, goal[0] * 100).toFixed(1)}%"></i><span class="small">${goal[0] >= 1 ? 'Meta batida ✓' : esc(goal[1])}</span></div>` : ''}
-    ${o.mode === 'ritmo' ? `<p class="small center g-alvo">Alvo ${paceTxt(o.pace)}/km</p>` : ''}
+    ${(() => { const sp = G.splits(GPS.pts), ln = G.lapNow(GPS); return `<div class="g-sub small mono">${sp.length ? `<span>Último km <b>${paceTxt(sp[sp.length - 1])}</b></span>` : ''}${GPS.laps?.length ? `<span>Volta ${ln.n} <b>${hms(ln.s)}</b> · ${kmTxt(ln.m / 1000)} km</span>` : ''}${o.mode === 'ritmo' ? `<span>Alvo <b>${paceTxt(o.pace)}</b>/km</span>` : ''}</div>`; })()}
     ${GV.err ? `<p class="warn small">${esc(GV.err)}</p>` : ''}
     <div class="run-ctl"><button class="btn primary run-main" data-act="gpsPause">${GPS.paused ? '▶ Continuar' : '❚❚ Pausar'}</button>
-      <div class="row gap"><button class="btn grow" data-act="gpsPocket">Tela escura</button><button class="btn grow ${armed ? 'danger' : 'ghost'}" data-act="gpsEnd">${armed ? 'Encerrar?' : 'Encerrar'}</button></div>
+      <div class="row gap"><button class="btn grow" data-act="gpsLap"${GPS.paused ? ' disabled' : ''}>⟳ Volta</button><button class="btn grow" data-act="gpsPocket">Tela escura</button><button class="btn grow ${armed ? 'danger' : 'ghost'}" data-act="gpsEnd">${armed ? 'Encerrar?' : 'Encerrar'}</button></div>
       <div class="row gap run-sw"><label class="switch"><input type="checkbox" data-act="voiceToggle" ${S.timer.voice ? 'checked' : ''}> Voz</label></div></div>`;
   // tela escura: economiza bateria com a tela acesa
   let pk = $('#gpsPocket');
@@ -2060,9 +2076,9 @@ function paintGps() {
     pk.innerHTML = `<b class="mono">${kmTxt(s.km)} km</b><span class="mono">${hms(s.t)}</span><small>Toque 2 vezes pra voltar</small>`;
   } else pk?.remove();
 }
-function splitBars(sp, max = 99) {
+function splitBars(sp, max = 99, el = []) {
   const lo = Math.min(...sp), hi = Math.max(...sp), list = sp.length > max ? sp.slice(0, max) : sp;
-  return `<div class="splits"><div class="row between small"><b>Parciais</b><span class="muted">por km</span></div>${list.map((x, i) => `<div class="sp ${x === lo && sp.length > 1 ? 'best' : ''}"><span class="mono">${i + 1}</span><i style="width:${(40 + 60 * (hi === lo ? 1 : (hi - x) / (hi - lo) * 0.8 + 0.2)).toFixed(0)}%"></i><b class="mono">${paceTxt(x)}</b></div>`).join('')}${sp.length > max ? `<p class="small muted">+ ${sp.length - max} km</p>` : ''}</div>`;
+  return `<div class="splits${el.length ? ' el' : ''}"><div class="row between small"><b>Parciais</b><span class="muted">pace por km${el.length ? ' · altitude' : ''}</span></div>${list.map((x, i) => `<div class="sp ${x === lo && sp.length > 1 ? 'best' : ''}"><span class="mono">${i + 1}</span><i style="width:${(40 + 60 * (hi === lo ? 1 : (hi - x) / (hi - lo) * 0.8 + 0.2)).toFixed(0)}%"></i><b class="mono">${paceTxt(x)}</b>${el.length ? `<small class="mono">${el[i] == null ? '' : (el[i] > 0 ? '+' : '') + el[i] + ' m'}</small>` : ''}</div>`).join('')}${sp.length > max ? `<p class="small muted">+ ${sp.length - max} km</p>` : ''}</div>`;
 }
 
 // --- página da corrida (dentro do esporte) ---
@@ -2090,6 +2106,11 @@ function runCards() {
     ${avg4 >= 5 && wk > avg4 * 1.3 ? `<p class="note small">Você já passou ${Math.round((wk / avg4 - 1) * 100)}% da sua média das últimas 4 semanas. Subir o volume rápido demais aumenta o risco de lesão em quem está começando. Base: ${esc(ev('corrida-volume')?.title || '')}.</p>` : ''}
   </div>
 
+  ${list.length ? (() => { const tmon = today().slice(0, 7), tyr = today().slice(0, 4), T = f => { const L = list.filter(f); return [L.reduce((a, r) => a + (+r.km || 0), 0), L.length, L.reduce((a, r) => a + runSec(r), 0)]; };
+    // semanas seguidas com corrida (a semana atual, ainda sem corrida, não quebra a sequência)
+    let b = weekKm(0) > 0 ? 0 : 1, n = 0; while (b < 520 && weekKm(b) > 0) { n++; b++; }
+    return `<div class="card" id="g-tot"><h3>Totais</h3><table class="tbl small"><tr><th></th><th>km</th><th>corridas</th><th>tempo</th></tr>${[['Este mês', r => r.date.startsWith(tmon)], ['Este ano', r => r.date.startsWith(tyr)], ['Desde o início', () => true]].map(([lab, f]) => { const [k, c, t] = T(f); return `<tr><td>${lab}</td><td class="mono"><b>${kmTxt(k, 1)}</b></td><td class="mono">${c}</td><td class="mono">${hms(t)}</td></tr>`; }).join('')}</table>
+    ${n >= 2 ? `<p class="small"><b>${n} semanas seguidas</b> correndo.</p>` : ''}</div>`; })() : ''}
   ${list.length ? `<div class="card" id="g-hist"><h3>Suas corridas</h3><ul class="list runs">${last.map(r => runRow(r)).join('')}</ul>
     ${list.length > 5 ? `<details><summary class="small"><b>Ver todas (${list.length})</b></summary><ul class="list runs">${list.slice(5, 60).map(r => runRow(r)).join('')}</ul></details>` : ''}</div>` : ''}
 
@@ -2097,6 +2118,11 @@ function runCards() {
     ${(() => { const lg = list.reduce((a, r) => +r.km > (+a?.km || 0) ? r : a, null); return lg ? `<tr><td>Mais longa</td><td class="mono"><b>${kmTxt(+lg.km, 1)} km</b></td><td></td><td><a href="#corrida-${esc(lg.id)}">${esc(fmtDay(lg.date))}</a></td></tr>` : ''; })()}</table>
     ${pred ? `<p class="small"><b>Previsão</b> pelos seus ${esc(G.EFF_N[pred.src])} (${hms(pred.s)}): ${pred.out.map(([L, x]) => `${esc(G.EFF_N[L])} ~${hms(x)}`).join(' · ')}</p><p class="small muted">Estimativa (fórmula de Riegel): acerta mais pra distâncias perto da que você já correu.</p>` : ''}</div>` : ''}
 
+  <details class="card" id="g-shoes" ${shoeList().length ? 'open' : ''}><summary><h3>Tênis</h3></summary>
+    ${shoeList().length ? `<ul class="list shoes">${shoeList().map(x => { const k = shoeKm(x.id); return `<li class="${x.off ? 'off' : ''}"><div class="grow"><b>${esc(x.n)}</b>${o.shoe === x.id ? ' <span class="chip">padrão</span>' : ''}<small class="mono">${kmTxt(k, 0)} km${k >= 600 && !x.off ? ' · já rodou bastante: fabricantes costumam indicar troca entre 500 e 800 km' : ''}</small>
+      <div class="shbar"><i style="width:${Math.min(100, k / 8).toFixed(0)}%"></i></div></div>${x.off ? '' : o.shoe === x.id ? '' : `<button class="btn small ghost" data-act="gpsShoeDef" data-id="${x.id}">Padrão</button>`}<button class="btn small ghost" data-act="gpsShoeOff" data-id="${x.id}">${x.off ? 'Voltar' : 'Aposentar'}</button></li>`; }).join('')}</ul>` : '<p class="small muted">Cadastre seu tênis: as corridas com GPS somam os km nele.</p>'}
+    <div class="grid2 form mt"><label>Nome<input id="shoeN" maxlength="40" placeholder="ex.: Pegasus azul"></label><label>Km já usados<input id="shoeK" inputmode="numeric" placeholder="0"></label></div>
+    <button class="btn small mt" data-act="gpsShoeAdd">+ Adicionar tênis</button></details>
   <details class="card" id="g-priv" ${GV.delArm && Date.now() - GV.delArm < 3500 ? 'open' : ''}><summary><h3>Privacidade do GPS</h3></summary>
     <label class="switch"><input type="checkbox" data-act="gpsSync" ${o.sync ? 'checked' : ''}> Guardar os percursos na minha conta (outros aparelhos)</label>
     <label class="switch"><input type="checkbox" data-act="gpsHide" ${o.hide ? 'checked' : ''}> Esconder 200 m do início e do fim na imagem compartilhada</label>
@@ -2106,26 +2132,49 @@ function runCards() {
 function runRow(r) {
   const c = runCoords(r);
   return `<li><a class="grow runrow" href="#corrida-${esc(r.id)}">${c.length > 1 ? routeSVG(c, idxList(r.cut), idxList(r.gap), 64, 44) : '<span class="rsvg none"></span>'}
-    <span class="grow"><b>${kmTxt(+r.km, 2)} km</b> <span class="mono small">${hms(runSec(r))} · ${paceTxt(runSec(r) / r.km)}/km</span><small>${esc(fmtDay(r.date))} · ${esc(r.src === 'gps' ? GMODES[r.mode] || 'GPS' : 'Registro manual')}</small></span></a></li>`;
+    <span class="grow"><b>${kmTxt(+r.km, 2)} km</b> <span class="mono small">${hms(runSec(r))} · ${paceTxt(runSec(r) / r.km)}/km</span><small>${esc(runName(r))} · ${esc(fmtDay(r.date))}${r.src === 'gps' ? '' : ' · manual'}</small></span></a></li>`;
 }
 views.corrida = id => {
   const r = S.logs.sessions.find(x => x.id === id && x.sport === 'corrida');
   if (!r) { location.hash = '#esporte-corrida'; return ''; }
-  const c = runCoords(r), sec = runSec(r), sp = Array.isArray(r.sp) ? r.sp.filter(x => x > 0) : [], be = r.be && typeof r.be === 'object' ? r.be : {};
+  const c = runCoords(r), sec = runSec(r), sp = numList(r.sp, 60, 7200).filter(x => x != null), be = r.be && typeof r.be === 'object' ? r.be : {};
+  const ps = numList(r.ps, 60, 3600), al = numList(r.al, -500, 9000), lp = Array.isArray(r.lp) ? r.lp.filter(l => Array.isArray(l) && l.length === 2 && l.every(Number.isFinite)) : [];
   const bests = runBests(), sim = runLog().filter(x => x.id !== r.id && x.date <= r.date && Math.abs(x.km - r.km) <= r.km * 0.15).slice(0, 1)[0];
-  const diff = sim ? sec / r.km - runSec(sim) / sim.km : 0, armed = GV.delArm === r.id;
-  return `<section class="head"><a class="linkbtn" href="#esporte-corrida">‹ Corrida</a><h1>${kmTxt(+r.km, 2)} km</h1><div class="chip">${esc(fmtDay(r.date))}${+r.start ? ' · ' + new Date(+r.start).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : ''}</div></section>
+  const diff = sim ? sec / r.km - runSec(sim) / sim.km : 0, armed = GV.delArm === r.id, tot = +r.tot > sec ? +r.tot : 0, mx = +r.mx > 60 ? +r.mx : 0;
+  const shoes = shoeList(), sh = shoes.find(x => x.id === r.sh), rpe = +r.rpe >= 1 && +r.rpe <= 10 ? +r.rpe : 0;
+  // subida/descida de cada km pela série de altitude (a cada 200 m)
+  const kmEl = al.some(x => x != null) ? sp.map((_, k) => { const a = al[k * 5 - 1] ?? al[0], b = al[k * 5 + 4]; return a != null && b != null ? b - a : null; }) : [];
+  return `<section class="head"><a class="linkbtn" href="#esporte-corrida">‹ Corrida</a><h1>${esc(runName(r))}</h1><div class="chip">${esc(fmtDay(r.date))}${+r.start ? ' · ' + new Date(+r.start).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : ''}</div></section>
+  ${typeof r.nt === 'string' && r.nt.trim() ? `<p class="pad rnote">${esc(r.nt.slice(0, 500))}</p>` : ''}
   ${c.length > 1 ? `<div class="card gmap-card"><div id="cmap" class="gmap"></div>${+r.gkm > 0 ? `<p class="small muted">Tracejado: ${kmTxt(+r.gkm, 2)} km sem sinal, contados em linha reta.</p>` : ''}</div>` : ''}
-  <div class="card"><div class="g-grid"><div><small>Tempo</small><b class="mono">${hms(sec)}</b></div><div><small>Ritmo médio</small><b>${paceTxt(sec / r.km)}<i>/km</i></b></div>
-    <div><small>Velocidade</small><b>${(r.km / sec * 3600).toFixed(1).replace('.', ',')}<i>km/h</i></b></div><div><small>Gasto</small><b>~${Math.round(+r.kcal || 0)}<i>kcal</i></b></div>
-    ${+r.up > 0 ? `<div><small>Subida</small><b>${Math.round(r.up)}<i>m</i></b></div>` : ''}<div><small>Tipo</small><b class="small">${esc(r.src === 'gps' ? GMODES[r.mode] || 'Livre' : SPORTS.corrida.types[r.type]?.n || 'Manual')}</b></div></div>
-    ${sim ? `<p class="small">Comparada com ${esc(fmtDay(sim.date))} (${kmTxt(+sim.km, 1)} km): <b>${Math.abs(diff) < 2 ? 'mesmo ritmo' : `${Math.round(Math.abs(diff))} s/km ${diff < 0 ? 'mais rápido' : 'mais lento'}`}</b>.</p>` : ''}</div>
-  ${sp.length ? `<div class="card">${splitBars(sp)}</div>` : ''}
-  ${Object.keys(be).length ? `<div class="card"><h3>Melhores trechos</h3><table class="tbl small">${G.EFFORTS.filter(L => +be[L] > 0).map(L => `<tr><td>${esc(G.EFF_N[L])}</td><td class="mono"><b>${hms(+be[L])}</b></td><td>${bests[L]?.id === r.id ? '<span class="pr">★ Recorde</span>' : ''}</td></tr>`).join('')}</table></div>` : ''}
+  <div class="card"><div class="g-grid g3"><div><small>Distância</small><b>${kmTxt(+r.km, 2)}<i>km</i></b></div><div><small>Pace médio</small><b>${paceTxt(sec / r.km)}<i>/km</i></b></div><div><small>${tot ? 'Em movimento' : 'Tempo'}</small><b class="mono">${hms(sec)}</b></div>
+    ${tot ? `<div><small>Tempo total</small><b class="mono">${hms(tot)}</b></div>` : ''}${mx ? `<div><small>Pace mais rápido</small><b>${paceTxt(mx)}<i>/km</i></b></div>` : ''}
+    <div><small>Velocidade</small><b>${(r.km / sec * 3600).toFixed(1).replace('.', ',')}<i>km/h</i></b></div>${mx ? `<div><small>Vel. máxima</small><b>${(3600 / mx).toFixed(1).replace('.', ',')}<i>km/h</i></b></div>` : ''}
+    ${+r.up > 0 ? `<div><small>Subida</small><b>${Math.round(r.up)}<i>m</i></b></div>` : ''}<div><small>Gasto</small><b>~${Math.round(+r.kcal || 0)}<i>kcal</i></b></div>
+    ${rpe ? `<div><small>Esforço</small><b>${rpe}<i>/10</i></b></div>` : ''}${sh ? `<div><small>Tênis</small><b class="small">${esc(sh.n)}</b></div>` : ''}</div>
+    ${sim ? `<p class="small">Comparada com ${esc(fmtDay(sim.date))} (${kmTxt(+sim.km, 1)} km): <b>${Math.abs(diff) < 2 ? 'mesmo pace' : `${Math.round(Math.abs(diff))} s/km ${diff < 0 ? 'mais rápido' : 'mais lento'}`}</b>.</p>` : ''}
+    <button class="linkbtn small" data-act="gpsEdit" data-id="${esc(r.id)}">${GV.edit === r.id ? 'Fechar edição' : '✎ Nome, notas, esforço e tênis'}</button>
+    ${GV.edit === r.id ? `<form id="runEdit" class="form mt" data-id="${esc(r.id)}"><label>Nome<input name="nm" maxlength="60" value="${esc(typeof r.nm === 'string' ? r.nm : '')}" placeholder="${esc(runName({ start: r.start }))}"></label>
+      <label>Notas<textarea name="nt" maxlength="500" rows="2" placeholder="Como foi?">${esc(typeof r.nt === 'string' ? r.nt : '')}</textarea></label>
+      <div class="grid2"><label>Esforço percebido${sel('rpe', { '': '—', ...Object.fromEntries([1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => [n, n + (n <= 2 ? ' · leve' : n <= 4 ? ' · moderado' : n <= 6 ? ' · puxado' : n <= 8 ? ' · difícil' : ' · máximo')])) }, rpe || '')}</label>
+      ${shoes.length ? `<label>Tênis${sel('sh', { '': '—', ...Object.fromEntries(shoes.filter(x => !x.off || x.id === r.sh).map(x => [x.id, x.n])) }, r.sh || '')}</label>` : ''}</div>
+      <button class="btn small" type="submit">Salvar</button></form>` : ''}</div>
+  ${ps.filter(x => x != null).length > 2 ? `<div class="card"><h3>Pace</h3>${lineChart(ps, { inv: true, fmtv: paceTxt })}
+    ${al.filter(x => x != null).length > 2 ? `<h3 class="mt">Altimetria</h3>${lineChart(al, { fmtv: v => v + ' m', cls: 'alt', area: true })}` : ''}</div>` : ''}
+  ${sp.length ? `<div class="card">${splitBars(sp, 99, kmEl)}</div>` : ''}
+  ${lp.length > 1 ? `<div class="card"><h3>Voltas</h3><table class="tbl small"><tr><th>#</th><th>Distância</th><th>Tempo</th><th>Pace</th></tr>${lp.map((l, i) => `<tr><td>${i + 1}</td><td class="mono">${kmTxt(l[0] / 1000)} km</td><td class="mono">${hms(l[1])}</td><td class="mono">${l[0] > 20 ? paceTxt(l[1] / l[0] * 1000) : '–'}</td></tr>`).join('')}</table></div>` : ''}
+  ${Object.keys(be).length ? `<div class="card"><h3>Melhores trechos</h3><table class="tbl small">${G.EFFORTS.filter(L => +be[L] > 0).map(L => `<tr><td>${esc(G.EFF_N[L])}</td><td class="mono"><b>${hms(+be[L])}</b></td><td class="mono">${paceTxt(+be[L] / L * 1000)}/km</td><td>${bests[L]?.id === r.id ? '<span class="pr">★ Recorde</span>' : ''}</td></tr>`).join('')}</table></div>` : ''}
   <div class="row gap pad">${c.length > 1 ? `<button class="btn grow" data-act="gpsShare" data-id="${esc(r.id)}">Compartilhar imagem</button>` : ''}
     <button class="btn grow ${armed ? 'danger' : 'ghost'}" data-act="gpsDel" data-id="${esc(r.id)}">${armed ? 'Apagar mesmo?' : 'Apagar corrida'}</button></div>`;
 };
 function bindCorrida(id) {
+  $('#runEdit')?.addEventListener('submit', e => {
+    e.preventDefault(); const f = e.target, r = S.logs.sessions.find(x => x.id === f.dataset.id); if (!r) return;
+    const nm = f.nm.value.trim().slice(0, 60), nt = f.nt.value.trim().slice(0, 500), rpe = +f.rpe.value, sh = f.sh?.value || '';
+    nm ? r.nm = nm : delete r.nm; nt ? r.nt = nt : delete r.nt; rpe >= 1 && rpe <= 10 ? r.rpe = rpe : delete r.rpe;
+    if (f.sh) { shoeList().some(x => x.id === sh) ? r.sh = sh : delete r.sh; }
+    r.t = Date.now(); GV.edit = null; save(); render(); toast('Corrida atualizada');
+  });
   const r = S.logs.sessions.find(x => x.id === id), el = $('#cmap'); if (!r || !el) return;
   mapInto(el, runCoords(r), idxList(r.cut), idxList(r.gap), false).then(g => { GV.cmap?.m?.remove(); GV.cmap = g; });
 }
@@ -2172,6 +2221,12 @@ const GACT = {
   gpsOpen: () => { GV.min = false; paintGps(); },
   gpsCenter: () => { GV.follow = true; paintGps(); },
   gpsPocket: () => { GV.pocket = true; paintGps(); },
+  gpsLap: () => { if (!GPS || GPS.done || GPS.paused) return; const ln = G.lapNow(GPS), n = G.lap(GPS); G.persist(GPS); beep(true); say(`Volta ${n}: ${speakTime(ln.s)}, ${kmTxt(ln.m / 1000, 2).replace(',', ' vírgula ')} quilômetros.`); paintGps(); },
+  gpsEdit: el => { GV.edit = GV.edit === el.dataset.id ? null : el.dataset.id; render(); },
+  gpsShoeAdd: () => { const n = ($('#shoeN')?.value || '').trim().slice(0, 40), km = Math.max(0, Math.min(3000, Math.round(num($('#shoeK')?.value) || 0))); if (!n) { toast('Dá um nome pro tênis'); return; }
+    const L = shoeList(); L.push({ id: newId(), n, base: km }); S.ui.shoes = L; if (!gpsOpt().shoe) S.ui.gps = { ...gpsOpt(), shoe: L[L.length - 1].id }; save(true); render(); toast('Tênis adicionado'); },
+  gpsShoeDef: el => { if (shoeList().some(x => x.id === el.dataset.id)) { setGps({ shoe: el.dataset.id }); render(); } },
+  gpsShoeOff: el => { const L = shoeList(), x = L.find(y => y.id === el.dataset.id); if (!x) return; x.off = !x.off; S.ui.shoes = L; if (x.off && gpsOpt().shoe === x.id) S.ui.gps = { ...gpsOpt(), shoe: '' }; save(true); render(); },
   gpsWake: () => { const n = Date.now(); if (n - (GV.wakeT || 0) < 600) { GV.pocket = false; paintGps(); } GV.wakeT = n; },
   gpsMode: el => { if (GMODES[el.dataset.v]) { setGps({ mode: el.dataset.v }); render(); } },
   gpsAuto: el => setGps({ auto: el.checked }),
@@ -2695,16 +2750,18 @@ function bindAfter(v, arg) {
     }));
     pf.querySelectorAll('details.psec').forEach(d => d.addEventListener('toggle', () => { if (!S.profile) return; const o = new Set(Array.isArray(S.ui.psOpen) ? S.ui.psOpen : []); d.open ? o.add(d.id.slice(3)) : o.delete(d.id.slice(3)); S.ui.psOpen = [...o].filter(x => /^[a-z]{2,10}$/.test(x)); }));
     bindRestrBox(pf); bindHealthBox(pf);
-    pf.addEventListener('submit', e => {
-      e.preventDefault();
+    // perfil salva sozinho ao mexer (depois do primeiro cadastro); o botão só existe no primeiro cadastro
+    const pst = (m, bad) => { const el = $('#pfStatus'); if (el) { el.textContent = m; el.classList.toggle('warn', !!bad); } };
+    const profSave = auto => {
+      const warn = (m, open) => { if (auto) pst(m, true); else { toast(m); if (open) $(open).open = true; } };
       const fd = new FormData(pf), g = k => fd.get(k);
       const sports = {}, wdOf = id => wdOk(fd.getAll('wd_' + id)) || [];
       for (const id of SPORT_IDS) if (g('sp_' + id)) {
-        const wd = wdOf(id); if (!wd.length) { toast(`Marque os dias de ${SPORTS[id].n.toLowerCase()} em Minha semana.`); $('#ps-semana').open = true; return; }
+        const wd = wdOf(id); if (!wd.length) { warn(`Marque os dias de ${SPORTS[id].n.toLowerCase()} em Minha semana.`, '#ps-semana'); return; }
         sports[id] = { days: wd.length, wd, h: hOk(g('wh_' + id)), min: num(g('sm_' + id)) || 60, ...(t => ({ types: t, type: t[0] }))(typesOf(id, { types: fd.getAll('stt_' + id) })), where: g('sw_' + id) };
       }
       const liftWd = g('lift_on') ? wdOf('forca') : [];
-      if (g('lift_on') && !liftWd.length) { toast('Marque os dias de força em Minha semana (ou desmarque Força).'); $('#ps-semana').open = true; return; }
+      if (g('lift_on') && !liftWd.length) { warn('Marque os dias de força em Minha semana (ou desmarque Força).', '#ps-semana'); return; }
       const p = {
         sex: g('sex'), age: num(g('age')), height: num(g('height')), weight: num(g('weight')), bf: num(g('bf')), neat: num(g('neat')), goal: g('goal'), rate: num(g('rate')),
         experience: g('experience'), liftDays: Math.min(6, liftWd.length), liftWd: liftWd.slice(0, 6), liftH: hOk(g('wh_forca')), liftMin: Math.max(15, Math.min(180, num(g('liftMin')) || 40)), env: g('env'), equip: fd.getAll('equip'), sports,
@@ -2716,18 +2773,26 @@ function bindAfter(v, arg) {
       const until = temp.length && /^\d{4}-\d{2}-\d{2}$/.test(g('restrUntil') || '') ? g('restrUntil') : '';
       const oldR = restrOfProfile();
       p.restr = perm.length || temp.length ? { perm, temp, until, since: oldR.perm.length || oldR.temp.length ? (oldR.since || today()) : today() } : null;
-      if ((p.cond.length || p.body.length) && !p.healthOk) { toast('Pra guardar condição de saúde ou de corpo, marque a autorização no fim de "Saúde e corpo".'); $('#hbox').open = true; return; }
+      if ((p.cond.length || p.body.length) && !p.healthOk) { warn('Pra guardar condição de saúde ou de corpo, marque a autorização no fim de "Saúde e corpo".', '#hbox'); return; }
       if (!p.cond.length && !p.body.length) p.healthOk = '';
-      if (!p.age || !p.height || !p.weight || p.age < 14 || p.age > 90 || p.height < 120 || p.height > 230 || p.weight < 35 || p.weight > 250) { toast('Confira idade, altura e peso.'); return; }
-      if (!Object.keys(sports).length && !p.liftDays) { toast('Marque pelo menos um esporte ou dias de força.'); return; }
+      if (!p.age || !p.height || !p.weight || p.age < 14 || p.age > 90 || p.height < 120 || p.height > 230 || p.weight < 35 || p.weight > 250) { warn('Confira idade, altura e peso.'); return; }
+      if (!Object.keys(sports).length && !p.liftDays) { warn('Marque pelo menos um esporte ou dias de força.'); return; }
       const first = !S.profile;
+      if (auto) { if (first) return; if (JSON.stringify(p) === JSON.stringify({ ...S.profile, ...p }) && JSON.stringify(S.profile) === JSON.stringify(p)) { pst('Tudo salvo ✓'); return; } S.profile = p; save(true); pst('Salvo ✓'); return; }
       S.profile = p;
       if (first && !S.logs.weights[today()]) { S.logs.weights[today()] = p.weight; S.meta.wt[today()] = Date.now(); } // só no primeiro cadastro: editar o perfil não vira pesagem
       save(true); toast(first ? 'Plano pronto. Bora.' : 'Perfil atualizado');
       if (spineNext) { spineNext = false; spEdit = null; location.hash = '#coluna'; } else location.hash = '#hoje';
       rendered = ''; go();
       if (first && !tourSeen()) setTimeout(() => startTour(tourGo), 700);
-    });
+    };
+    pf.addEventListener('submit', e => { e.preventDefault(); profSave(false); });
+    if (S.profile) {
+      let tmo = null; const later = ms => { clearTimeout(tmo); pst('Salvando…'); tmo = setTimeout(() => { if (pf.isConnected) profSave(true); }, ms); };
+      pf.addEventListener('change', () => later(300));
+      pf.addEventListener('input', e => { if (/INPUT|TEXTAREA/.test(e.target.tagName) && !/checkbox|radio/.test(e.target.type)) later(900); });
+      pf.addEventListener('click', e => { if (e.target.closest('button,.chipbtn,label')) later(500); });
+    }
   }
   if (v === 'coluna') bindSpine();
   if (v === 'hoje') {
