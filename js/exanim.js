@@ -348,9 +348,9 @@ def('walklunge', { frames: PAT.afundo.frames, steps: ['Passo longo à frente, de
     props: J => [{ k: 'badge', text: 'Um braço por vez|depois troca' }, { k: 'line', a: anc, b: ext(J.haL, anc, 0.1), w: 5, c: 'prb' }, { k: 'ball', p: ext(J.haL, anc, -0.12), r: 0.15, cls: 'plt' }] }); }
 { const dn = P(STD, { hL: [0.06, -0.54, 0.12], eL: [-0.3, 0.2, 1] }), up = P(dn, { hL: [0.1, -0.06, 0.74] });
   def('cablelat', { cam: 72, frames: rep4(dn, up, 900, 1000), steps: ['Cabo vindo do lado oposto, cruzando na frente do corpo', 'Sobe até a linha do ombro e desce devagar'], props: J => [{ k: 'line', a: J.haL, b: [0, 0.06, 0.5], w: 2, c: 'pr' }] }); }
-{ const dn = P(ST, { p: [-0.2, 0.84, 0], lean: 72, fL: [0.03, 0, -0.15], fR: [0.03, 0, 0.15], kL: [1, 0, -0.15], kR: [1, 0, 0.15], wL: [0.25, 0.46, -0.25], wR: [0.25, 0.46, 0.25], eL: [0, 0.2, 1], eR: [0, 0.2, -1] });
+{ const dn = P(ST, { p: [-0.2, 0.84, 0], lean: 72, fL: [0.03, 0, -0.15], fR: [0.03, 0, 0.15], kL: [1, 0, -0.15], kR: [1, 0, 0.15], wL: [0.25, 0.46, -0.25], wR: [0.25, 0.46, 0.25], eL: [-0.4, -0.2, 1], eR: [-0.4, -0.2, -1] });
   const up = P(dn, { wL: [0.27, 0.9, -0.74], wR: [0.27, 0.9, 0.74] });
-  def('rdelt', { cam: 55, frames: rep4(dn, up, 900, 1000), steps: ['Tronco inclinado, abre os braços pro lado com o cotovelo levemente dobrado', 'Desce devagar, sem embalar'], props: dbs() }); }
+  def('rdelt', { cam: 76, tilt: 10, frames: rep4(dn, up, 900, 1000), steps: ['Tronco inclinado, abre os braços pro lado com o cotovelo levemente dobrado', 'Desce devagar, sem embalar'], props: dbs() }); }
 { const s0 = P(STD, { hL: [0.52, 0.0, 0.1], hR: [0.52, 0.0, -0.1], eL: [-0.3, -1, 0.3], eR: [-0.3, -1, -0.3] }), s1 = P(s0, { hL: [0.1, 0.0, 0.72], hR: [0.1, 0.0, -0.72] });
   def('bandpull', { cam: 60, frames: rep4(s0, s1, 700, 900), steps: ['Braços esticados na frente segurando o elástico', 'Abre até encostar no peito, aperta as escápulas e volta'], props: J => [{ k: 'band', a: J.haL, b: J.haR }] }); }
 // Braços
@@ -500,7 +500,7 @@ def('ytw', { ...PAT.ytw, cam: 40, tilt: 18, ox: 10, view2: { cam: 12, tilt: 62, 
   def('kbswing', { cam: 8, view2: { cam: 84, tilt: 6, ox: 0 }, frames: [F(dn, 450, 0, 'load'), F(mid_, 220, 1, 'snap'), F(up, 250, 1), F(up, 120, 1), F(mid_, 300, 0), F(dn, 350, 0)], steps: PAT.kbswing.steps, props: PAT.kbswing.props }); }
 def('pecdeck', { ...PAT.pecdeck, props: J => [seatBox, backRest, { k: 'line', a: [-0.3, 0, 0], b: [-0.3, 1.9, 0], w: 8, c: 'pr', layer: 'back' }, { k: 'line', a: [-0.3, 1.9, 0], b: [0.05, 1.9, 0], w: 6, c: 'pr', layer: 'back' },
   { k: 'line', a: J.elL, b: J.haL, w: 13, c: 'prb', layer: 'back' }, { k: 'line', a: J.elR, b: J.haR, w: 13, c: 'prb', layer: 'back' }, { k: 'line', a: J.haL, b: [0.05, 1.9, -0.05], w: 1.5, c: 'pr', layer: 'back' }, { k: 'line', a: J.haR, b: [0.05, 1.9, 0.05], w: 1.5, c: 'pr', layer: 'back' }] });
-{ const o = PAT.dbpullover; def('dbpullover', { ...o, cam: 6, tilt: 4, props: J => [...o.props(J), { k: 'line', a: J.shL, b: J.elL, w: 9, c: 'mus' }] }); }
+{ const o = PAT.dbpullover; def('dbpullover', { ...o, cam: 6, tilt: 4, view2: { cam: 40, tilt: 45, ox: 35 }, props: J => [...o.props(J), { k: 'line', a: J.shL, b: J.elL, w: 9, c: 'mus' }] }); }
 { // encolhimento: o ombro sobe de verdade e o trapézio fica marcado
   const dn = P(STD, { wL: [0.03, 0.8, -0.24], wR: [0.03, 0.8, 0.24], eL: [-0.3, -1, 0.2], eR: [-0.3, -1, -0.2], shrug: 0 }), up = P(dn, { shrug: 1, wL: [0.03, 0.87, -0.24], wR: [0.03, 0.87, 0.24] });
   def('shrug', { cam: 55, frames: rep4(dn, up, 600, 900), steps: PAT.shrug.steps,
@@ -511,7 +511,11 @@ def('pecdeck', { ...PAT.pecdeck, props: J => [seatBox, backRest, { k: 'line', a:
 { const dn = P(STD, { hL: [-0.16, 0.2, 0.06], hR: [-0.16, 0.2, -0.06], eL: [0.1, 1, 0.25], eR: [0.1, 1, -0.25] }), up = P(dn, { hL: [0.03, 0.56, 0.06], hR: [0.03, 0.56, -0.06] });
   def('ohtri', { zoom: 0.92, cam: 32, frames: rep4(dn, up, 800, 1000), steps: PAT.ohtri.steps, props: PAT.ohtri.props }); }
 def('kick', { ...PAT.kick, cam: 6 });
-def('preacher', { ...PAT.preacher, cam: 10, props: J => [{ k: 'box', x1: -0.22, x2: 0.22, y: 0.5, z1: -0.18, z2: 0.18 }, { k: 'line', a: [0.28, 0.66, 0], b: [0.28, 0, 0], w: 6, c: 'pr', layer: 'back' }, { k: 'line', a: [0.07, 0.88, 0], b: [0.3, 0.65, 0], w: 18, c: 'prb', layer: 'front' }, { k: 'bar', a: J.haL, b: J.haR, r: 0.12 }] });
+{ // Scott: cotovelo parado em cima da almofada (E = [0.33, 0.78]); a mão anda num arco, sem atravessar nada
+  const b0 = PAT.preacher.frames[0].p, at = (x, y, ex, ey) => ({ ...b0, wL: [x, y, -0.17], wR: [x, y, 0.17], eL: [ex, ey, 0.05], eR: [ex, ey, -0.05] });
+  const h0 = at(0.526, 0.594, 0.3, -1), h1 = at(0.599, 0.756, -0.1, -1), h2 = at(0.551, 0.935, 0.23, -1), h3 = at(0.386, 1.044, 0.55, -0.85);
+  PAT.preacher.frames = [F(h0, 400, 0), F(h1, 350, 0), F(h2, 350, 0), F(h3, 300, 0), F(h3, 150, 1), F(h2, 380, 1), F(h1, 380, 1), F(h0, 400, 1)]; }
+def('preacher', { ...PAT.preacher, cam: 10, props: J => [{ k: 'box', x1: -0.22, x2: 0.22, y: 0.5, z1: -0.18, z2: 0.18 }, { k: 'line', a: [0.24, 0.62, 0], b: [0.24, 0, 0], w: 6, c: 'pr', layer: 'back' }, { k: 'line', a: [0.046, 0.83, 0], b: [0.249, 0.636, 0], w: 18, c: 'prb', layer: 'front' }, { k: 'bar', a: J.haL, b: J.haR, r: 0.12 }] });
 def('birddog', { ...PAT.birddog, cam: 22, tilt: 26 });
 def('superman', { ...PAT.superman, cam: 22, tilt: 22 });
 { // prancha lateral / Copenhague: vista de frente, braço de cima na cintura
@@ -692,7 +696,7 @@ const trailOn = (fr, j) => fr.map(f => ({ ...f, fx: j })); // rastro vermelho se
   const at = (x, z) => P(STD, { p: [x, 0.88, z], hL: [0.02, -0.4, 0.22], hR: [0.02, -0.4, -0.22], eL: [-0.2, -0.5, 1], eR: [-0.2, -0.5, -1] });
   mdef('quadrilgiro', { cam: 45, tilt: 14, frames: trailOn(loop([at(0.11, 0), at(0, 0.11), at(-0.11, 0), at(0, -0.11)], 380), 'pel') }); }
 { // balanço de perna frente e trás (mão na parede do lado)
-  const a = P(STD, { fL: [0.72, 0.58, -0.13], kL: [0, 1, 0], tL: [0.3, 1, 0], hL: [0.05, -0.2, 0.4] }), b = P(a, { fL: [-0.55, 0.32, -0.13], tL: [0, -1, 0] });
+  const a = P(STD, { fL: [0.72, 0.58, -0.13], kL: [0, 1, 0], tL: [0.3, 1, 0], hL: [0.05, -0.2, 0.4] }), b = P(a, { fL: [-0.68, 0.4, -0.13], kL: [0.5, -1, 0], tL: [-0.6, -1, 0] });
   mdef('balancofrente', { cam: 35, tilt: 40, zoom: 0.92, frames: [F(a, 500, 0), F(b, 550, 0), F(a, 550, 1)] }); }
 { // balanço lateral (de frente pra parede)
   const a = P(STD, { wL: [0.5, 1.3, -0.22], wR: [0.5, 1.3, 0.22], eL: [0, -1, -0.5], eR: [0, -1, 0.5], fL: [0.16, 0.26, 0.34], kL: [1, 0, 0.3] }), b = P(a, { fL: [0.06, 0.32, -0.6], kL: [1, 0, -0.3] });
@@ -706,10 +710,12 @@ const trailOn = (fr, j) => fr.map(f => ({ ...f, fx: j })); // rastro vermelho se
   const mid = P(fold, { p: [-0.1, 0.72, 0], lean: 98, fL: [-0.2, 0, -0.12], fR: [-0.2, 0, 0.12], tL: [1, -0.5, 0], tR: [1, -0.5, 0], wL: [0.5, 0, -0.18], wR: [0.5, 0, 0.18] });
   const plank = P(fold, { p: [-0.25, 0.42, 0], lean: 76, fL: [-0.98, 0, -0.12], fR: [-0.98, 0, 0.12], kL: [0, -1, 0], kR: [0, -1, 0], tL: [0, -1, 0], tR: [0, -1, 0], wL: [0.28, 0, -0.18], wR: [0.28, 0, 0.18] });
   mdef('inchworm', { zoom: 0.82, ox: 30, frames: [F(STD, 400, 0), F(fold, 700, 0), F(mid, 600, 0), F(plank, 700, 1), F(plank, 400, 1), F(mid, 600, 1), F(fold, 600, 1), F(STD, 700, 1)] }); }
-{ // avanço com cotovelo ao chão + braço pro teto
-  const a = { py: 0, cy: 0, p: [0.0, 0.45, 0], lean: 60, fL: [0.62, 0, -0.16], kL: [1, 0.3, -0.2], tL: [1, 0, 0], fR: [-0.55, 0.05, 0.14], kR: [0, -0.5, 0], tR: [-1, -0.4, 0], wL: [0.55, 0.02, 0.02], wR: [0.5, 0, 0.14], eL: [-1, 0, 0.3], eR: [-1, 0, -0.3] };
-  const b = P(a, { wL: [0.45, 0.1, -0.06], eL: [0, -1, 0.3] }), c = P(a, { tw: -70, wL: undefined, hL: [0.0, 0.75, -0.05], eL: [0, 1, -0.3] });
-  mdef('mgs', { cam: 30, tilt: 18, ox: 25, steps: ['Passo largo, mãos no chão por dentro do pé da frente', 'Cotovelo desce até o pé, depois o braço gira pro teto'], props: () => [{ k: 'badge', text: 'Cotovelo no chão,|depois braço pro teto' }], frames: [F(a, 500, 0), F(b, 700, 0), F(a, 400, 1), F(c, 800, 1), F(c, 500, 1), F(a, 600, 1)] }); }
+{ // avanço com cotovelo ao chão + braço pro teto (maior alongamento do mundo): mãos e cotovelo em coords do mundo
+  const a = { py: 0, cy: 0, p: [0.0, 0.44, 0], lean: 58, fL: [0.5, 0, -0.2], kL: [1, 0.5, -0.3], tL: [1, 0, 0], fR: [-0.62, 0.03, 0.14], kR: [0.4, -1, 0], tR: [1, -0.7, 0], wL: [0.56, 0.02, -0.04], wR: [0.52, 0.02, 0.14], eL: [-1, 0, 0.4], eR: [-1, 0, -0.4] };
+  const b = P(a, { p: [0.02, 0.4, 0], lean: 70, wL: [0.46, 0.12, -0.1], eL: [1, -0.6, 0.2] });
+  const c = P(a, { lean: 50, tw: -60, wL: [0.3, 1.25, -0.32], eL: [-0.3, 0, 1] });
+  mdef('mgs', { cam: 14, tilt: 10, ox: 25, steps: ['Passo largo, mãos no chão por dentro do pé da frente', 'Cotovelo desce até o pé, depois o braço gira pro teto'], props: () => [{ k: 'badge', text: 'Cotovelo no chão,|depois braço pro teto' }],
+    frames: [F(a, 500, 0), F(b, 800, 0), F(b, 500, 0), F(a, 500, 1), F(c, 900, 1), F(c, 700, 1), F(a, 700, 1)] }); }
 { // skipping
   const a = P(STD, { p: [0.02, 0.95, 0], fL: [0.28, 0.52, -0.13], kL: [1, 0.2, 0], tL: [1, -0.4, 0], fR: [0.03, 0.06, 0.13], tR: [1, -0.8, 0], hR: [0.32, -0.15, -0.2], hL: [-0.15, -0.4, 0.24] });
   const b = P(STD, { p: [0.02, 0.95, 0], fR: [0.28, 0.52, 0.13], kR: [1, 0.2, 0], tR: [1, -0.4, 0], fL: [0.03, 0.06, -0.13], tL: [1, -0.8, 0], hL: [0.32, -0.15, 0.2], hR: [-0.15, -0.4, -0.24] });
@@ -732,8 +738,10 @@ const trailOn = (fr, j) => fr.map(f => ({ ...f, fx: j })); // rastro vermelho se
   const a = P(STD, { hL: [0.25, 0.12, -0.32], eL: [1, 0, 0], hR: [0.25, -0.02, 0.06], eR: [0, -1, -0.6] }), b = P(a, { hL: [0.2, 0.12, -0.42] });
   mdef('ombrocruz', { cam: 70, tilt: 6, frames: [F(STD, 400, 0), F(a, 700, 0), F(b, 1500, 1), F(STD, 600, 1)] }); }
 { // tríceps acima da cabeça
-  const a = P(STD, { hL: [-0.2, 0.24, 0.04], eL: [0, 1, -0.1], wR: [0.06, 1.68, -0.15], eR: [0, 0.3, -1] }), b = P(a, { hL: [-0.24, 0.2, 0.02], wR: [0.04, 1.69, -0.12] });
-  mdef('triceps', { cam: 90, tilt: 4, ox: 30, props: () => [{ k: 'badge', text: 'A outra mão|puxa o cotovelo' }], frames: [F(STD, 400, 0), F(a, 800, 0), F(b, 1500, 1), F(STD, 600, 1)] }); }
+  const s0 = P(STD, { hL: [0.02, -0.52, 0.24], eL: [-0.2, -1, 0.4], wR: [0.02, 0.36, 0.25], eR: [-0.2, -1, -0.4] });
+  const mid = P(s0, { hL: [0.2, 0.22, 0.14], eL: [0.2, 1, 0.3], wR: [0.22, 1.32, 0.02], eR: [0, 0.3, -1] });
+  const a = P(s0, { hL: [-0.2, 0.24, 0.04], eL: [0, 1, -0.1], wR: [0.06, 1.68, -0.15], eR: [0, 0.3, -1] }), b = P(a, { hL: [-0.24, 0.2, 0.02], wR: [0.04, 1.69, -0.12] });
+  mdef('triceps', { cam: 90, tilt: 4, ox: 30, props: () => [{ k: 'badge', text: 'A outra mão|puxa o cotovelo' }], frames: [F(s0, 400, 0), F(mid, 450, 0), F(a, 450, 0), F(b, 1500, 1), F(a, 300, 1), F(mid, 450, 1), F(s0, 450, 1)] }); }
 { // borboleta (de frente, um pouco de cima)
   const a = P(SIT, { lean: 4, fL: [0.42, 0, -0.04], fR: [0.42, 0, 0.04], kL: [0.3, 0.6, -1], kR: [0.3, 0.6, 1], tL: [1, 0, 0.3], tR: [1, 0, -0.3], wL: [0.42, 0.08, -0.08], wR: [0.42, 0.08, 0.08] }), b = P(a, { lean: 26, kL: [0.3, 0.2, -1], kR: [0.3, 0.2, 1] });
   mdef('borboleta', { cam: 72, tilt: 12, frames: [F(a, 500, 0), F(b, 1000, 0), F(b, 1500, 1), F(a, 700, 1)] }); }
@@ -768,11 +776,11 @@ const trailOn = (fr, j) => fr.map(f => ({ ...f, fx: j })); // rastro vermelho se
 { // CARs de quadril em 4 apoios
   const k = (f, kn) => P(QUAD, { fL: f, kL: kn });
   mdef('carquadril', { cam: 30, tilt: 30, ox: 10, steps: ['Joelho vem pro peito, abre pro lado', 'Leva pra trás com a sola pro teto e volta. Só o quadril mexe'], frames: trailOn([F(QUAD, 500, 0), F(k([-0.18, 0.2, -0.12], [0.37, -0.18, 0]), 700, 0), F(k([-0.49, 0.5, -0.59], [0.21, -0.01, -0.21]), 800, 0), F(k([-0.46, 1.05, -0.16], [-0.22, -0.18, -0.04]), 800, 1), F(QUAD, 700, 1)], 'knL') }); }
-{ // 90/90 de quadril: os dois joelhos trocam de lado
-  const a = P(SIT, { lean: 8, fL: [0.42, 0, 0.12], kL: [0.5, 0.2, -1], tL: [0, 0, 1], fR: [-0.2, 0, 0.42], kR: [0, 0.2, 1], tR: [-1, 0, 0], wL: [-0.05, 0.4, -0.12], wR: [-0.05, 0.4, 0.12], eL: [-0.3, -1, 0.5], eR: [-0.3, -1, -0.5] });
-  const m = P(a, { fL: [0.35, 0.2, -0.1], kL: [0.6, 1, -0.4], fR: [0.35, 0.2, 0.1], kR: [0.6, 1, 0.4] });
-  const b = P(a, { fR: [0.42, 0, -0.12], kR: [0.5, 0.2, 1], tR: [0, 0, -1], fL: [-0.2, 0, -0.42], kL: [0, 0.2, -1], tL: [-1, 0, 0] });
-  mdef('noventa', { cam: 10, tilt: 62, steps: ['Sentado, as duas pernas dobradas em 90°: uma na frente, outra do lado', 'Os dois joelhos tombam juntos pro outro lado e voltam'], props: () => [{ k: 'badge', text: 'Os dois joelhos|trocam de lado' }], frames: [F(a, 700, 0), F(m, 700, 0), F(b, 700, 1), F(b, 400, 1), F(m, 700, 1), F(a, 700, 1)] }); }
+{ // 90/90 de quadril: perna da frente com a canela atravessada, perna de trás pro lado com a canela pra trás; os dois joelhos trocam juntos
+  const a = P(SIT, { lean: 6, fL: [0.45, 0.05, 0.33], kL: [1, 0, -1], tL: [0, 0, 1], fR: [-0.45, 0.05, 0.57], kR: [1, 0, 1], tR: [-1, 0, 0], wL: [-0.12, 0.06, -0.32], wR: [-0.12, 0.06, 0.32], eL: [-1, 0, 0.3], eR: [-1, 0, -0.3] });
+  const m = P(a, { fL: [0.3, 0.02, -0.34], fR: [0.3, 0.02, 0.34], kL: [0.3, 1, 0], kR: [0.3, 1, 0], tL: [1, 0, 0], tR: [1, 0, 0] });
+  const b = P(a, { fR: [0.45, 0.05, -0.33], kR: [1, 0, 1], tR: [0, 0, -1], fL: [-0.45, 0.05, -0.57], kL: [1, 0, -1], tL: [-1, 0, 0] });
+  mdef('noventa', { cam: 0, tilt: 70, ox: 20, zoom: 1.2, view2: { cam: 62, tilt: 18, ox: 5, zoom: 1.2 }, steps: ['Sentado, as duas pernas dobradas em 90°: uma na frente, outra do lado', 'Os dois joelhos tombam juntos pro outro lado e voltam'], frames: [F(a, 700, 0), F(a, 500, 0), F(m, 700, 1), F(b, 700, 1), F(b, 500, 1), F(m, 700, 1), F(a, 700, 0)] }); }
 { // agachamento profundo assistido (segura no poste)
   const a = P(STD, { wL: [0.5, 0.95, -0.12], wR: [0.5, 0.95, 0.12], eL: [0, -1, -0.4], eR: [0, -1, 0.4] }), b = P(a, { p: [-0.12, 0.34, 0], lean: 20, fL: [0.03, 0, -0.2], fR: [0.03, 0, 0.2], kL: [1, 0.2, -0.5], kR: [1, 0.2, 0.5], wL: [0.48, 0.72, -0.08], wR: [0.48, 0.72, 0.08] }), c = P(b, { p: [-0.12, 0.34, -0.06] }), d = P(b, { p: [-0.12, 0.34, 0.06] });
   mdef('agachafundo', { cam: 30, tilt: 10, ox: 30, steps: ['Segura num apoio firme e desce até o fundo', 'Fica embaixo respirando e sobe devagar'], frames: [F(a, 400, 0), F(b, 1000, 0), F(b, 1600, 1), F(a, 900, 1)], props: () => [{ k: 'line', a: [0.55, 0, 0], b: [0.55, 1.6, 0], w: 7, c: 'prb', layer: 'back' }, { k: 'badge', text: 'Segura num apoio|e desce fundo' }] }); }
