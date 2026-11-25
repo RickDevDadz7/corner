@@ -314,7 +314,7 @@ const PLJ = P({ p: [0.3, 0.86, 0], cy: -60, lean: 15, hL: [0.85, 0.19, -0.03], f
 const PLJ2 = P({ p: [0.5, 0.86, 0], cy: -50, fL: [0.9, 0, -0.12], fR: [0.22, 0, 0.12], hL: [0.6, 0.2, -0.03] });
 // tipos de guarda do boxe (poses paradas)
 const GU_ALTA = P({ lean: 10, hL: [0.16, 0.26, 0.02], hR: [0.1, 0.26, -0.1], eL: [0.2, -1, 0.3], eR: [0.1, -1, -0.3] });
-const GU_PEEK = P({ p: [0.02, 0.7, 0], lean: 38, py: -36, cy: -38, hL: [0.13, 0.16, 0.05], hR: [0.11, 0.16, -0.05], eL: [0.2, -1, 0.15], eR: [0.15, -1, -0.15] });
+const GU_PEEK = P({ p: [0.02, 0.7, 0], lean: 38, py: -36, cy: -38, hL: [0.24, 0.34, 0.07], hR: [0.23, 0.34, -0.07], eL: [0.2, -1, 0.1], eR: [0.2, -1, -0.1] });
 const GU_PHILLY = P({ cy: -62, lean: 8, shrug: 1, hL: [0.1, -0.14, -0.12], eL: [0.1, -0.3, 1], hR: [0.1, 0.24, -0.04] });
 const GU_LONGA = P({ lean: 8, hL: [0.74, 0.2, 0.02], hR: [0.12, 0.23, -0.1] });
 // passos: frente, trás, lados (a base nunca muda)
@@ -543,7 +543,7 @@ export const TECHNIQUES = [
     ['Ficar parado só cobrindo.', 'Fechar os olhos atrás das luvas.'], { cam: 98, tilt: 10, still: true }),
   T('g_peek', ['boxe'], 'Guardas', 'Peek-a-boo', 'A guarda do Cus D’Amato e do Mike Tyson: tronco curvado, luvas coladas no queixo e cotovelos fechados no corpo.',
     [F(GU_PEEK, 1400, 0), F(GU_PEEK, 1400, 0)], ['Joelhos dobrados e tronco bem curvado pra frente; luvas coladas no queixo; cotovelos fechados na frente da barriga e da costela.', 'Protege: o queixo e o corpo ao mesmo tempo; ótima pra entrar curto, com muito movimento de cabeça.', 'Abre: difícil de usar de longe; sem movimento de cabeça vira alvo parado.'],
-    ['Usar sem mexer a cabeça o tempo todo.', 'Ficar alto demais (perde o sentido da guarda).'], { cam: 98, tilt: 10, still: true }),
+    ['Usar sem mexer a cabeça o tempo todo.', 'Ficar alto demais (perde o sentido da guarda).'], { cam: 60, tilt: 10, still: true }),
   T('g_philly', ['boxe'], 'Guardas', 'Philly shell', 'Mão da frente baixa na barriga, ombro da frente protegendo o queixo, mão de trás no rosto (Floyd Mayweather).',
     [F(GU_PHILLY, 1400, 0), F(GU_PHILLY, 1400, 0)], ['Base mais de lado, braço da frente cruzando a barriga, ombro da frente levantado, mão de trás no queixo.', 'Protege: o ombro desvia o direto (rolagem de ombro) e deixa pronto pro contra-ataque.', 'Abre: o lado da mão baixa pra cruzados; leva muito tempo pra dominar.'],
     ['Copiar sem saber rolar o ombro.', 'Deixar o queixo fora da linha do ombro.'], { cam: 98, tilt: 10, still: true }),
