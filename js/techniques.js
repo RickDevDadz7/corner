@@ -292,6 +292,13 @@ const KZ2 = KP({ p: [0.24, 0.8, 0], cy: -68, lean: 8, fL: [0.8, 0, -0.1], fR: [-
 const KZ3 = KP({ ...KZ2, fR: [-0.2, 0.02, 0.14] });
 const KZ4 = KP({ p: [0.12, 0.8, 0], fL: [0.8, 0, -0.1], fR: [-0.44, 0.02, 0.14] });
 
+// gazelle punch (Floyd Patterson): agacha fundo e sobe explodindo com o cruzado da mão da frente
+const GZ_LOW = P({ p: [0, 0.68, 0], lean: 30, cy: -50, py: -40, hL: [0.2, 0.24, 0.08], hR: [0.12, 0.27, -0.08] });
+const GZ_UP = P({ cy: 0, py: -6, lean: 4, p: [0.3, 0.92, 0], hL: [0.5, 0.26, -0.02], eL: [-0.2, 0.2, 1], hR: [0.16, 0.24, -0.06], fL: [0.66, 0.03, -0.12], fR: [-0.08, 0.08, 0.12], tL: [0.8, 0, 0.6] });
+// guardas do muay thai: base mais de frente que a do boxe (pra checar chute)
+const MT_ALTA = P({ cy: -22, lean: 4, hL: [0.22, 0.3, 0.1], hR: [0.18, 0.3, -0.14], eL: [0.1, -1, 0.5], eR: [0.1, -1, -0.5] });
+const MT_LONGA = P({ cy: -22, lean: 4, hL: [0.52, 0.26, 0.02], hR: [0.16, 0.28, -0.1] });
+const MT_FECHA = P({ cy: -22, lean: 10, hL: [0.16, 0.33, 0.02], hR: [0.15, 0.33, -0.08], eL: [0.3, -1, 0.1], eR: [0.3, -1, -0.1] });
 // passo em L (base ortodoxa): o pé de trás recua, o da frente acompanha; depois o de trás abre pra direita e o da frente acompanha — o caminho desenha um L
 const LS1 = P({ p: [-0.1, 0.86, 0], fR: [-0.6, 0.02, 0.12] });
 const LS2 = P({ p: [-0.24, 0.86, 0], fL: [0.08, 0, -0.12], fR: [-0.6, 0, 0.12] });
@@ -516,6 +523,14 @@ export const TECHNIQUES = [
     [F(G, 480, 0), F(BHOOK_LOAD, 200, 0, { e: 'load', hi: ['knL', 'knR'] }), F(BHOOK, 170, 1, { e: 'snap', fx: 'haL', hit: true, hi: ['pel'] }), F(BHOOK, 120, 2), F(G, 360, 3)],
     ['Dobre os joelhos e incline pro lado da frente.', 'Gire o pé e o quadril, como no cruzado.', 'O soco entra em arco na altura da costela.', 'Sobe já em guarda, mão de trás no rosto.'],
     ['Abaixar só o tronco.', 'Abrir demais o braço (fica lento).', 'Ficar embaixo depois do golpe.'], { cam: 40 }),
+  T('gazela', ['boxe'], 'Socos', 'Gazelle punch', 'O soco do Floyd Patterson: agacha fundo e explode pra cima com o cruzado da frente.',
+    [F(G, 480, 0), F(GZ_LOW, 320, 0, { e: 'load', hi: ['knL', 'knR'] }), F(GZ_LOW, 160, 0), F(GZ_UP, 150, 1, { e: 'snap', fx: 'haL', hit: true, hi: ['knL', 'knR', 'pel'] }), F(GZ_UP, 150, 2), F(G, 380, 3)],
+    ['Abaixe fundo dobrando os joelhos (muitas vezes depois de uma esquiva), guarda colada.', 'Empurre o chão com as duas pernas e avance: o corpo sobe junto com o soco.', 'O golpe sai em arco, entre o cruzado e o uppercut, na cabeça.', 'Caia de volta em base e guarda; se errar, fica exposto.'],
+    ['Pular sem avançar (perde a força).', 'Abrir a guarda ao agachar.', 'Usar de longe: é golpe pra fechar a distância rápido.'], { cam: 76, tilt: 22 }),
+  T('guardasmt', ['muaythai'], 'Defesa', 'Tipos de guarda', 'Três guardas do muay thai: escolha pela distância e pelo que o adversário joga.',
+    [F(MT_ALTA, 1400, 0, { hi: ['haL', 'haR'] }), F(MT_LONGA, 1400, 1, { hi: ['haL'] }), F(MT_FECHA, 1400, 2, { hi: ['haL', 'haR'] })],
+    ['Guarda alta tailandesa: mãos na altura da testa e um pouco à frente, cotovelos abertos, peso atrás e perna da frente leve pra checar chute.', 'Guarda longa: braço da frente esticado no rosto ou no ombro dele pra medir e travar; a mão de trás fica no queixo. Atrapalha socos e cotoveladas.', 'Guarda fechada: antebraços colados na frente do rosto, cotovelos juntos. Pra segurar uma sequência de socos e cotoveladas de perto.'],
+    ['Abaixar a guarda ao chutar.', 'Ficar de lado demais (não dá pra checar chute).', 'Ficar só na guarda fechada: não vê os golpes e não contra-ataca.'], { cam: 120, tilt: 6 }),
   T('passoL', ['boxe'], 'Movimentação', 'Passo em L', 'Sai da linha pro lado da mão de trás e já fica no ângulo pro contra-ataque.',
     [F(G, 460, 0), F(LS1, 220, 0, { fx: 'anR', hi: ['anR'] }), F(LS2, 220, 0, { fx: 'anL', hi: ['anL'] }), F(LS3, 230, 1, { fx: 'anR', hi: ['anR'] }), F(LS4, 260, 1, { fx: 'anL', hi: ['anL', 'pel'] }), F(LS4, 420, 2), F(G, 320, 3)],
     ['Recua: o pé de trás sai primeiro e o da frente acompanha.', 'Abre pro lado da mão de trás (direita, na base destra): de novo o pé de trás primeiro.', 'Gira o quadril de volta pro adversário: ele passa reto e você fica no ângulo.', 'Use fora da distância de soco; sai já com o direto pronto.'],
@@ -621,7 +636,7 @@ function fitView(t) {
 }
 for (const t of TECHNIQUES) { const x = DUO[t.id]; if (!x) continue; t.partner = x.o; t.cam = x.o.cam ?? 12; t.ox = x.o.ox ?? -Math.round((x.o.d ?? 1.1) * 46); t.zoom = x.o.zoom ?? 0.92; if (x.o.tilt) t.tilt = x.o.tilt; if (x.o.props) t.props = x.o.props; t.frames.forEach((f, i) => { if (x.q[i]) f.q = x.q[i]; }); if (x.o.fit) fitView(t); }
 // revisão v3.34: enquadramento automático também nas técnicas solo refeitas
-for (const t of TECHNIQUES) if (['overhand', 'pivo', 'chuteesq', 'cotoveladasobe', 'kizami', 'passos', 'passoL', 'guardas'].includes(t.id)) fitView(t);
+for (const t of TECHNIQUES) if (['overhand', 'pivo', 'chuteesq', 'cotoveladasobe', 'kizami', 'passos', 'passoL', 'guardas', 'guardasmt', 'gazela'].includes(t.id)) fitView(t);
 for (const t of TECHNIQUES) if (['pivo', 'kizami', 'passos', 'passoL', 'esquiva'].includes(t.id)) t.noshadow = true;
 
 export const CATS = ['Socos', 'Chutes', 'Joelhos e cotovelos', 'Defesa', 'Movimentação', 'Quedas', 'Chão', 'Guarda e passagem'];
