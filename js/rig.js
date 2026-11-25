@@ -184,7 +184,7 @@ function figParts(J, { gloves = true, act = [], missing = null, prosthesis = fal
   // tronco como polígono (mostra a rotação: estreito de lado, largo de frente)
   const torsoZ = (P.shL[2] + P.shR[2] + P.hipL[2] + P.hipR[2]) / 4;
   const zMid = torsoZ;
-  const far = x => x.z > zMid + 0.02 && !act.includes(x.kind + x.side);
+  const far = x => act.includes('-' + x.kind + x.side) || (x.z > zMid + 0.02 && !act.includes(x.kind + x.side)); // '-armR' = força o membro atrás do corpo
   segs.sort((a, b) => b.z - a.z);
   const line = (s, cls) => {
     const dx = s.b[0] - s.a[0], dy = s.b[1] - s.a[1], l = Math.hypot(dx, dy) || 1, nx = -dy / l, ny = dx / l;
@@ -215,7 +215,7 @@ function figParts(J, { gloves = true, act = [], missing = null, prosthesis = fal
     const halo = g.segs.map(s => line(s, 'ol')).join(''), body = g.segs.map(s => line(s, s.kind === 'pros' ? 'lp' : f ? 'lb' : 'lf')).join('');
     if (f) back += halo + body; else if (g.arm) front += halo + body; else frontLegs += halo + body;
   }
-  const farH = s => P['ha' + s][2] > zMid + 0.02 && !act.includes('arm' + s);
+  const farH = s => act.includes('-arm' + s) || (P['ha' + s][2] > zMid + 0.02 && !act.includes('arm' + s));
   const gL = miss.has('armL') || miss.has('handL') ? '' : glove('L', farH('L')), gR = miss.has('armR') || miss.has('handR') ? '' : glove('R', farH('R'));
   const gBack = (farH('L') ? gL : '') + (farH('R') ? gR : '');
   const gFront = (!farH('L') ? gL : '') + (!farH('R') ? gR : '');
