@@ -2096,6 +2096,11 @@ function splitBars(sp, max = 99, el = []) {
 }
 
 // --- página da corrida (dentro do esporte) ---
+function runParts() {
+  const parts = runCards().split(/<!--§(evo|reg)-->/), out = { start: parts[0], evo: '', reg: '' };
+  for (let k = 1; k < parts.length; k += 2) out[parts[k]] += parts[k + 1];
+  return out;
+}
 function runCards() {
   const o = gpsOpt(), list = runLog(), W8 = [0, 1, 2, 3, 4, 5, 6, 7].map(b => weekKm(b)), wk = W8[0], avg4 = (W8[1] + W8[2] + W8[3] + W8[4]) / 4, mx = Math.max(1, ...W8);
   const bests = runBests(), pred = runPredict(), last = list.slice(0, 5);
@@ -2112,7 +2117,7 @@ function runCards() {
     <button class="btn primary block mt" data-act="gpsStart">▶ Começar corrida</button>
     <p class="small muted">Mantenha a tela ligada durante a corrida: com a tela bloqueada o celular para o GPS.</p></div>
 
-  <div class="card" id="g-week"><div class="row between"><h3>Sua semana</h3><label class="small g-goalin">Meta (km)<input data-gin="goal" inputmode="numeric" value="${o.goal || ''}" placeholder="—"></label></div>
+  <!--§evo--><div class="card" id="g-week"><div class="row between"><h3>Sua semana</h3><label class="small g-goalin">Meta (km)<input data-gin="goal" inputmode="numeric" value="${o.goal || ''}" placeholder="—"></label></div>
     <div class="g-wk"><b class="big">${kmTxt(wk, 1)}</b><span>km nesta semana${o.goal ? ` de ${o.goal}` : ''}</span></div>
     ${o.goal ? `<div class="g-prog"><i style="width:${Math.min(100, wk / o.goal * 100).toFixed(1)}%"></i><span class="small">${wk >= o.goal ? 'Meta da semana batida ✓' : `faltam ${kmTxt(o.goal - wk, 1)} km`}</span></div>` : ''}
     <div class="wkbars" aria-hidden="true">${[7, 6, 5, 4, 3, 2, 1, 0].map(b => { const v = W8[b]; return `<i class="${b ? '' : 'on'}" style="height:${Math.max(4, v / mx * 100).toFixed(0)}%" title="${kmTxt(v, 1)} km"></i>`; }).join('')}</div>
@@ -2120,19 +2125,19 @@ function runCards() {
     ${avg4 >= 5 && wk > avg4 * 1.3 ? `<p class="note small">Você já passou ${Math.round((wk / avg4 - 1) * 100)}% da sua média das últimas 4 semanas. Subir o volume rápido demais aumenta o risco de lesão em quem está começando. Base: ${esc(ev('corrida-volume')?.title || '')}.</p>` : ''}
   </div>
 
-  ${list.length ? (() => { const tmon = today().slice(0, 7), tyr = today().slice(0, 4), T = f => { const L = list.filter(f); return [L.reduce((a, r) => a + (+r.km || 0), 0), L.length, L.reduce((a, r) => a + runSec(r), 0)]; };
+  <!--§evo-->${list.length ? (() => { const tmon = today().slice(0, 7), tyr = today().slice(0, 4), T = f => { const L = list.filter(f); return [L.reduce((a, r) => a + (+r.km || 0), 0), L.length, L.reduce((a, r) => a + runSec(r), 0)]; };
     // semanas seguidas com corrida (a semana atual, ainda sem corrida, não quebra a sequência)
     let b = weekKm(0) > 0 ? 0 : 1, n = 0; while (b < 520 && weekKm(b) > 0) { n++; b++; }
     return `<div class="card" id="g-tot"><h3>Totais</h3><table class="tbl small"><tr><th></th><th>km</th><th>corridas</th><th>tempo</th></tr>${[['Este mês', r => r.date.startsWith(tmon)], ['Este ano', r => r.date.startsWith(tyr)], ['Desde o início', () => true]].map(([lab, f]) => { const [k, c, t] = T(f); return `<tr><td>${lab}</td><td class="mono"><b>${kmTxt(k, 1)}</b></td><td class="mono">${c}</td><td class="mono">${hms(t)}</td></tr>`; }).join('')}</table>
     ${n >= 2 ? `<p class="small"><b>${n} semanas seguidas</b> correndo.</p>` : ''}</div>`; })() : ''}
-  ${list.length ? `<div class="card" id="g-hist"><h3>Suas corridas</h3><ul class="list runs">${last.map(r => runRow(r)).join('')}</ul>
+  <!--§reg-->${list.length ? `<div class="card" id="g-hist"><h3>Suas corridas</h3><ul class="list runs">${last.map(r => runRow(r)).join('')}</ul>
     ${list.length > 5 ? `<details><summary class="small"><b>Ver todas (${list.length})</b></summary><ul class="list runs">${list.slice(5, 60).map(r => runRow(r)).join('')}</ul></details>` : ''}</div>` : ''}
 
-  ${Object.keys(bests).length ? `<div class="card" id="g-pr"><h3>Recordes</h3><table class="tbl small">${G.EFFORTS.filter(L => bests[L]).map(L => `<tr><td>${esc(G.EFF_N[L])}</td><td class="mono"><b>${hms(bests[L].s)}</b></td><td class="mono">${paceTxt(bests[L].s / L * 1000)}/km</td><td><a href="#corrida-${esc(bests[L].id)}">${esc(fmtDay(bests[L].date))}</a></td></tr>`).join('')}
+  <!--§evo-->${Object.keys(bests).length ? `<div class="card" id="g-pr"><h3>Recordes</h3><table class="tbl small">${G.EFFORTS.filter(L => bests[L]).map(L => `<tr><td>${esc(G.EFF_N[L])}</td><td class="mono"><b>${hms(bests[L].s)}</b></td><td class="mono">${paceTxt(bests[L].s / L * 1000)}/km</td><td><a href="#corrida-${esc(bests[L].id)}">${esc(fmtDay(bests[L].date))}</a></td></tr>`).join('')}
     ${(() => { const lg = list.reduce((a, r) => +r.km > (+a?.km || 0) ? r : a, null); return lg ? `<tr><td>Mais longa</td><td class="mono"><b>${kmTxt(+lg.km, 1)} km</b></td><td></td><td><a href="#corrida-${esc(lg.id)}">${esc(fmtDay(lg.date))}</a></td></tr>` : ''; })()}</table>
     ${pred ? `<p class="small"><b>Previsão</b> pelos seus ${esc(G.EFF_N[pred.src])} (${hms(pred.s)}): ${pred.out.map(([L, x]) => `${esc(G.EFF_N[L])} ~${hms(x)}`).join(' · ')}</p><p class="small muted">Estimativa (fórmula de Riegel): acerta mais pra distâncias perto da que você já correu.</p>` : ''}</div>` : ''}
 
-  <details class="card" id="g-shoes" ${shoeList().length ? 'open' : ''}><summary><h3>Tênis</h3></summary>
+  <!--§reg--><details class="card" id="g-shoes" ${shoeList().length ? 'open' : ''}><summary><h3>Tênis</h3></summary>
     ${shoeList().length ? `<ul class="list shoes">${shoeList().map(x => { const k = shoeKm(x.id); return `<li class="${x.off ? 'off' : ''}"><div class="grow"><b>${esc(x.n)}</b>${o.shoe === x.id ? ' <span class="chip">padrão</span>' : ''}<small class="mono">${kmTxt(k, 0)} km${k >= 600 && !x.off ? ' · já rodou bastante: fabricantes costumam indicar troca entre 500 e 800 km' : ''}</small>
       <div class="shbar"><i style="width:${Math.min(100, k / 8).toFixed(0)}%"></i></div></div>${x.off ? '' : o.shoe === x.id ? '' : `<button class="btn small ghost" data-act="gpsShoeDef" data-id="${x.id}">Padrão</button>`}<button class="btn small ghost" data-act="gpsShoeOff" data-id="${x.id}">${x.off ? 'Voltar' : 'Aposentar'}</button></li>`; }).join('')}</ul>` : '<p class="small muted">Cadastre seu tênis: as corridas com GPS somam os km nele.</p>'}
     <div class="grid2 form mt"><label>Nome<input id="shoeN" maxlength="40" placeholder="ex.: Pegasus azul"></label><label>Km já usados<input id="shoeK" inputmode="numeric" placeholder="0"></label></div>
@@ -2428,9 +2433,11 @@ views.esporte = arg => {
   if (genFor !== id) genSession = null;
   const techs = TECHNIQUES.filter(t => t.sport.includes(id));
   const eqp = equipment(S.profile);
-  return `<section class="head"><h1>${esc(SP.n)}</h1><div class="chip">${week.length} sessões / 7 dias</div></section>
+  const RP = id === 'corrida' ? runParts() : null;
+  const html = `<section class="head"><h1>${esc(SP.n)}</h1><div class="chip">${week.length} sessões / 7 dias</div></section>
   ${ms.length > 1 ? `<div class="chips tabs">${ms.map(s => `<button class="chipbtn ${s === id ? 'on' : ''}" data-act="sport" data-id="${s}"><b class="mk">${SPORTS[s].mark}</b> ${esc(SPORTS[s].n)}</button>`).join('')}</div>` : ''}
-  ${id === 'corrida' ? runCards() + '<small class="cat pad">Treino em blocos (esteira ou sem GPS)</small>' : ''}
+<!--@treino-->
+  ${id === 'corrida' ? RP.start + '<small class="cat pad">Treino em blocos (esteira ou sem GPS)</small>' : ''}
   <div class="card panel center" id="timerCard">
     <div id="timer" class="timer"><svg viewBox="0 0 260 260"><circle cx="130" cy="130" r="${r}" class="t-bg"/><circle cx="130" cy="130" r="${r}" class="t-arc" style="stroke-dasharray:${circ}"/></svg>
       <div class="t-center"><div class="t-time mono">0:00</div><div class="t-lab">Pronto</div></div></div>
@@ -2471,11 +2478,14 @@ views.esporte = arg => {
   </div>
 
   <a class="card link mobl" href="#mobilidade"><b>Mobilidade</b><span class="go">→</span></a>
+<!--@tec-->
   ${techs.length ? `<a class="card link panel" href="#tecnicas"><small class="cat">Biblioteca</small><h3>${techs.length} técnicas de ${esc(SP.n.toLowerCase())}</h3>
     <div class="techgrid mini">${techs.slice(0, 3).map(t => `<span class="tech"><span class="tech-thumb">${thumbSVG(t)}</span><b>${esc(t.n)}</b></span>`).join('')}</div>
     <p class="small muted">${[...new Set(techs.map(t => t.cat))].join(' · ')}</p><span class="go">Abrir →</span></a>` : ''}
   ${SP.legend ? numTable(id) : ''}
 
+<!--@evo-->
+  ${id === 'corrida' ? RP.evo : ''}
   <div class="card" id="e-goals"><h3>${SP.combat ? 'Seus objetivos na luta' : 'Onde você quer evoluir?'}</h3><p class="small muted">Marque o que quer melhorar.</p>
     <div class="chips">${SP.weak.map(w => `<button class="chipbtn ${S.weak.includes(w.id) ? 'on' : ''}" data-act="weak" data-id="${w.id}">${esc(w.n)}</button>`).join('')}</div>
     ${SP.weak.filter(w => S.weak.includes(w.id)).map(w => { const lifts = (w.lift || []).map(l => XSLOTS[l[0]]?.map(x => EXERCISES[x]?.n).filter(Boolean)[0]).filter(Boolean), fl = ['luta'].includes(tgoalOf(S.profile)) || S.profile.tgoal2 === 'luta';
@@ -2490,13 +2500,14 @@ views.esporte = arg => {
   ${SP.combat ? (() => { const T = tiredFor(id, level(), S.weak), cards = evFor(id, S.weak, S.profile); return `<details class="card tired"><summary><h3>${esc(TIRED.title)}</h3></summary><p class="small muted">${esc(TIRED.sub)}</p>
     <ol class="furos">${T.map(([a, b, e]) => `<li><b>${esc(a)}</b><span>${esc(b)}</span>${e && evOk(e, id) ? `<small class="muted">Base: ${esc(ev(e)?.title)}</small>` : ''}</li>`).join('')}</ol></details>
   ${cards.map(e => evCard(ev(e))).join('')}`; })() : ''}
-  <small class="cat pad">Registro e semana</small>
+<!--@reg-->
+  ${id === 'corrida' ? RP.reg : ''}
   <form id="sessForm" class="card form"><h3>Registrar sessão manual</h3>
     <fieldset class="equip tchips"><legend>O que você fez <small>(quantos quiser)</small></legend>${Object.entries(SP.types).map(([k, t]) => `<label class="check"><input type="checkbox" name="type" value="${k}" ${typesOf(id, sportsOf(S.profile)[id]).includes(k) ? 'checked' : ''}><span>${esc(t.n)}</span></label>`).join('')}</fieldset>
     <div class="grid2"><label>Minutos<input name="min" inputmode="numeric" value="${sportsOf(S.profile)[id]?.min || 60}"></label>
     ${id === 'corrida' ? '<label>Distância (km) <small>opcional</small><input name="km" inputmode="decimal" placeholder="ex.: 5"></label>' : ''}</div>
     <button class="btn small" type="submit">Salvar sessão</button></form>
-  ${(() => { const L = S.logs.sessions.filter(b => b.sport === id).sort(byWhen).reverse();
+  ${id === 'corrida' ? '' : (() => { const L = S.logs.sessions.filter(b => b.sport === id).sort(byWhen).reverse();
     if (!L.length) return `<div class="card" id="e-hist"><h3>Histórico de ${esc(SP.n.toLowerCase())}</h3><p class="small muted">Nenhum treino registrado ainda. Use o timer${id === 'corrida' ? ', o GPS' : ''} ou registre uma sessão acima: cada treino aparece aqui.</p></div>`;
     const show = sessAll ? L.slice(0, 60) : L.slice(0, 6);
     return `<div class="card" id="e-hist"><h3>Histórico de ${esc(SP.n.toLowerCase())}</h3><ul class="list">${show.map(b => `<li><div class="grow">${id === 'corrida' && +b.km > 0 ? `<a href="#corrida-${esc(b.id)}">` : ''}<b>${esc(typesOf(b.sport, b).map(k => SP.types[k]?.n).filter(Boolean).join(' + ') || SP.n)}</b>${id === 'corrida' && +b.km > 0 ? '</a>' : ''}
@@ -2507,6 +2518,12 @@ views.esporte = arg => {
     <table class="tbl small">${SP.week.map(([d, x]) => `<tr><td>${d}</td><td>${esc(x)}</td></tr>`).join('')}</table>
     <p class="small muted">Treino técnico e intenso nos dias mais descansados; força depois do esporte ou em outro horário (≥ 6 h).</p></div>
 `;
+  // abas da página: cada uma mostra só o seu pedaço (página bem mais curta)
+  const parts = html.split(/<!--@(treino|tec|evo|reg)-->/), sec = { top: parts[0] };
+  for (let k = 1; k < parts.length; k += 2) sec[parts[k]] = (sec[parts[k]] || '') + parts[k + 1];
+  const tabs = [['treino', id === 'corrida' ? 'Correr' : 'Treinar'], ...(sec.tec && sec.tec.trim() ? [['tec', 'Técnicas']] : []), ['evo', id === 'corrida' ? 'Evolução' : 'Objetivos'], ['reg', id === 'corrida' ? 'Corridas' : 'Histórico']];
+  const tab = tabs.some(t => t[0] === S.ui.etab) ? S.ui.etab : 'treino';
+  return `${sec.top}<div class="segs subtabs" role="tablist">${tabs.map(([k, n]) => `<button role="tab" aria-selected="${k === tab}" class="${k === tab ? 'on' : ''}" data-act="etab" data-v="${k}">${n}</button>`).join('')}</div>${sec[tab] || ''}`;
 };
 
 let anim = null, techCat = '', spineNext = false, sessAll = false;
@@ -2624,6 +2641,8 @@ async function askCoach(q) {
   }
   pending.pending = false; save(); render(); scrollChat();
 }
+// teclado fechou na tela do coach vazia: volta pro topo (o navegador às vezes deixa a página deslocada)
+window.visualViewport?.addEventListener('resize', () => { if (document.body.classList.contains('coachv') && !S.chat.length && document.activeElement?.tagName !== 'TEXTAREA') window.scrollTo(0, 0); });
 function scrollChat() { requestAnimationFrame(() => window.scrollTo(0, document.body.scrollHeight)); }
 
 // ---------------- Conta ----------------
@@ -2885,9 +2904,9 @@ function bindAfter(v, arg) {
       $('#evList').innerHTML = EVIDENCE.filter(x => !q || norm(x.title + x.do + x.why + x.tags.join(' ') + x.refs.join(' ') + x.cat).includes(q)).map(x => evCard(x, !!q)).join('') || '<p class="muted small pad">Nada encontrado.</p>';
     });
   }
-  if (v === 'esporte' && $('#genForm')) {
+  if (v === 'esporte') {
     const id = curSport();
-    $('#genForm').addEventListener('submit', e => {
+    $('#genForm')?.addEventListener('submit', e => {
       e.preventDefault(); const fd = Object.fromEntries(new FormData(e.target));
       const eq = equipment(S.profile);
       if (id === 'corrida' && S.boxGen.by === 'km') {
@@ -2905,7 +2924,7 @@ function bindAfter(v, arg) {
       render();
     });
     $('#genForm [name=by]')?.addEventListener('change', e => { S.boxGen = { ...S.boxGen, by: e.target.value === 'km' ? 'km' : 'min' }; save(true); render(); });
-    $('#sessForm').addEventListener('submit', e => {
+    $('#sessForm')?.addEventListener('submit', e => {
       e.preventDefault(); const fdd = new FormData(e.target), fd = Object.fromEntries(fdd), min = num(fd.min) || 0, tys = typesOf(id, { types: fdd.getAll('type') });
       const km = id === 'corrida' ? Math.round(num(fd.km) * 100) / 100 : 0;
       if (id === 'corrida' && km && !(km > 0 && km <= 300)) { toast('Distância inválida'); return; }
@@ -2928,6 +2947,8 @@ function bindAfter(v, arg) {
     ta.addEventListener('input', () => { ta.style.height = 'auto'; ta.style.height = Math.min(140, ta.scrollHeight) + 'px'; });
     f.addEventListener('submit', e => { e.preventDefault(); const q = ta.value; ta.value = ''; askCoach(q); });
     ta.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !('ontouchstart' in window)) { e.preventDefault(); f.requestSubmit(); } });
+    // ao fechar o teclado o navegador deixa a página rolada além do fim (topo some atrás da barra): volta pro lugar
+    ta.addEventListener('blur', () => setTimeout(() => { const max = Math.max(0, document.documentElement.scrollHeight - innerHeight); if (!S.chat.length) window.scrollTo(0, 0); else if (scrollY > max) window.scrollTo(0, max); }, 120));
   }
   if (v === 'login') bindAuth();
   if (v === 'perfil') {
@@ -3184,6 +3205,7 @@ document.addEventListener('click', async e => {
     logArm = ''; const t = Date.now(), gone = S.logs[k].filter(x => !sp || x.sport === sp); for (const x of gone) S.del[x.id] = t;
     S.logs[k] = S.logs[k].filter(x => sp && x.sport !== sp); save(); render(); toast(`${gone.length} ${gone.length === 1 ? 'registro apagado' : 'registros apagados'}`); return; }
   if (a === 'sessAll') { sessAll = !sessAll; render(); return; }
+  if (a === 'etab') { S.ui.etab = el.dataset.v; save(true); render(); window.scrollTo(0, 0); return; }
   if (a === 'mobPost') { if (el.dataset.gclose) gpsClose(); if (el.dataset.close && RUN) runClose(); mobQuick('depois', el.dataset.sport || 'geral'); }
   if (a === 'runPause') runPause();
   if (a === 'runSkip' && RUN) { RT.skipRest(RUN); onPhase(RT.cur(RUN)); tick(); }

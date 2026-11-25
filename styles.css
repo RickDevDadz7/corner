@@ -1013,3 +1013,6 @@ body.coachv .chatbar{position:fixed;left:50%;transform:translateX(-50%);width:mi
 .tai-head .tai-face{width:64px;height:64px}
 .tai-head h1{font-size:28px}
 body.coachv .toast{bottom:calc(172px + var(--safe-b))}
+/* abas da página do esporte: presas embaixo do topo enquanto rola */
+.subtabs{position:sticky;top:calc(62px + var(--safe-t));z-index:20;flex-wrap:nowrap}
+.subtabs button{padding:11px 6px;font-size:13.5px}
