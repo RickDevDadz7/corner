@@ -986,3 +986,17 @@ details.focus>summary::after{content:'+';font:900 22px var(--font);color:var(--a
 details.focus[open]>summary::after{content:'−'}
 details.focus[open]>summary{margin-bottom:6px}
 .x.armed{font-size:12px;border:2px solid var(--acc);padding:3px 6px;white-space:nowrap}
+/* ===== Tairen (treinador): retratos em quadro de mangá ===== */
+.tai-head{display:flex;align-items:center;gap:14px;padding:6px 2px 12px}
+.tai-head h1{margin:0;font:34px var(--head)}
+.tai-head p{margin:0 0 4px;color:var(--muted);font-weight:700}
+.tai-face{width:84px;height:84px;object-fit:cover;border:3px solid var(--ink);box-shadow:4px 4px 0 var(--acc);transform:rotate(-3deg);background:#f5efe4}
+.tai-empty{display:flex;flex-direction:column;align-items:center;gap:8px;padding:10px 0 6px;text-align:center}
+.tai-empty img{width:150px;height:150px;border:3px solid var(--ink);box-shadow:5px 5px 0 var(--acc);background:#f5efe4}
+.tai-empty p{margin:0;font-size:15px}
+.msg.bot{flex-direction:row;align-items:flex-end;gap:8px}
+.msg .mcol{display:flex;flex-direction:column;gap:8px;min-width:0;flex:1}
+.msg.bot .bubble{max-width:100%}
+.tai-av{width:36px;height:36px;flex:none;object-fit:cover;border:2px solid var(--ink);border-radius:50%;background:#f5efe4}
+.gface{width:64px;height:64px;object-fit:cover;border:3px solid var(--ink);box-shadow:4px 4px 0 var(--ink);transform:rotate(-6deg);background:#f5efe4}
+.msg.user .mcol{align-items:flex-end}

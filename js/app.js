@@ -71,7 +71,7 @@ function condDietCard() {
 }
 function clearanceCard() {
   const cs = condsOf(S.profile).filter(k => CONDITIONS[k].clearance); if (!cs.length || S.ui?.clearOk) return '';
-  return `<div class="card panel clr"><h3>Antes de treinar: liberação médica</h3><p class="small">Com ${esc(cs.map(k => CONDITIONS[k].n.toLowerCase()).join(' e '))}, o treino precisa ser liberado pelo seu médico. Até lá, o app monta tudo no modo cauteloso: menos volume, longe da falha e sem potência.</p>
+  return `<div class="card panel clr"><h3>Antes de treinar: liberação médica</h3><p class="small">Com ${esc(cs.map(k => CONDITIONS[k].n.toLowerCase()).join(' e '))}, o treino precisa ser liberado pelo seu médico. Até lá, o Tairen monta tudo no modo cauteloso: menos volume, longe da falha e sem potência.</p>
     <button class="btn small" data-act="clearOk">Já tenho liberação</button></div>`;
 }
 function preTrainTips() {
@@ -111,7 +111,7 @@ function cycleBox(plan) {
   return `<p class="small blkline">${begun ? `<b>Troca de treino prevista ~${esc(bk.until.split('-').reverse().slice(0, 2).join('/'))}</b> · bloco ${bk.n}, semana ${bk.week} de ${bk.len} <span class="muted">(só semanas treinadas contam)</span>` : `<b>Bloco ${bk.n} · ${bk.len} semanas</b> · começa a contar no seu primeiro treino`}</p>
   <div class="cyc ${ci.deload ? 'dl' : ''}"><div class="row between"><b>Ciclo ${ci.cycle} · semana ${ci.week} de ${ci.total}</b><span class="cyctag">${esc(tag)}</span></div>
     <div class="cycbar">${bar}</div><small>${esc(msg)}</small></div>
-  <details class="howplan"><summary>Como o app montou seu treino</summary>
+  <details class="howplan"><summary>Como o Tairen montou seu treino</summary>
     <p class="small"><b>Objetivo:</b> ${esc(TGOALS[gp.g].n)}. ${esc(TGOALS[gp.g].d)}${TGOALS[p.tgoal2] && p.tgoal2 !== gp.g ? ` <b>Secundário:</b> ${esc(TGOALS[p.tgoal2].n)}, nas sessões alternadas (marcadas com o foco no nome).` : ''}</p>
     <p class="small"><b>Você:</b> ${esc({ iniciante: 'iniciante', intermediario: 'intermediário', avancado: 'avançado' }[gp.lv])}, ${plan.days.length} ${plan.days.length === 1 ? 'dia' : 'dias'} de força, ${mins} min por sessão${sportDays(p) ? `, ${sportDays(p)} treinos de esporte na semana` : ''}${(p.age || 0) >= 50 ? ', 50+ anos (teto de volume menor)' : ''}.</p>
     ${plan.routine.auto && plan.routine.why ? `<p class="small"><b>Divisão:</b> ${esc(plan.split)}. ${esc(plan.routine.why)}</p>` : ''}
@@ -123,10 +123,10 @@ function cycleBox(plan) {
     ${cs.length ? `<p class="small"><b>Saúde:</b> ${esc(cs.map(k => CONDITIONS[k].n).join(', '))}.${plan.gp.cons ? ' Modo cauteloso: começa com menos séries, sobe menos e para mais longe da falha.' : ''}</p>${cs.map(k => `<p class="small muted">• ${esc(CONDITIONS[k].train.join(' '))}</p>`).join('')}` : ''}
     ${bd.length ? `<p class="small"><b>Corpo:</b> ${esc(bd.map(k => BODY[k]).join(', '))}. Os exercícios foram escolhidos pro que você consegue fazer${na.length ? ' (pernas não entram na conta)' : ''}; os de dois lados viram unilaterais quando precisa.</p>` : ''}
     ${inj.length ? `<p class="small"><b>Cuidados:</b> ${esc(inj.map(k => INJURIES[k].n).join(', '))}. ${plan.swapped.length ? 'Trocas feitas: ' + esc([...new Map(plan.swapped.map(x => [x.join(), x])).values()].map(([a, b]) => `${EXERCISES[a].n} → ${EXERCISES[b].n}`).join('; ')) + '.' : 'Os exercícios que pioram essas regiões saíram da rotina.'}</p>` : ''}
-    ${plan.routine.auto ? `<p class="small"><b>Variedade:</b> os exercícios principais ficam fixos pra você progredir carga; os complementares trocam a cada ciclo${ci.deload ? ' (troca na semana que vem)' : ` (próxima troca em ${ci.total - ci.week + 1} ${ci.total - ci.week + 1 === 1 ? 'semana' : 'semanas'})`}. Se um exercício parar de evoluir, o app sugere outro na hora do treino.</p>`
-      : '<p class="small"><b>Sua rotina:</b> o app mantém seus exercícios e só soma séries semana a semana, com semana leve no fim do ciclo.</p>'}
-    <p class="small"><b>Bloco:</b> ${bk.len} semanas treinadas (${bk.len / ci.total} ciclos). Tempo pra aprender o movimento e subir carga antes de trocar o estímulo: variar de forma planejada ajuda, trocar toda hora atrapalha (Fonseca 2014; Kassiano 2022). No fim, o app avisa e você escolhe.</p>
-    <p class="small muted">Base: dose-resposta de volume (Schoenfeld 2017; Pelland 2024), descanso (Grgic 2018), reps na reserva (Helms 2016). A semana leve é prática consagrada de treinadores, com evidência ainda limitada. Os números são ponto de partida: o app ajusta pelo que você registra.</p>
+    ${plan.routine.auto ? `<p class="small"><b>Variedade:</b> os exercícios principais ficam fixos pra você progredir carga; os complementares trocam a cada ciclo${ci.deload ? ' (troca na semana que vem)' : ` (próxima troca em ${ci.total - ci.week + 1} ${ci.total - ci.week + 1 === 1 ? 'semana' : 'semanas'})`}. Se um exercício parar de evoluir, o Tairen sugere outro na hora do treino.</p>`
+      : '<p class="small"><b>Sua rotina:</b> o Tairen mantém seus exercícios e só soma séries semana a semana, com semana leve no fim do ciclo.</p>'}
+    <p class="small"><b>Bloco:</b> ${bk.len} semanas treinadas (${bk.len / ci.total} ciclos). Tempo pra aprender o movimento e subir carga antes de trocar o estímulo: variar de forma planejada ajuda, trocar toda hora atrapalha (Fonseca 2014; Kassiano 2022). No fim, o Tairen avisa e você escolhe.</p>
+    <p class="small muted">Base: dose-resposta de volume (Schoenfeld 2017; Pelland 2024), descanso (Grgic 2018), reps na reserva (Helms 2016). A semana leve é prática consagrada de treinadores, com evidência ainda limitada. Os números são ponto de partida: o Tairen ajusta pelo que você registra.</p>
   </details>`;
 }
 // próxima sessão: a seguinte à última feita nesta rotina
@@ -456,7 +456,7 @@ function agendaCard() {
   return `<details class="card" id="h-agenda" ${S.ui.agOpen ? 'open' : ''}><summary><h3>Seu dia, hora a hora</h3><small class="muted">${hab.n ? 'com os horários em que você costuma comer' : 'sugestão pelo seu plano'}</small></summary>
     <ol class="agenda">${items.map(x => `<li class="ag-${x.k}"><span class="mono">${hm(x.m)}</span><span class="agi" aria-hidden="true"></span><span>${esc(x.t)}${x.usual ? ' <small class="muted">(seu horário de costume)</small>' : ''}</span></li>`).join('')}</ol>
     ${!wk.explicit ? '<p class="small muted">Marque seus dias e horários de treino em Perfil › Minha semana pra encaixar pré e pós-treino.</p>' : noTime ? '<p class="small muted">Coloque o horário dos treinos em Perfil › Minha semana pra encaixar pré e pós-treino.</p>' : ''}
-    ${hab.n < 3 ? '<p class="small muted">Registrando refeições e água na hora, o app aprende seus horários e ajusta a sugestão.</p>' : ''}</details>`;
+    ${hab.n < 3 ? '<p class="small muted">Registrando refeições e água na hora, o Tairen aprende seus horários e ajusta a sugestão.</p>' : ''}</details>`;
 }
 // ---------- Perfil: seções recolhíveis e Minha semana ----------
 // perfil novo: tudo aberto; editando: fechado com resumo de uma linha
@@ -489,7 +489,7 @@ function weekEditor(p) {
 }
 views.onboarding = () => {
   const p = S.profile || {}, sp = sportsOf(p);
-  return `${S.profile ? '<section class="head"><h1>Perfil</h1></section>' : `<section class="hero"><div class="logo-big">RONIN</div><div class="kanji">浪人</div><p class="tag">Sem mestre. Só disciplina.</p><p>Luta, corrida, força e nutrição com base em ciência. Em casa ou na academia.</p></section>
+  return `${S.profile ? '<section class="head"><h1>Perfil</h1></section>' : `<section class="hero"><div class="logo-big">TAIREN</div><p class="tag">Treino. Disciplina. Evolução.</p><p>Luta, corrida, força e nutrição com base em ciência. Em casa ou na academia.</p></section>
   ${cloud.available() ? (cloud.user() ? `<p class="note small">Conectado como <b>${esc(cloud.user().email || '')}</b>. Seus dados vão pra nuvem assim que você salvar.</p>` : `<div class="card center"><p class="small">Quer salvar na nuvem e usar em outros aparelhos?</p><button class="btn small" data-act="toLogin">Entrar ou criar conta</button></div>`) : ''}`}
   <form id="profileForm" class="card form">
     <h2>${S.profile ? 'Editar perfil' : 'Vamos te conhecer'}</h2>
@@ -514,7 +514,7 @@ views.onboarding = () => {
     </div>
     <fieldset class="equip"><legend>O que você tem em casa?</legend>
       ${Object.entries(EQUIP).map(([k, v]) => `<label class="check"><input type="checkbox" name="equip" value="${k}" ${(p.equip || []).includes(k) ? 'checked' : ''}><span>${esc(v)}</span></label>`).join('')}
-      <small class="muted">Sem nada marcado = só peso corporal (calistenia). O app escolhe os exercícios pelo que você tem.</small>
+      <small class="muted">Sem nada marcado = só peso corporal (calistenia). O Tairen escolhe os exercícios pelo que você tem.</small>
     </fieldset>
     <label>Objetivo do treino ${sel('tgoal', { '': `Automático (${TGOALS[tgoalOf({ ...p, tgoal: '' })].n.toLowerCase()})`, ...Object.fromEntries(Object.entries(TGOALS).map(([k, v]) => [k, v.n])) }, p.tgoal || '')}</label>
     <label>Objetivo secundário <small>(opcional)</small>${sel('tgoal2', { '': 'Nenhum', ...Object.fromEntries(Object.entries(TGOALS).map(([k, v]) => [k, v.n])) }, p.tgoal2 || '')}<small class="muted">Na rotina recomendada, as sessões alternam: uma no principal, a seguinte no secundário. Dá pra ganhar os dois sem misturar tudo no mesmo treino.</small></label>
@@ -690,7 +690,7 @@ views.nutri = () => {
       <tr><td>Água: 35 ml/kg + 500 ml por hora de treino</td><td>${fmt(t.water / 1000)} L</td></tr>
       <tr><td>Refeições: ${esc(ceiaInfo().why)}</td><td>${ceiaInfo().on ? '5 (com ceia)' : '4'}</td></tr>
     </table>
-    <p class="small muted">${ad.ready ? `Pelos seus registros: ingestão média ${fmt(ad.avgIn, 0)} kcal e peso variando ${fmt(ad.slopeWeek, 2)} kg/semana → gasto real ≈ ${fmt(ad.tdee, 0)} kcal.` : `Modo adaptativo: com ≥ 8 pesagens e ≥ 10 dias de comida registrados nos últimos 28 dias, o app calcula seu gasto REAL. Agora: ${ad.weighIns} ${ad.weighIns === 1 ? "pesagem" : "pesagens"}, ${ad.foodDays} ${ad.foodDays === 1 ? "dia" : "dias"}.`}</p>
+    <p class="small muted">${ad.ready ? `Pelos seus registros: ingestão média ${fmt(ad.avgIn, 0)} kcal e peso variando ${fmt(ad.slopeWeek, 2)} kg/semana → gasto real ≈ ${fmt(ad.tdee, 0)} kcal.` : `Modo adaptativo: com ≥ 8 pesagens e ≥ 10 dias de comida registrados nos últimos 28 dias, o Tairen calcula seu gasto REAL. Agora: ${ad.weighIns} ${ad.weighIns === 1 ? "pesagem" : "pesagens"}, ${ad.foodDays} ${ad.foodDays === 1 ? "dia" : "dias"}.`}</p>
     <label class="switch"><input type="checkbox" data-act="toggleAdaptive" ${S.settings.adaptive ? 'checked' : ''}> Usar ajuste adaptativo</label>
     <a class="btn small ghost block" href="#perfil">Mudou algo? Editar meus dados</a>
   </details>
@@ -999,13 +999,13 @@ function restrSummary(r) {
 function healthBox(p) {
   const cs = condsOf(p), bd = bodyOf(p), on = cs.length || bd.length;
   return `<details class="tfine hbox" id="hbox" ${on ? 'open' : ''}><summary>Saúde e corpo <small>${on ? esc([...cs.map(k => CONDITIONS[k].n.split(' (')[0].split(' /')[0]), ...bd.map(k => BODY[k])].slice(0, 3).join(', ')) + (cs.length + bd.length > 3 ? '…' : '') : 'condições, adaptações'}</small></summary>
-    <small class="muted">Marque o que vale pra você: o app adapta treino e dieta. Restrições ligadas (ex.: celíaca → sem glúten) são marcadas sozinhas e dá pra desmarcar.</small>
+    <small class="muted">Marque o que vale pra você: o Tairen adapta treino e dieta. Restrições ligadas (ex.: celíaca → sem glúten) são marcadas sozinhas e dá pra desmarcar.</small>
     ${Object.entries(COND_GROUPS).map(([g, gn]) => `<fieldset class="equip"><legend>${esc(gn)}</legend>${Object.entries(CONDITIONS).filter(([, c]) => c.g === g).map(([k, c]) => `<label class="check"><input type="checkbox" name="cond" value="${k}" ${cs.includes(k) ? 'checked' : ''}><span>${esc(c.n)}</span></label>`).join('')}</fieldset>`).join('')}
     <p class="spinelnk" ${cs.some(k => SPINE_CONDS.includes(k)) ? '' : 'hidden'}><button type="button" class="btn small block" data-act="spineGo">${spineEmpty(spineOf(p)) ? 'Desenhar' : 'Ajustar'} minha coluna →</button><small class="muted">Salva o perfil e abre o desenho editável das vértebras.</small></p>
     <fieldset class="equip"><legend>Corpo</legend>${Object.entries(BODY).map(([k, v]) => `<label class="check"><input type="checkbox" name="body" value="${k}" ${bd.includes(k) ? 'checked' : ''}><span>${esc(v)}</span></label>`).join('')}
-      <small class="muted">O app troca o que não dá pra fazer por versões de um braço, de uma perna ou sentado.</small></fieldset>
+      <small class="muted">O Tairen troca o que não dá pra fazer por versões de um braço, de uma perna ou sentado.</small></fieldset>
     <label class="check"><input type="checkbox" name="bodyFig" ${p.bodyFig === false ? '' : 'checked'}><span>Mostrar os bonecos com o meu corpo</span></label>
-    <label class="check consent"><input type="checkbox" name="healthOk" ${p.healthOk ? 'checked' : ''}><span>Autorizo o app a guardar essas informações de saúde pra personalizar meu plano (dá pra apagar quando quiser).</span></label>
+    <label class="check consent"><input type="checkbox" name="healthOk" ${p.healthOk ? 'checked' : ''}><span>Autorizo o Tairen a guardar essas informações de saúde pra personalizar meu plano (dá pra apagar quando quiser).</span></label>
   </details>`;
 }
 // ---------- Coluna: desenho editável (escoliose de costas; cifose e lordose de lado) ----------
@@ -1061,9 +1061,9 @@ views.coluna = () => {
       <label class="small">Ângulo de Cobb do exame <small>(opcional)</small><input id="spCobb" inputmode="numeric" placeholder="ex.: 22" value="${s.cobb || ''}"></label></div>` : ''}
   </div>
   <div class="card" id="spRead">${spineRead(s)}</div>
-  ${S.profile.healthOk ? '' : `<label class="check consent"><input type="checkbox" id="spOk" ${spConsent ? 'checked' : ''}><span>Autorizo o app a guardar essa informação de saúde pra personalizar meu plano (dá pra apagar quando quiser).</span></label>`}
+  ${S.profile.healthOk ? '' : `<label class="check consent"><input type="checkbox" id="spOk" ${spConsent ? 'checked' : ''}><span>Autorizo o Tairen a guardar essa informação de saúde pra personalizar meu plano (dá pra apagar quando quiser).</span></label>`}
   <button class="btn primary block" data-act="spineSave">Salvar minha coluna</button>
-  <p class="small muted pad">O app usa o desenho pra escolher os exercícios complementares (lado, região e tipo de curva).</p>`;
+  <p class="small muted pad">O Tairen usa o desenho pra escolher os exercícios complementares (lado, região e tipo de curva).</p>`;
 };
 function bindSpine() {
   const svg = $('#spFig'); if (!svg) return;
@@ -1108,7 +1108,7 @@ function compCard(p) {
   return `<div class="card comp" id="t-comp"><small class="cat">Complementares${spineOn ? ' · coluna' : ''}${inj.length ? ' · lesões' : ''}</small>
     <h3>~${Math.max(5, Math.round(list.length * 1.8))} min, 3 a 5 vezes por semana</h3>
     <p class="small muted">No fim do treino ou em casa. Dor até 3 de 10 que passa em 24 h é aceitável; mais que isso, pare e procure um fisioterapeuta.</p>
-    ${spineOn && !drawn ? '<p class="care small">Desenhe sua coluna pra o app saber o lado e a região da curva.</p>' : ''}
+    ${spineOn && !drawn ? '<p class="care small">Desenhe sua coluna pro Tairen saber o lado e a região da curva.</p>' : ''}
     <ul class="clist">${list.map(i => `<li><div class="grow"><b>${esc(EXERCISES[i.ex].n)}</b><span class="cdose small">${esc(i.dose)}</span><small>${esc(i.tag)} · ${esc(i.why)}</small></div>${hasDemo(i.ex) ? `<a class="btn small ghost" href="#demo-${i.ex}">Ver</a>` : ''}</li>`).join('')}</ul>
     ${tips.map(t => `<p class="small note">${esc(t)}</p>`).join('')}
     ${spineOn ? `<a class="btn small block" href="#coluna">${drawn ? 'Ajustar' : 'Desenhar'} minha coluna</a>` : ''}
@@ -1365,7 +1365,7 @@ views.rotina = () => {
   ${r.auto ? '<p class="note small">Essa é a rotina recomendada pelo perfil. Ao mudar qualquer coisa, ela vira sua e para de se ajustar sozinha.</p>' : ''}
   <div class="card"><label>Nome da rotina<input id="rtName" value="${esc(r.auto ? 'Minha rotina' : r.name)}" maxlength="40"></label>
     <label>Treinos por semana <select id="rtFreq">${[1, 2, 3, 4, 5, 6, 7].map(n => `<option value="${n}" ${n === (+r.freq || r.sessions.length) ? 'selected' : ''}>${n}x${n > r.sessions.length && r.sessions.length ? ' (sessões alternando)' : ''}</option>`).join('')}</select></label>
-    <small class="muted">Pode ser mais que o número de sessões: com A e B em 4 dias, você faz A, B, A, B. Escolha os dias você mesmo; o app só pede um por dia.</small></div>
+    <small class="muted">Pode ser mais que o número de sessões: com A e B em 4 dias, você faz A, B, A, B. Escolha os dias você mesmo; o Tairen só pede um por dia.</small></div>
   ${r.sessions.map((s, si) => `<div class="card rsession" id="rs-${s.id}" data-si="${si}">
     <div class="row between"><input class="rsname" data-rtname="${s.id}" value="${esc(s.name)}" maxlength="40" aria-label="Nome da sessão ${si + 1}"><span class="rday">DIA ${si + 1}</span></div>
     <ul class="list ritems">${s.items.map((it, i) => itemRow(s, it, i)).join('') || '<li class="muted small">Sem exercícios ainda.</li>'}</ul>
@@ -1759,7 +1759,7 @@ if (RUN) { if (RUN.done) { RUN = null; RT.persist(null); } else { runLoop(true);
 // No app instalado pelo navegador o celular para o GPS com a tela bloqueada: a tela fica acesa (wake lock)
 // e, se a pessoa bloquear mesmo assim, o trecho sem sinal entra em linha reta e tracejado.
 const GMODES = { livre: 'Livre', dist: 'Distância', tempo: 'Tempo', leve: 'Leve', ritmo: 'Ritmo', intervalado: 'Intervalado', tiros: 'Tiros' };
-const GMODE_TIP = { livre: 'Corre do seu jeito; o app só marca.', dist: 'Avisa quanto falta e quando bater a meta.', tempo: 'Avisa na metade e no fim do tempo.', leve: 'Ritmo de conversa: dá pra falar frases inteiras.', ritmo: 'Avisa quando você sai do ritmo-alvo.', intervalado: 'Blocos fortes e trote, com o timer falando cada parte.', tiros: 'Tiros curtos e rápidos com recuperação.' };
+const GMODE_TIP = { livre: 'Corre do seu jeito; o Tairen só marca.', dist: 'Avisa quanto falta e quando bater a meta.', tempo: 'Avisa na metade e no fim do tempo.', leve: 'Ritmo de conversa: dá pra falar frases inteiras.', ritmo: 'Avisa quando você sai do ritmo-alvo.', intervalado: 'Blocos fortes e trote, com o timer falando cada parte.', tiros: 'Tiros curtos e rápidos com recuperação.' };
 // MapTiler (chave travada pro domínio rickdevdadz7.github.io no painel; domínio novo → liberar lá e na CSP)
 const MT_KEY = 'OQtfdy2K7gxwZFIpzlaq', MT = id => `https://api.maptiler.com/maps/${id}/256/{z}/{x}/{y}{r}.png?key=${MT_KEY}`;
 const GTILES = { url: MT('toner-v2'), alt: MT('streets-v4'), att: '<a href="https://www.maptiler.com/copyright/" target="_blank" rel="noopener">© MapTiler</a> <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap</a>' };
@@ -1877,7 +1877,7 @@ function gpsWatch(on) {
   if (GV.watch != null) return;
   if (!('geolocation' in navigator)) { GV.err = 'Este aparelho não tem GPS disponível no navegador.'; paintGps(); return; }
   GV.watch = navigator.geolocation.watchPosition(gpsFix, e => {
-    GV.err = e.code === 1 ? 'Localização bloqueada. Libere a localização pro RONIN nas configurações do navegador e tente de novo.' : e.code === 3 ? '' : 'Sem sinal de GPS. Vá pra um lugar aberto.';
+    GV.err = e.code === 1 ? 'Localização bloqueada. Libere a localização pro TAIREN nas configurações do navegador e tente de novo.' : e.code === 3 ? '' : 'Sem sinal de GPS. Vá pra um lugar aberto.';
     if (e.code === 1) gpsWatch(false);
     paintGps();
   }, { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 });
@@ -2039,9 +2039,9 @@ function paintGps() {
   const o = live ? GPS.cfg : gpsOpt(), body = el.querySelector('.g-body');
   if (GV.state === 'consent') {
     body.innerHTML = `<div class="g-consent"><h2>Corrida com GPS</h2>
-      <p>O RONIN usa a localização do celular <b>só enquanto a corrida está aberta</b>, pra medir distância, ritmo e desenhar o percurso.</p>
+      <p>O Tairen usa a localização do celular <b>só enquanto a corrida está aberta</b>, pra medir distância, ritmo e desenhar o percurso.</p>
       <ul class="small"><li>O percurso fica no seu aparelho e na sua conta. Dá pra guardar só no aparelho e apagar quando quiser (na página da corrida).</li>
-      <li>Com a tela bloqueada o celular para o GPS: o app deixa a tela acesa durante a corrida.</li></ul>
+      <li>Com a tela bloqueada o celular para o GPS: o Tairen deixa a tela acesa durante a corrida.</li></ul>
       <button class="btn primary block run-main" data-act="gpsAllow">Permitir localização</button><button class="btn ghost block" data-act="gpsClose">Agora não</button></div>`;
     return;
   }
@@ -2202,7 +2202,7 @@ async function gpsShare(id) {
   x.fillStyle = 'rgba(26,23,20,.13)'; for (let yy = 0; yy < H; yy += 14) for (let xx = (yy / 14 % 2) * 7; xx < W; xx += 14) { x.beginPath(); x.arc(xx, yy, 2, 0, 7); x.fill(); }
   x.fillStyle = '#c3131b'; x.fillRect(70, 70, W - 120, H - 120); x.fillStyle = '#f7f2e6'; x.fillRect(50, 50, W - 120, H - 120);
   x.lineWidth = 10; x.strokeStyle = '#1a1714'; x.strokeRect(50, 50, W - 120, H - 120);
-  x.fillStyle = '#1a1714'; x.font = '72px "Dela Gothic One", Impact, sans-serif'; x.fillText('RONIN', 100, 160);
+  x.fillStyle = '#1a1714'; x.font = '72px "Dela Gothic One", Impact, sans-serif'; x.fillText('TAIREN', 100, 160);
   x.fillStyle = '#c3131b'; x.font = '72px serif'; x.fillText('走', W - 200, 160);
   x.fillStyle = '#5e574c'; x.font = '700 34px "Zen Kaku Gothic New", sans-serif'; x.fillText(fmtDay(r.date).toUpperCase(), 102, 210);
   if (c.length > 1) {
@@ -2219,7 +2219,7 @@ async function gpsShare(id) {
   stat('TEMPO', hms(sec), 100, 1170); stat('RITMO', paceTxt(sec / r.km) + '/km', 560, 1170);
   const blob = await new Promise(ok => cv.toBlob(ok, 'image/png')); if (!blob) { toast('Não consegui gerar a imagem'); return; }
   const file = new File([blob], `ronin-corrida-${r.date}.png`, { type: 'image/png' });
-  try { if (navigator.canShare?.({ files: [file] })) { await navigator.share({ files: [file], title: 'Corrida no RONIN' }); return; } } catch (e) { if (e.name === 'AbortError') return; }
+  try { if (navigator.canShare?.({ files: [file] })) { await navigator.share({ files: [file], title: 'Corrida no TAIREN' }); return; } } catch (e) { if (e.name === 'AbortError') return; }
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = file.name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
 }
 
@@ -2563,7 +2563,7 @@ views.ciencia = () => {
 function coachContext() {
   const p = S.profile, t = T(), plan = activePlan(), sp = sportsOf(p);
   const weakAll = allWeak();
-  return `Você é o RONIN, um coach de esportes de combate, corrida, força e nutrição esportiva que fala português do Brasil, de forma direta, informal e inteligente.
+  return `Você é o Tairen, o treinador do app TAIREN: um treinador veterano de academia, durão mas que se importa, especialista em esportes de combate, corrida, força e nutrição esportiva. Fala português do Brasil, de forma direta, informal e inteligente, sem enrolar. Se perguntarem, você é um treinador virtual com inteligência artificial (não diga qual empresa ou modelo).
 REGRAS: Baseie-se em evidência científica. Use as cartas de evidência abaixo como base principal e cite-as pelo título e autor/ano. Se algo não estiver bem estabelecido na literatura, diga que a evidência é limitada. Nunca invente estudos. Não faça diagnósticos médicos; para dor persistente, sintomas após pancada na cabeça, condições de saúde ou cortes de peso agressivos, recomende um profissional. Respostas curtas e práticas (leitura no celular).
 PERFIL: ${p.sex === 'f' ? 'mulher' : 'homem'}, ${p.age} anos, ${p.height} cm, ${latestWeight()} kg${p.bf ? `, ${p.bf}% gordura` : ''}. Objetivo: ${GOALS[p.goal]}. Experiência: ${p.experience}.${activeRestr().length ? ` RESTRIÇÕES (não sugerir nada com isso): ${(() => { const r = restrOfProfile(); return [r.perm.length ? 'para sempre: ' + r.perm.map(k => RESTR[k].n).join(', ') : '', tempOn(r) ? 'temporárias' + (r.until ? ` até ${r.until}` : '') + ': ' + r.temp.map(k => RESTR[k].n).join(', ') : ''].filter(Boolean).join('; '); })()}.` : ''}
 ESPORTES: ${Object.entries(sp).map(([id, s]) => `${SPORTS[id]?.n} ${s.days}x/semana, ${s.min} min, ${typesOf(id, s).map(k => SPORTS[id]?.types[k]?.n).join(' + ')}, ${s.where}`).join('; ') || 'nenhum'}.
@@ -2590,17 +2590,18 @@ function offlineAnswer(q) {
 views.coach = () => {
   const hasKey = !!getKey();
   const sugg = { boxe: 'Cansei no 3º round', muaythai: 'Como chutar mais forte?', jiu: 'Minha pegada acaba rápido', mma: 'Como defender queda?', karate: 'Como chegar antes no kumite?', corrida: 'Como melhorar meu ritmo?' };
-  return `<section class="head"><h1>Coach</h1><div class="chip ${hasKey ? 'on' : ''}">${hasKey ? 'IA ativa' : 'Offline'}</div></section>
+  return `<section class="tai-head"><img class="tai-face" src="img/tairen/${S.chat.length ? 'smile' : 'thumbs'}.webp" alt="" width="84" height="84"><div><h1>Tairen</h1><p class="small">Seu treinador virtual (IA)</p><span class="chip ${hasKey ? 'on' : ''}">${hasKey ? 'Online' : 'Offline'}</span></div></section>
   ${hasKey ? '' : `<p class="note small">Sem chave de API, o coach responde com as cartas de evidência. Pra conversar de verdade, adicione sua chave da API Anthropic em <a href="#perfil">Perfil</a>.</p>`}
-  <div id="chat" class="chat">${S.chat.length ? S.chat.map(m => msgHTML(m)).join('') : `<div class="muted small center pad">Pergunte qualquer coisa sobre seu treino, sua luta ou sua alimentação.</div>`}</div>
+  <div id="chat" class="chat">${S.chat.length ? S.chat.map(m => msgHTML(m)).join('') : `<div class="tai-empty"><img src="img/tairen/pointing.webp" alt="" width="150" height="150"><p><b>Manda a dúvida.</b><br>Treino, luta, corrida ou comida.</p></div>`}</div>
   <div class="chips">${[...mySports().map(id => sugg[id]), 'O que comer antes do treino?', 'Tô estagnado na força'].slice(0, 4).map(s => `<button class="chipbtn" data-act="ask" data-q="${esc(s)}">${esc(s)}</button>`).join('')}</div>
-  <form id="chatForm" class="chatbar"><textarea name="q" rows="1" placeholder="Fale com seu coach…"></textarea><button class="btn primary" type="submit" aria-label="Enviar">➤</button></form>
+  <form id="chatForm" class="chatbar"><textarea name="q" rows="1" placeholder="Fale com o Tairen…"></textarea><button class="btn primary" type="submit" aria-label="Enviar">➤</button></form>
   ${S.chat.length ? '<button class="btn ghost small" data-act="clearChat">Limpar conversa</button>' : ''}`;
 };
 function md(s) { return esc(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/^#{1,3} (.+)$/gm, '<b>$1</b>').replace(/^[-•] (.+)$/gm, '• $1').replace(/\n/g, '<br>'); }
 function msgHTML(m) {
   const cards = (m.cards || []).map(ev).filter(Boolean).map(e => evCard(e, true)).join('');
-  return `<div class="msg ${m.role}"><div class="bubble">${m.pending ? '<span class="dots"><i></i><i></i><i></i></span>' : md(m.text)}</div>${cards}</div>`;
+  const av = m.role === 'bot' ? `<img class="tai-av" src="img/tairen/${m.pending ? 'thinking' : 'smile'}.webp" alt="" width="36" height="36">` : '';
+  return `<div class="msg ${m.role}">${av}<div class="mcol"><div class="bubble">${m.pending ? '<span class="dots"><i></i><i></i><i></i></span>' : md(m.text)}</div>${cards}</div></div>`;
 }
 async function askCoach(q) {
   q = q.trim(); if (!q) return;
@@ -2672,11 +2673,11 @@ function accountCard() {
 }
 // Primeira tela: login (como no Stempel)
 views.login = () => `<div class="gate">
-  <div class="gate-logo"><span class="gbadge">浪</span><span class="gname">RONIN</span></div>
-  <p class="gate-tag">Sem mestre. Só disciplina.</p>
+  <div class="gate-logo"><img class="gface" src="img/tairen/smile.webp" alt="" width="64" height="64"><span class="gname">TAIREN</span></div>
+  <p class="gate-tag">Treino. Disciplina. Evolução.</p>
   ${GATE.recovery && cloud.user() ? accountCard() : authBlock()}
   <button class="linkbtn gate-skip" data-act="skipLogin">Continuar sem conta</button>
-  <p class="gate-ver">v3.8</p></div>`;
+  </div>`;
 async function afterLogin() {
   const u = cloud.user();
   // outra conta? os dados deste aparelho são da conta anterior: descarta antes de juntar
@@ -2705,7 +2706,7 @@ views.perfil = () => `<section class="head"><h1>Perfil e ajustes</h1></section>
   <div class="card"><h3>Seus dados</h3>
     <div class="row gap wrap"><button class="btn small" data-act="export">Exportar backup</button><label class="btn small ghost">Restaurar<input type="file" accept="application/json" id="importFile" hidden></label><button class="btn small danger" data-act="reset">Apagar tudo</button></div>
   </div>
-  <p class="small muted center pad">RONIN v3.8 · não substitui acompanhamento profissional.</p>`;
+  <p class="small muted center pad">TAIREN · não substitui acompanhamento profissional.</p>`;
 
 // tutorial: troca de tela sem animação de rolagem
 const tourGo = h => { if (location.hash !== h) { try { history.pushState(null, '', h); } catch (e) { location.hash = h; } } go(true); };
@@ -3060,7 +3061,7 @@ document.addEventListener('click', async e => {
   if (a === 'pStrict') { S.ui.pStrict = el.checked; save(true); }
   if (a === 'shopShare') {
     const txt = [...document.querySelectorAll('#c-lista li')].filter(li => !li.classList.contains('got')).map(li => `• ${li.querySelector('span').textContent} — ${li.querySelector('.mono').textContent}`).join('\n');
-    const body = `Lista de compras (RONIN)\n${txt}`;
+    const body = `Lista de compras (TAIREN)\n${txt}`;
     if (navigator.share) navigator.share({ text: body }).catch(() => { });
     else navigator.clipboard?.writeText(body).then(() => toast('Lista copiada'), () => toast('Não deu pra copiar'));
   }

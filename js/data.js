@@ -64,7 +64,7 @@ export const EVIDENCE = [
   {
     id: 'tmb', cat: 'Gasto calórico', tags: ['tmb', 'basal', 'metabolismo', 'gasto', 'calorias', 'tdee'],
     title: 'Como estimar seu metabolismo basal',
-    do: 'O app usa Mifflin-St Jeor. Se você informar % de gordura, usa Katch-McArdle (baseada em massa magra). Depois, ajusta pelo seu peso real.',
+    do: 'O Tairen usa Mifflin-St Jeor. Se você informar % de gordura, usa Katch-McArdle (baseada em massa magra). Depois, ajusta pelo seu peso real.',
     why: 'Em comparação de equações preditivas, a Mifflin-St Jeor foi a mais precisa em adultos. Mesmo assim, toda equação erra ±10% em indivíduos: por isso o ajuste adaptativo com seus dados reais é o que manda.',
     level: 'A',
     refs: ['Mifflin MD et al. (1990) Am J Clin Nutr 51:241–247', 'Frankenfield D et al. (2005) J Am Diet Assoc 105:775–789']
@@ -73,7 +73,7 @@ export const EVIDENCE = [
     id: 'met', cat: 'Gasto calórico', tags: ['gasto', 'boxe', 'sparring', 'saco', 'calorias', 'met'],
     title: 'Gasto do treino (METs)',
     do: 'Saco ≈ 5,5 MET · sparring ≈ 7,8 MET · luta/ringue ≈ 12,8 MET · circuito vigoroso ≈ 8 MET · musculação ≈ 3,5–6 MET.',
-    why: 'Valores do Compêndio de Atividades Físicas. É estimativa de população, não medida individual. O app soma só o gasto acima do repouso pra não contar duas vezes.',
+    why: 'Valores do Compêndio de Atividades Físicas. É estimativa de população, não medida individual. O Tairen soma só o gasto acima do repouso pra não contar duas vezes.',
     level: 'B',
     refs: ['Ainsworth BE et al. (2011) Compendium of Physical Activities. Med Sci Sports Exerc 43(8):1575–1581']
   },
@@ -128,7 +128,7 @@ export const EVIDENCE = [
   {
     id: 'progressao', cat: 'Musculação', tags: ['progressao', 'progressão', 'evoluir', 'estagnado', 'platô', 'plato', 'supino', 'travado'],
     title: 'Como progredir (dupla progressão)',
-    do: 'Escolha uma faixa (ex.: 6–10). Quando bater o topo em todas as séries, suba a carga e volte pro início da faixa. O app sugere isso automaticamente.',
+    do: 'Escolha uma faixa (ex.: 6–10). Quando bater o topo em todas as séries, suba a carga e volte pro início da faixa. O Tairen sugere isso automaticamente.',
     why: 'Sobrecarga progressiva é o princípio central dos modelos de progressão do ACSM.',
     level: 'A',
     refs: ['ACSM (2009) Progression Models in Resistance Training for Healthy Adults. Med Sci Sports Exerc 41(3):687–708']
@@ -304,7 +304,7 @@ export const EVIDENCE = [
   {
     id: 'core-funcional', cat: 'Core', tags: ['core', 'abdominal', 'abdomen', 'abdômen', 'funcional', 'estabilidade', 'tronco', 'prancha', 'crunch'],
     title: 'Abdômen é funcional?',
-    do: 'Sim, mas o trabalho dele é mais segurar o tronco firme enquanto braços e pernas se mexem do que dobrar a coluna. Por isso o app prioriza prancha, anti-rotação (Pallof) e rotação controlada. Crunch não é proibido, só não é essencial.',
+    do: 'Sim, mas o trabalho dele é mais segurar o tronco firme enquanto braços e pernas se mexem do que dobrar a coluna. Por isso o Tairen prioriza prancha, anti-rotação (Pallof) e rotação controlada. Crunch não é proibido, só não é essencial.',
     why: 'O core é o conjunto de músculos que estabiliza o tronco e passa força entre pernas e braços. Treinar isso melhora qualidades básicas como estabilidade e equilíbrio; o efeito no desempenho do esporte é variável.',
     level: 'B',
     refs: ['The impact of core training on overall athletic performance in different sports: a comprehensive meta-analysis (2025) BMC Sports Sci Med Rehabil 17:112']

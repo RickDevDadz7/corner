@@ -16,7 +16,7 @@ const FLEX_LOADED = ['crunchcable', 'russian', 'legraiseb', 'hlr', 'abwheel'];
 export const COND_GROUPS = { meta: 'Metabolismo', cardio: 'Coração e pressão', osso: 'Ossos e articulações', coluna: 'Coluna', dig: 'Digestão', outro: 'Outras' };
 export const CONDITIONS = {
   diabetes1: { n: 'Diabetes tipo 1', g: 'meta', restr: ['acucar'],
-    diet: ['Conte o carboidrato de cada refeição pra acertar a insulina; o app mostra os gramas de cada item.', 'Prefira carboidrato com fibra (feijão, aveia, fruta inteira) e distribua ao longo do dia.'],
+    diet: ['Conte o carboidrato de cada refeição pra acertar a insulina; o Tairen mostra os gramas de cada item.', 'Prefira carboidrato com fibra (feijão, aveia, fruta inteira) e distribua ao longo do dia.'],
     train: ['Meça a glicemia antes: abaixo de 90 mg/dL, coma 15–30 g de carboidrato antes; acima de 250 com cetona, não treine.', 'Leve sempre carboidrato rápido (suco, bala) e avise quem treina com você.', 'Hipoglicemia pode vir horas depois, até de madrugada: confira à noite nos dias de treino pesado.'] },
   diabetes2: { n: 'Diabetes tipo 2 / pré-diabetes', g: 'meta', restr: ['acucar'],
     diet: ['Prato com metade de verdura, 1/4 de proteína e 1/4 de carboidrato com fibra.', 'Fibra alta (25–35 g/dia) e carboidrato espalhado nas refeições, sem concentrar num pico.'],
@@ -50,7 +50,7 @@ export const CONDITIONS = {
     train: ['Comece leve e suba devagar: exercício é um dos tratamentos com melhor evidência, mas exagero piora a dor por dias.'] },
   escoliose: { n: 'Escoliose (coluna curvada pro lado)', g: 'coluna',
     diet: [],
-    train: ['Força e core ajudam na dor e na postura. Treino não "endireita" a coluna, mas exercício específico pode frear a curva e melhorar a função.', 'Desenhe sua coluna no perfil: o app diz o lado da curva e monta os complementares.'] },
+    train: ['Força e core ajudam na dor e na postura. Treino não "endireita" a coluna, mas exercício específico pode frear a curva e melhorar a função.', 'Desenhe sua coluna no perfil: o Tairen diz o lado da curva e monta os complementares.'] },
   cifose: { n: 'Cifose (costas arredondadas)', g: 'coluna',
     diet: [],
     train: ['Pelo menos uma série de puxar pra cada série de empurrar: costas fortes seguram os ombros pra trás.', 'Mobilidade da parte alta das costas e alongamento do peitoral, de preferência todo dia.', 'Cifose rígida ou com dor (ex.: Scheuermann): acompanhe com fisioterapeuta.'] },
@@ -73,10 +73,10 @@ export const CONDITIONS = {
     diet: ['Ferro: carne vermelha magra, feijão, lentilha, folhas escuras. Vitamina C junto (laranja, limão) aumenta a absorção.', 'Café e chá longe das refeições com ferro.'],
     train: ['Cansaço e falta de ar mais cedo são esperados: reduza o volume até os exames melhorarem.'] },
   renal: { n: 'Doença renal crônica', g: 'outro', clearance: true, conservative: true, proteinCap: 0.8,
-    diet: ['Proteína limitada (cerca de 0,8 g por kg, o app já ajustou) e sódio, potássio e fósforo conforme exame, com nutricionista.'],
+    diet: ['Proteína limitada (cerca de 0,8 g por kg, o Tairen já ajustou) e sódio, potássio e fósforo conforme exame, com nutricionista.'],
     train: ['Precisa de liberação do nefrologista. Força leve a moderada ajuda a manter músculo.'] },
   gestacao: { n: 'Gestação', g: 'outro', clearance: true, conservative: true, noPower: true, noCut: true, restr: ['alcool'], avoid: [...SUPINE, ...FLEX_LOADED, 'plankrot', 'birddog', 'sideplank', 'copen', 'kbswing', 'dl', 'lmr', 'woodchop'], rir: '3–4',
-    diet: ['Sem dieta de emagrecimento: o app trocou a meta pra manter. Ácido fólico, ferro, cálcio e iodo com o obstetra.', 'Nada de álcool, carne ou peixe cru, queijo não pasteurizado e peixes grandes (atum, cação).'],
+    diet: ['Sem dieta de emagrecimento: o Tairen trocou a meta pra manter. Ácido fólico, ferro, cálcio e iodo com o obstetra.', 'Nada de álcool, carne ou peixe cru, queijo não pasteurizado e peixes grandes (atum, cação).'],
     train: ['Precisa de liberação do obstetra. Com ela, 150 min por semana de exercício moderado é recomendado.', 'Depois do 1º trimestre, evite ficar deitada de barriga pra cima: exercícios de banco e chão saíram da rotina.', 'Nada de impacto, salto, risco de queda ou contato. Sangramento, dor ou tontura: pare e procure atendimento.'] }
 };
 export const condsOf = p => (Array.isArray(p?.cond) ? p.cond : []).filter(k => CONDITIONS[k]);

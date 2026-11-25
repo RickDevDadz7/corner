@@ -101,7 +101,7 @@ export const SPORTS = {
       { id: 'mt_kick', n: 'Chute fraco / sem equilíbrio', fix: ['Força unilateral (búlgaro, afundo) e panturrilha.', 'Arremesso rotacional ou sombra explosiva no início do treino.', 'Chute lento segurando 2 s no alto: equilíbrio e mobilidade de quadril.'], ev: ['soco', 'core-luta'] },
       { id: 'mt_clinch', n: 'Perco no clinch', fix: ['Puxadas e remadas pesadas + pegada.', 'Isometria de pescoço 2–3x/semana.', 'Rounds de joelhada no saco.'], ev: ['pescoco', 'jj-perfil'] },
       { id: 'mt_shin', n: 'Canela/pé doem muito', fix: ['Aumente o volume de chutes no saco aos poucos, semana a semana.', 'Use caneleira no sparring.', 'Dor que piora, inchaço ou dor num ponto só do osso: avaliação médica.'], ev: ['mt-lesao'] },
-      { id: 'mt_groin', n: 'Virilha / adutor puxa', fix: ['Prancha de Copenhague 2x/semana (o app já coloca no treino de força).', 'Mobilidade de quadril no aquecimento.', 'Volte aos chutes altos aos poucos.'], ev: ['forca-lesao'] }
+      { id: 'mt_groin', n: 'Virilha / adutor puxa', fix: ['Prancha de Copenhague 2x/semana (o Tairen já coloca no treino de força).', 'Mobilidade de quadril no aquecimento.', 'Volte aos chutes altos aos poucos.'], ev: ['forca-lesao'] }
     ],
     plan: ({ saco, weak }) => ({
       warm: ['aquec', 'corda'],

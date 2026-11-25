@@ -108,7 +108,7 @@ export function complements(p, conds = [], inj = []) {
   const scol = has('escoliose') || (L.main && L.main.angle >= 10);
   if (scol) {
     const m = L.main && L.main.angle >= 10 ? L.main : null;
-    add('sideplank', D.max, m ? `Deitado sobre o lado ${m.side.replace('direita', 'direito').replace('esquerda', 'esquerdo')} (lado convexo da curva ${m.region} pra baixo). Só esse lado.` : 'Faça dos dois lados. Desenhando a coluna, o app diz qual lado priorizar.', 'Escoliose');
+    add('sideplank', D.max, m ? `Deitado sobre o lado ${m.side.replace('direita', 'direito').replace('esquerda', 'esquerdo')} (lado convexo da curva ${m.region} pra baixo). Só esse lado.` : 'Faça dos dois lados. Desenhando a coluna, o Tairen diz qual lado priorizar.', 'Escoliose');
     if (!m || m.region !== 'lombar') add('thrrot', D.side, 'Mobilidade da coluna torácica, controlando a rotação', 'Escoliose');
     add('birddog', D.side, 'Estabilidade da coluna sem carga', 'Escoliose');
     add('pal', D.side, 'Anti-rotação: o tronco aprende a não ceder pro lado da curva', 'Escoliose');
