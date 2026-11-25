@@ -142,6 +142,14 @@ export const EVIDENCE = [
     refs: ['Gartland S, Malik MH, Lovell ME (2001) Br J Sports Med 35(5):308–313']
   },
   {
+    id: 'karate-perfil', cat: 'Karatê', tags: ['karate', 'karatê', 'kumite', 'kata', 'explosão', 'reação', 'chute'],
+    title: 'O que diferencia no karatê',
+    do: 'No kumite, treine explosões curtas (entradas de 1–3 s) com pausas, potência de perna e tempo de reação. Base aeróbia boa acelera a recuperação entre as trocas.',
+    why: 'Revisão sobre atletas de elite: o kumite é intermitente, com ações de alta intensidade curtas e pausas; potência de membros inferiores, velocidade e tempo de reação distinguem os melhores, enquanto o VO2máx fica em nível moderado.',
+    level: 'B',
+    refs: ['Chaabène H et al. (2012) Sports Med 42(10):829–843', 'Tabben M et al. (2015) J Sports Sci 33(8):841–849']
+  },
+  {
     id: 'jj-perfil', cat: 'Jiu-jitsu', tags: ['jiu', 'jitsu', 'bjj', 'pegada', 'grappling', 'força'],
     title: 'O que diferencia no jiu-jitsu',
     do: 'Priorize força máxima, força isométrica (pegada) e resistência de força. O aeróbio é a base, mas não é o diferencial.',

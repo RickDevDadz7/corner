@@ -7,16 +7,16 @@
 // ============================================================
 import { EXERCISES, SLOTS, TEMPLATES, SPLITS, MUSCLES } from './data.js';
 import { equipment, canDo, sportDays, sportsOf } from './calc.js';
-import { SPORTS } from './sports.js';
+import { SPORTS, goalLifts } from './sports.js';
 import { CONDITIONS, condsOf, condFlag, bodyOk, caps } from './health.js';
 
 export const TGOALS = {
-  luta: { n: 'Render na luta', d: 'Força e potência sem pesar: volume moderado, qualidade alta. O esporte já cansa.' },
-  forca: { n: 'Ficar mais forte', d: 'Cargas altas, poucas repetições, descanso longo nos exercícios principais.' },
-  hipertrofia: { n: 'Ganhar músculo', d: 'Mais séries por músculo, faixa de 6–15 repetições, perto da falha.' },
-  emagrecer: { n: 'Perder gordura sem perder músculo', d: 'Manter a força com descanso mais curto; quem queima gordura é a dieta.' },
-  saude: { n: 'Saúde e disposição', d: 'O mínimo que funciona: corpo forte, articulações protegidas, sem exagero.' },
-  corrida: { n: 'Render na corrida', d: 'Força pesada e pliometria em pouco volume: melhora a economia de corrida sem pesar as pernas.' }
+  luta: { n: 'Força pra luta', s: 'luta', d: 'Preparação física de lutador: força e potência sem pesar, pescoço e pegada, sem chegar destruído no treino técnico.' },
+  forca: { n: 'Ficar mais forte', s: 'força', d: 'Cargas altas, poucas repetições, descanso longo nos exercícios principais.' },
+  hipertrofia: { n: 'Ganhar músculo', s: 'músculo', d: 'Mais séries por músculo, faixa de 6–15 repetições, perto da falha.' },
+  emagrecer: { n: 'Perder gordura sem perder músculo', s: 'manter músculo', d: 'Manter a força com descanso mais curto; quem queima gordura é a dieta.' },
+  saude: { n: 'Saúde e disposição', s: 'saúde', d: 'O mínimo que funciona: corpo forte, articulações protegidas, sem exagero.' },
+  corrida: { n: 'Render na corrida', s: 'corrida', d: 'Força pesada e pliometria em pouco volume: melhora a economia de corrida sem pesar as pernas.' }
 };
 // lesões/dores: exercícios evitados (trocados automaticamente) e os que pedem cuidado
 export const INJURIES = {
@@ -67,8 +67,8 @@ export function careOf(p, ex) {
 const lvlOf = p => p?.experience === 'avancado' ? 'avancado' : p?.experience === 'iniciante' ? 'iniciante' : 'intermediario';
 
 // ---------- parâmetros por objetivo ----------
-export function goalParams(p) {
-  const g = tgoalOf(p), lv = lvlOf(p);
+export function goalParams(p, gOver) {
+  const g = gOver && TGOALS[gOver] ? gOver : tgoalOf(p), lv = lvlOf(p);
   const R = {
     forca: { comp: [3, 6], iso: [8, 12], rc: 180, ri: 90, rirC: '1–3', start: 8, cap: 16 },
     hipertrofia: { comp: [6, 12], iso: [10, 15], rc: 120, ri: 75, rirC: '1–2', start: 10, cap: 20 },
@@ -212,6 +212,10 @@ export function planFor(p, prog = {}, opt = {}) {
   const ctx = { p, eq, avoid, caps: caps(p), gym: p.env === 'academia' || !p.env, rot: opt.rot || 0, swap: opt.swap || {}, block: opt.block || 1 };
   const extra = [];
   for (const id of Object.keys(sportsOf(p))) for (const x of (SPORTS[id]?.sc || [])) if (!extra.some(e => e[0] === x[0])) extra.push(x);
+  // objetivos na luta (potência, footwork, pegada…) entram quando o treino de força é "Força pra luta"
+  if (gp.g === 'luta' || p.tgoal2 === 'luta') for (const x of goalLifts(opt.weak || [])) if (!extra.some(e => e[0] === x[0])) extra.push(x);
+  // objetivo secundário: sessões ímpares usam reps e descanso dele (periodização ondulada, Rhea 2002)
+  const gp2 = TGOALS[p.tgoal2] && p.tgoal2 !== gp.g ? goalParams(p, p.tgoal2) : null;
   const startLvl = p.experience === 'iniciante' ? 0 : 1, swapped = [];
   const days = split.days.map((key, i) => {
     const t = TEMPLATES[key], used = new Set(), items = [];
@@ -223,11 +227,11 @@ export function planFor(p, prog = {}, opt = {}) {
       if (!ex) continue;
       if (first && first !== ex && (avoid.has(first) || !bodyOk(first, p, ctx.caps))) swapped.push([first, ex]);
       used.add(ex);
-      const e = EXERCISES[ex], [rlo, rhi] = repsFor(e, e.r || [lo, hi], gp);
+      const gpd = gp2 && i % 2 === 1 ? gp2 : gp, e = EXERCISES[ex], [rlo, rhi] = repsFor(e, e.r || [lo, hi], gpd);
       const lvl = e.vars ? Math.min(e.vars.length - 1, prog[ex] ?? startLvl) : null;
-      items.push({ ex, slot, sets, lo: rlo, hi: rhi, lvl, rest: restFor(e, gp) });
+      items.push({ ex, slot, sets, lo: rlo, hi: rhi, lvl, rest: restFor(e, gpd) });
     }
-    return { key, idx: i, name: t.name, items };
+    return { key, idx: i, name: t.name + (gp2 ? ` · foco ${(i % 2 === 1 ? TGOALS[gp2.g] : TGOALS[gp.g]).s}` : ''), items };
   });
   return { split: split.name, days, none: false, swapped, freq: cs.freq, splitKey: cs.key, why: cs.why };
 }

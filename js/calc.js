@@ -1,6 +1,6 @@
 // Motor de cálculo — funções puras, testáveis
 import { EXERCISES, TEMPLATES, SPLITS, MUSCLES, SLOTS, EQUIP, COMBOS } from './data.js';
-import { SPORTS } from './sports.js';
+import { SPORTS, typesOf, metOf } from './sports.js';
 
 // Esportes do perfil (migra o formato antigo, que só tinha boxe)
 export function sportsOf(p) {
@@ -73,7 +73,7 @@ export function exerciseKcalPerDay(p) {
   let sp = 0;
   for (const [id, s] of Object.entries(sportsOf(p))) {
     const S = SPORTS[id]; if (!S) continue;
-    const met = (S.types[s.type] || S.types[S.defaultType]).met;
+    const met = metOf(id, typesOf(id, s)); // várias escolhas: média dos METs
     sp += (+s.days || 0) * sessionKcal(met, p.weight, +s.min || 60);
   }
   return (lift + sp) / 7;
