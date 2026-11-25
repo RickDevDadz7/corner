@@ -1018,3 +1018,9 @@ body.coachv .toast{bottom:calc(172px + var(--safe-b))}
 .subtabs button{padding:11px 6px;font-size:13.5px}
 .tech-thumb img{width:100%;height:100%;display:block;object-fit:contain}
 .techgrid .tech{content-visibility:auto;contain-intrinsic-size:auto 150px}
+/* Coach: a página não rola (nada sobe nem treme); só a conversa rola dentro dela */
+html:has(body.coachv),body.coachv{overflow:hidden;height:100%;overscroll-behavior:none}
+body.coachv #app{height:100dvh;box-sizing:border-box;overflow:hidden}
+body.coachv #app>*{flex:none}
+body.coachv #app>#chat{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding-bottom:6px}
+.tai-clear{margin-left:auto;align-self:center}

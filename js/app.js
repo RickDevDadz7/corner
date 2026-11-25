@@ -2633,10 +2633,9 @@ function offlineAnswer(q) {
 }
 views.coach = () => {
   const hasKey = !!getKey();
-  return `<section class="tai-head"><img class="tai-face" src="img/tairen/smile.webp" alt="" width="84" height="84"><div><h1>Tairen</h1><p class="small">Seu treinador virtual (IA)</p></div></section>
+  return `<section class="tai-head"><img class="tai-face" src="img/tairen/smile.webp" alt="" width="84" height="84"><div><h1>Tairen</h1><p class="small">Seu treinador virtual (IA)</p></div>${S.chat.length ? '<button class="btn ghost small tai-clear" data-act="clearChat">Limpar</button>' : ''}</section>
   <div id="chat" class="chat">${S.chat.map(m => msgHTML(m)).join('')}</div>
-  <form id="chatForm" class="chatbar"><textarea name="q" rows="1" placeholder="Fale com o Tairen…"></textarea><button class="btn primary" type="submit" aria-label="Enviar">➤</button></form>
-  ${S.chat.length ? '<button class="btn ghost small" data-act="clearChat">Limpar conversa</button>' : ''}`;
+  <form id="chatForm" class="chatbar"><textarea name="q" rows="1" placeholder="Fale com o Tairen…"></textarea><button class="btn primary" type="submit" aria-label="Enviar">➤</button></form>`;
 };
 function md(s) { return esc(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/^#{1,3} (.+)$/gm, '<b>$1</b>').replace(/^[-•] (.+)$/gm, '• $1').replace(/\n/g, '<br>'); }
 function msgHTML(m) {
@@ -2666,9 +2665,7 @@ async function askCoach(q) {
   }
   pending.pending = false; save(); render(); scrollChat();
 }
-// teclado fechou na tela do coach vazia: volta pro topo (o navegador às vezes deixa a página deslocada)
-window.visualViewport?.addEventListener('resize', () => { if (document.body.classList.contains('coachv') && !S.chat.length && document.activeElement?.tagName !== 'TEXTAREA') window.scrollTo(0, 0); });
-function scrollChat() { requestAnimationFrame(() => window.scrollTo(0, document.body.scrollHeight)); }
+function scrollChat() { requestAnimationFrame(() => { const c = $('#chat'); if (c) c.scrollTop = c.scrollHeight; }); }
 
 // ---------------- Conta ----------------
 // Apaga tudo deste aparelho (ao sair da conta ou ao entrar com outra conta)
@@ -2972,8 +2969,6 @@ function bindAfter(v, arg) {
     ta.addEventListener('input', () => { ta.style.height = 'auto'; ta.style.height = Math.min(140, ta.scrollHeight) + 'px'; });
     f.addEventListener('submit', e => { e.preventDefault(); const q = ta.value; ta.value = ''; askCoach(q); });
     ta.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !('ontouchstart' in window)) { e.preventDefault(); f.requestSubmit(); } });
-    // ao fechar o teclado o navegador deixa a página rolada além do fim (topo some atrás da barra): volta pro lugar
-    ta.addEventListener('blur', () => setTimeout(() => { const max = Math.max(0, document.documentElement.scrollHeight - innerHeight); if (!S.chat.length) window.scrollTo(0, 0); else if (scrollY > max) window.scrollTo(0, max); }, 120));
   }
   if (v === 'login') bindAuth();
   if (v === 'perfil') {
