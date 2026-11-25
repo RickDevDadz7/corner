@@ -3,15 +3,17 @@ import { EXERCISES } from './data.js';
 import { hasDemo, exThumb, exAnimate } from './exanim.js';
 import { TECHNIQUES, thumbSVG, animate } from './techniques.js';
 import { SPORTS } from './sports.js';
+import { MOB, MOB_IDS } from './mobility.js';
 const KEY = 'ronin:revisao', st = (() => { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { return {}; } })();
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) { } upd(); };
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 // força: id do exercício; lutas: "t:" + id da técnica
 const ITEMS = {
   forca: Object.keys(EXERCISES).filter(hasDemo).map(id => ({ key: id, n: EXERCISES[id].n, thumb: () => exThumb(id), run: el => exAnimate(el, id) })),
+  mob: MOB_IDS.filter(id => MOB[id].ex && hasDemo(MOB[id].ex)).map(id => ({ key: 'm:' + id, n: MOB[id].n, thumb: () => exThumb(MOB[id].ex), run: el => exAnimate(el, MOB[id].ex) })),
   luta: TECHNIQUES.map(t => ({ key: 't:' + t.id, n: `${t.n} · ${t.sport.filter(x => SPORTS[x] && !SPORTS[x].retired).map(x => SPORTS[x].n).join(', ')}`, thumb: () => thumbSVG(t), run: el => animate(el, t) }))
 };
-const nameOf = k => k.startsWith('t:') ? TECHNIQUES.find(t => 't:' + t.id === k)?.n : EXERCISES[k]?.n;
+const nameOf = k => k.startsWith('m:') ? MOB[k.slice(2)]?.n : k.startsWith('t:') ? TECHNIQUES.find(t => 't:' + t.id === k)?.n : EXERCISES[k]?.n;
 const list = document.getElementById('list');
 let tab = 'forca', anim = null, cur = null;
 function paint() {

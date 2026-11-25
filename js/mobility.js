@@ -73,6 +73,8 @@ export const MOB = {
   pernasparede: M('Pernas na parede', 'rel', ['geral'], 'chao', 90, { how: ['Deitado, glúteo perto da parede, pernas apoiadas pra cima.', 'Braços soltos, respiração lenta.'], err: [] }),
   escaneamento: M('Atenção ao corpo', 'rel', ['geral'], 'chao', 60, { how: ['Deitado, olhos fechados.', 'Passa a atenção dos pés à cabeça, soltando cada parte.', 'Respiração lenta.'], err: [] })
 };
+// bonecos da mobilidade (exanim, ids m_<id>); pescoço não tem (o boneco não inclina a cabeça)
+for (const id of Object.keys(MOB)) if (!MOB[id].ex && !['pescocolat', 'pescocorot'].includes(id)) MOB[id].ex = 'm_' + id;
 export const MOB_IDS = Object.keys(MOB);
 
 // regiões que cada modalidade mais usa
