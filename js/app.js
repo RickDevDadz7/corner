@@ -1748,7 +1748,9 @@ if (RUN) { if (RUN.done) { RUN = null; RT.persist(null); } else { runLoop(true);
 // e, se a pessoa bloquear mesmo assim, o trecho sem sinal entra em linha reta e tracejado.
 const GMODES = { livre: 'Livre', dist: 'Distância', tempo: 'Tempo', leve: 'Leve', ritmo: 'Ritmo', intervalado: 'Intervalado', tiros: 'Tiros' };
 const GMODE_TIP = { livre: 'Corre do seu jeito; o app só marca.', dist: 'Avisa quanto falta e quando bater a meta.', tempo: 'Avisa na metade e no fim do tempo.', leve: 'Ritmo de conversa: dá pra falar frases inteiras.', ritmo: 'Avisa quando você sai do ritmo-alvo.', intervalado: 'Blocos fortes e trote, com o timer falando cada parte.', tiros: 'Tiros curtos e rápidos com recuperação.' };
-const GTILES = { url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', att: '© OpenStreetMap' }; // trocar pelo MapTiler antes de escalar (e liberar o domínio na CSP)
+// MapTiler (chave travada pro domínio rickdevdadz7.github.io no painel; domínio novo → liberar lá e na CSP)
+const MT_KEY = 'OQtfdy2K7gxwZFIpzlaq', MT = id => `https://api.maptiler.com/maps/${id}/256/{z}/{x}/{y}{r}.png?key=${MT_KEY}`;
+const GTILES = { url: MT('toner-v2'), alt: MT('streets-v4'), att: '<a href="https://www.maptiler.com/copyright/" target="_blank" rel="noopener">© MapTiler</a> <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap</a>' };
 let GPS = G.restore(), GRT = GPS && !GPS.done ? RT.restore('ronin:gpsrt') : null;
 const GV = { watch: null, acc: 0, fixAt: 0, err: '', min: false, endArm: 0, delArm: 0, cd: 0, pocket: false, map: null, lay: null, follow: true, saved: null, prs: [], lastKm: 0, warned: {}, paceAt: 0, persistAt: 0, iv: null, state: 'idle' };
 function gpsOpt() {
@@ -1816,7 +1818,9 @@ function mapInto(el, coords, cut, gap, live) {
     if (!el.isConnected) return null;
     const m = L.map(el, { zoomControl: false, attributionControl: true, preferCanvas: false });
     m.attributionControl.setPrefix(false);
-    L.tileLayer(GTILES.url, { maxZoom: 19, attribution: GTILES.att, crossOrigin: false }).addTo(m);
+    // estilo Toner (preto e branco, cara de mangá); se não carregar, cai pro Streets
+    const tl = L.tileLayer(GTILES.url, { maxZoom: 19, attribution: GTILES.att }).addTo(m); let fails = 0;
+    tl.on('tileerror', () => { if (++fails === 4 && tl._url !== GTILES.alt) { tl.setUrl(GTILES.alt); fails = 0; } });
     const g = { m, under: L.polyline([], { className: 'r-u', interactive: false }).addTo(m), over: L.polyline([], { className: 'r-o', interactive: false }).addTo(m),
       dash: L.polyline([], { className: 'r-d', interactive: false }).addTo(m), a: null, me: null, ring: null };
     if (!live) m.dragging.enable();

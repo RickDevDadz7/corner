@@ -891,7 +891,7 @@ body.runmin #app{padding-bottom:calc(150px + var(--safe-b))}
 .gps.st-done .gmap-wrap{height:min(30vh,280px)}
 .gmap{position:absolute;inset:0;background:var(--sheet)}
 .gmap-card{padding:0;overflow:hidden}.gmap-card .gmap{position:relative;height:260px;inset:auto}.gmap-card p{padding:6px 12px;margin:0}
-.gmap .leaflet-tile-pane{filter:grayscale(1) sepia(.28) contrast(1.22) brightness(1.04)}
+.gmap .leaflet-tile-pane{filter:grayscale(1) sepia(.3) contrast(.92) brightness(1.06)}
 :root[data-theme=dark] .gmap .leaflet-tile-pane{filter:grayscale(1) invert(1) sepia(.2) contrast(1.05) brightness(.78)}
 .gmap-wrap::after,.gmap-card::after{content:'';position:absolute;inset:0;background:var(--tone);opacity:.55;pointer-events:none;z-index:500;mix-blend-mode:multiply}
 .gmap.leaflet-container{background:var(--sheet);font:11px var(--font)}
