@@ -491,7 +491,7 @@ function weekEditor(p) {
 }
 views.onboarding = () => {
   const p = S.profile || {}, sp = sportsOf(p);
-  return `${S.profile ? '<section class="head"><h1>Perfil</h1></section>' : `<section class="hero"><div class="logo-big">TAIREN</div><p class="tag">Treino. Disciplina. Evolução.</p><p>Luta, corrida, força e nutrição com base em ciência. Em casa ou na academia.</p></section>
+  return `${S.profile ? '<section class="head"><h1>Perfil</h1></section>' : `<section class="hero"><div class="logo-big"><span class="gbadge big">鍛</span>TAIREN</div><p class="tag">Treino. Disciplina. Evolução.</p><p>Luta, corrida, força e nutrição com base em ciência. Em casa ou na academia.</p></section>
   ${cloud.available() ? (cloud.user() ? `<p class="note small">Conectado como <b>${esc(cloud.user().email || '')}</b>. Seus dados vão pra nuvem assim que você salvar.</p>` : `<div class="card center"><p class="small">Quer salvar na nuvem e usar em outros aparelhos?</p><button class="btn small" data-act="toLogin">Entrar ou criar conta</button></div>`) : ''}`}
   <form id="profileForm" class="card form">
     <h2>${S.profile ? 'Editar perfil' : 'Vamos te conhecer'}</h2>
@@ -2674,7 +2674,7 @@ function accountCard() {
 }
 // Primeira tela: login (como no Stempel)
 views.login = () => `<div class="gate">
-  <div class="gate-logo"><img class="gface" src="img/tairen/smile.webp" alt="" width="64" height="64"><span class="gname">TAIREN</span></div>
+  <div class="gate-logo"><span class="gbadge">鍛</span><span class="gname">TAIREN</span></div>
   <p class="gate-tag">Treino. Disciplina. Evolução.</p>
   ${GATE.recovery && cloud.user() ? accountCard() : authBlock()}
   <button class="linkbtn gate-skip" data-act="skipLogin">Continuar sem conta</button>
