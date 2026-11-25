@@ -1400,12 +1400,12 @@ views.demo = (ex) => {
   return `<section class="head"><div><button class="backlink linkbtn" data-act="goBack">← Voltar</button><h1>${esc(e.n)}</h1></div></section>
   <div class="card panel techcard">
     <div id="techFig" class="techfig"></div>
-    <div class="segs speed"><button data-act="techPause">❚❚ Pausar</button><button class="on" data-act="techSpeed" data-s="1">Normal</button><button data-act="techSpeed" data-s="2.5">Lento</button><button data-act="techSpeed" data-s="5">Bem lento</button></div>
+${t.still ? '' : `<div class="segs speed"><button data-act="techPause">❚❚ Pausar</button><button class="on" data-act="techSpeed" data-s="1">Normal</button><button data-act="techSpeed" data-s="2.5">Lento</button><button data-act="techSpeed" data-s="5">Bem lento</button></div>`}
     ${ex === 'shadowx' ? '<p class="small muted">Mesmo movimento do cruzado da aba de luta, só que em séries curtas e 100% de velocidade.</p>' : ''}
     ${bodyFig(S.profile) && S.profile.bodyFig !== false ? `<button class="chip figmode" data-act="figMode">${S.ui?.figStd ? 'Ver com o meu corpo' : 'Ver boneco padrão'}</button>` : ''}
     ${bodyLabel(ex, S.profile) ? `<p class="small note">Pra você: ${esc(bodyLabel(ex, S.profile))}. ${esc(bodyCare(ex, S.profile) || 'Mesmo movimento, só do lado que trabalha; troque de lado se tiver os dois.')}</p>` : bodyCare(ex, S.profile) ? `<p class="small note">${esc(bodyCare(ex, S.profile))}</p>` : ''}
   </div>
-  <div class="card"><h3>Passo a passo</h3><ol class="steps" id="techSteps">${steps.map((t, i) => `<li data-i="${i}">${esc(t)}</li>`).join('')}</ol>
+  <div class="card"><h3>${t.still ? 'Como é' : 'Passo a passo'}</h3><ol class="steps" id="techSteps">${steps.map((t, i) => `<li data-i="${i}">${esc(t)}</li>`).join('')}</ol>
     <p class="small"><b>Dica:</b> ${esc(e.cue)}</p></div>
   <div class="card"><h3>O que trabalha</h3>
     <p class="small">${prim.length ? `<b>Principal:</b> ${esc(prim.join(', '))}` : ''}${sec.length ? `<br><b>Ajuda:</b> ${esc(sec.join(', '))}` : ''}${!prim.length && !sec.length ? esc(e.t === 'power' ? 'Potência: corpo inteiro.' : 'Corpo inteiro.') : ''}</p>
@@ -2543,9 +2543,9 @@ views.tecnica = (tid) => {
   <div class="card panel techcard">
     <div id="techFig" class="techfig"></div>
     <div class="segs speed"><button data-act="techPause">❚❚ Pausar</button><button class="on" data-act="techSpeed" data-s="1">Normal</button><button data-act="techSpeed" data-s="3">Lento</button><button data-act="techSpeed" data-s="6">Bem lento</button></div>
-    <p class="small muted">${esc(t.sub)} <span class="hi-dot"></span> = onde nasce a força.</p>
+    <p class="small muted">${esc(t.sub)}${t.still ? '' : ' <span class="hi-dot"></span> = onde nasce a força.'}</p>
   </div>
-  <div class="card"><h3>Passo a passo</h3><ol class="steps" id="techSteps">${t.steps.map((s, i) => `<li data-i="${i}">${esc(s)}</li>`).join('')}</ol></div>
+  <div class="card"><h3>${t.still ? 'Como é' : 'Passo a passo'}</h3><ol class="steps" id="techSteps">${t.steps.map((s, i) => `<li data-i="${i}">${esc(s)}</li>`).join('')}</ol></div>
   <div class="card"><h3>Furos comuns</h3><ul class="furos-x">${t.furos.map(f => `<li>${esc(f)}</li>`).join('')}</ul></div>
   <div class="row gap technav"><a class="btn small ghost grow" href="#tecnica-${prev.id}">‹ ${esc(prev.n)}</a><a class="btn small ghost grow" href="#tecnica-${next.id}">${esc(next.n)} ›</a></div>`;
 };
