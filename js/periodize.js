@@ -216,6 +216,8 @@ export function planFor(p, prog = {}, opt = {}) {
   if (gp.g === 'luta' || p.tgoal2 === 'luta') for (const x of goalLifts(opt.weak || [])) if (!extra.some(e => e[0] === x[0])) extra.push(x);
   // objetivo secundário: sessões ímpares usam reps e descanso dele (periodização ondulada, Rhea 2002)
   const gp2 = TGOALS[p.tgoal2] && p.tgoal2 !== gp.g ? goalParams(p, p.tgoal2) : null;
+  // core: na luta e na saúde segue o modelo; nos outros objetivos 2 séries bastam (sem evidência de que mais abdominal ajude em gordura, músculo ou corrida)
+  const combat = Object.keys(sportsOf(p)).some(id => SPORTS[id]?.combat), coreCap = gp.g === 'luta' || gp.g === 'saude' || p.tgoal2 === 'luta' || combat ? 99 : 2;
   const startLvl = p.experience === 'iniciante' ? 0 : 1, swapped = [];
   const days = split.days.map((key, i) => {
     const t = TEMPLATES[key], used = new Set(), items = [];
@@ -229,7 +231,7 @@ export function planFor(p, prog = {}, opt = {}) {
       used.add(ex);
       const gpd = gp2 && i % 2 === 1 ? gp2 : gp, e = EXERCISES[ex], [rlo, rhi] = repsFor(e, e.r || [lo, hi], gpd);
       const lvl = e.vars ? Math.min(e.vars.length - 1, prog[ex] ?? startLvl) : null;
-      items.push({ ex, slot, sets, lo: rlo, hi: rhi, lvl, rest: restFor(e, gpd) });
+      items.push({ ex, slot, sets: e.t === 'core' ? Math.min(sets, coreCap) : sets, lo: rlo, hi: rhi, lvl, rest: restFor(e, gpd) });
     }
     return { key, idx: i, name: t.name + (gp2 ? ` · foco ${(i % 2 === 1 ? TGOALS[gp2.g] : TGOALS[gp.g]).s}` : ''), items };
   });

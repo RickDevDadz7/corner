@@ -98,7 +98,7 @@ export const SPORTS = {
     legend: true, combos: MT_COMBOS, themes: MT_THEMES,
     weak: [
       { id: 'mt_gas', n: 'Canso nos rounds', fix: ['Base aeróbia 2x/semana: 30–40 min em ritmo de conversa (corrida leve, bike, corda).', 'Rounds intensos com descanso curto no saco.', 'Carboidrato suficiente nos dias de sparring.'], ev: ['mt-energia', 'carb-combate'] },
-      { id: 'mt_kick', n: 'Chute fraco / sem equilíbrio', fix: ['Força unilateral (búlgaro, afundo) e panturrilha.', 'Arremesso rotacional ou sombra explosiva no início do treino.', 'Chute lento segurando 2 s no alto: equilíbrio e mobilidade de quadril.'], ev: ['soco', 'forca-lesao'] },
+      { id: 'mt_kick', n: 'Chute fraco / sem equilíbrio', fix: ['Força unilateral (búlgaro, afundo) e panturrilha.', 'Arremesso rotacional ou sombra explosiva no início do treino.', 'Chute lento segurando 2 s no alto: equilíbrio e mobilidade de quadril.'], ev: ['soco', 'core-luta'] },
       { id: 'mt_clinch', n: 'Perco no clinch', fix: ['Puxadas e remadas pesadas + pegada.', 'Isometria de pescoço 2–3x/semana.', 'Rounds de joelhada no saco.'], ev: ['pescoco', 'jj-perfil'] },
       { id: 'mt_shin', n: 'Canela/pé doem muito', fix: ['Aumente o volume de chutes no saco aos poucos, semana a semana.', 'Use caneleira no sparring.', 'Dor que piora, inchaço ou dor num ponto só do osso: avaliação médica.'], ev: ['mt-lesao'] },
       { id: 'mt_groin', n: 'Virilha / adutor puxa', fix: ['Prancha de Copenhague 2x/semana (o app já coloca no treino de força).', 'Mobilidade de quadril no aquecimento.', 'Volte aos chutes altos aos poucos.'], ev: ['forca-lesao'] }
@@ -142,7 +142,7 @@ export const SPORTS = {
     weak: [
       { id: 'mma_gas', n: 'Canso nos rounds', fix: ['Base aeróbia 2x/semana.', 'Rounds de sprawl + levantar com descanso curto.', 'Força: ela atrasa o cansaço no clinch e no chão.'], ev: ['mma-perfil', 'carb-combate'] },
       { id: 'mma_td', n: 'Sou derrubado fácil', fix: ['Sprawl em todo treino.', 'Força de perna e quadril (agachamento, terra romeno).', 'Base: pés afastados, peso no meio.'], ev: ['mma-perfil'] },
-      { id: 'mma_strike', n: 'Trocação fraca', fix: ['Rounds de jab e defesa.', 'Arremesso rotacional e saltos (potência).', 'Combos terminando em chute baixo.'], ev: ['soco'] },
+      { id: 'mma_strike', n: 'Trocação fraca', fix: ['Rounds de jab e defesa.', 'Arremesso rotacional e saltos (potência).', 'Combos terminando em chute baixo.'], ev: ['soco', 'core-luta'] },
       { id: 'mma_ground', n: 'Fico preso por baixo', fix: ['Fuga de quadril e levantada técnica todo dia.', 'Ponte com giro (upa).', 'Força de puxada e pegada.'], ev: ['jj-perfil'] }
     ],
     plan: ({ saco, weak }) => ({
@@ -232,7 +232,7 @@ const GOALX = {
   jj_neck: { n: 'Pescoço e lombar protegidos', drills: [D('Isometria de pescoço', '3 × 20 s cada lado', 'Sem mexer, leve no começo.', { ex: 'neck' }), D('Perdigueiro (bird dog)', '2 × 8 cada lado', 'Coluna parada enquanto braço e perna esticam.', { ex: 'birddog' })], lift: [['neck', 2, 15, 30], ['lowback', 2, 10, 15]] }
 };
 const NEWW = {
-  boxe: [{ id: 'speed', fix: ['Velocidade de mão vem de técnica relaxada + potência: ombro solto, soco volta tão rápido quanto saiu.', 'Treino de potência (medicine ball, flexão pliométrica) sempre descansado, no começo do treino.'], ev: ['soco'] },
+  boxe: [{ id: 'speed', fix: ['Velocidade de mão vem de técnica relaxada + potência: ombro solto, soco volta tão rápido quanto saiu.', 'Treino de potência (medicine ball, flexão pliométrica) sempre descansado, no começo do treino.'], ev: ['soco', 'core-luta'] },
     { id: 'def', fix: ['Defesa é hábito: todo round de sombra com uma esquiva ou pêndulo depois de cada combinação.', 'Queixo baixo e olho no peito do adversário.'], ev: ['soco'] }],
   muaythai: [{ id: 'mt_foot', fix: ['Quem controla a distância controla a luta: teep e passo pra trás valem pontos e poupam pancada.', 'Corda e pliometria leve deixam as pernas mais rápidas.'], ev: ['mt-energia'] },
     { id: 'mt_def', fix: ['Checar dói menos que levar o chute baixo na coxa: treine dos dois lados.', 'Sempre devolva: defesa sem contra-ataque só adia o próximo chute.'], ev: ['mt-lesao'] }],

@@ -284,6 +284,54 @@ export const EVIDENCE = [
     why: 'Position stand da ISSN: melhora consistente em desempenho de força, potência e resistência. A resposta varia bastante entre pessoas.',
     level: 'A',
     refs: ['Guest NS et al. (2021) J Int Soc Sports Nutr 18:1']
+  },
+  {
+    id: 'core-gordura', cat: 'Core', tags: ['abdominal', 'abdomen', 'abdômen', 'barriga', 'gordura', 'definicao', 'definição', 'queimar', 'core', 'crunch'],
+    title: 'Abdominal queima a gordura da barriga?',
+    do: 'Não conte com isso. A gordura da barriga sai com déficit de calorias e com o treino do corpo todo, e o abdômen só aparece quando a gordura está baixa. Abdominal fortalece o músculo, não derrete a gordura em cima dele.',
+    why: 'Em 24 adultos sedentários que fizeram semanas de abdominais, a gordura abdominal não caiu mais do que o esperado pelo corpo todo. Um estudo pequeno de 2023 (16 homens) achou o contrário, mas é um resultado isolado e preliminar, contra o consenso da área.',
+    level: 'B',
+    refs: ['Vispute SS et al. (2011) J Strength Cond Res 25(9):2559–2564', 'Brobakken MF et al. (2023) Physiol Rep 11(22):e15853 (estudo pequeno, resultado diferente)']
+  },
+  {
+    id: 'core-funcional', cat: 'Core', tags: ['core', 'abdominal', 'abdomen', 'abdômen', 'funcional', 'estabilidade', 'tronco', 'prancha', 'crunch'],
+    title: 'Abdômen é funcional?',
+    do: 'Sim, mas o trabalho dele é mais segurar o tronco firme enquanto braços e pernas se mexem do que dobrar a coluna. Por isso o app prioriza prancha, anti-rotação (Pallof) e rotação controlada. Crunch não é proibido, só não é essencial.',
+    why: 'O core é o conjunto de músculos que estabiliza o tronco e passa força entre pernas e braços. Treinar isso melhora qualidades básicas como estabilidade e equilíbrio; o efeito no desempenho do esporte é variável.',
+    level: 'B',
+    refs: ['The impact of core training on overall athletic performance in different sports: a comprehensive meta-analysis (2025) BMC Sports Sci Med Rehabil 17:112']
+  },
+  {
+    id: 'core-luta', cat: 'Core', tags: ['core', 'luta', 'soco', 'chute', 'potencia', 'potência', 'rotacao', 'rotação', 'boxe', 'muay', 'karate', 'karatê', 'abdominal'],
+    title: 'Core pra lutar melhor',
+    do: 'Treine o core com rotação, anti-rotação e estabilidade (Pallof, lenhador, prancha, arremesso rotacional), 2–3 vezes por semana. É onde o soco e o chute passam a força do quadril pro tronco.',
+    why: 'Revisão sistemática de 2025 em esportes de golpe: o treino de core aumentou a frequência de chutes, a potência de golpe e a velocidade de impacto. Foram poucos estudos (8) e pequenos, e o treino era variado, não só abdominal.',
+    level: 'B',
+    refs: ['Zhang S et al. (2025) Effects of core strength training on the technical skill performance of striking combat sport players: a systematic review. PeerJ 13:e19615']
+  },
+  {
+    id: 'core-soco', cat: 'Core', tags: ['core', 'abdominal', 'abdomen', 'abdômen', 'soco no corpo', 'fígado', 'figado', 'aguentar', 'impacto', 'luta', 'boxe'],
+    title: 'Abdômen forte aguenta soco no corpo?',
+    do: 'Treine o hábito de respirar e contrair o abdômen na hora do impacto, e aumente a dose de golpes no corpo aos poucos. Prancha, roda e anti-rotação ajudam a segurar o tronco.',
+    why: 'Não encontramos estudo que meça se treinar o core aumenta a tolerância a golpes no abdômen. Essa recomendação vem de lógica de treino (estabilidade do tronco e controle da respiração), não de teste direto. Por isso fica como evidência fraca.',
+    level: 'C',
+    refs: ['Sem estudo direto sobre o tema']
+  },
+  {
+    id: 'core-corrida', cat: 'Core', tags: ['core', 'corrida', 'correr', 'economia', 'abdominal', 'prancha'],
+    title: 'Core e corrida',
+    do: 'Core não é prioridade pra correr melhor. O que mais melhora a economia de corrida é força com carga alta e saltos (pliometria). Faça core se gosta ou se tem dor lombar, sem esperar ganho de pace.',
+    why: 'Numa meta-análise de métodos de força em corredores, carga alta, pliometria e combinados podem melhorar a economia; isometria e carga baixa não melhoraram. Estudos só de core dão resultado misto: um de 8 semanas em atletas universitários melhorou a economia, e um piloto sugeriu piora em ritmo forte.',
+    level: 'B',
+    refs: ['Llanos-Lagos C et al. Sports Med, revisão sistemática com meta-análise sobre métodos de força e economia de corrida, doi:10.1007/s40279-023-01978-y', 'Hung KC et al. (2019) PLoS ONE 14(3):e0213158']
+  },
+  {
+    id: 'core-lombar', cat: 'Core', tags: ['core', 'lombar', 'coluna', 'costas', 'dor', 'abdominal', 'prancha', 'saude', 'saúde'],
+    title: 'Core e dor nas costas',
+    do: 'Pra prevenir dor lombar, combine força (com o tronco incluído) e alongamento ou aeróbico, 2–3 vezes por semana. Core sozinho não é garantia.',
+    why: 'Meta-análise de ensaios controlados: exercício reduz o risco de dor lombar, e a combinação de força com alongamento ou aeróbico é a recomendada. Em estudos de acompanhamento, a resistência dos músculos do tronco não previu quem teria dor lombar depois.',
+    level: 'B',
+    refs: ['Shiri R et al. (2018) Am J Epidemiol 187(5):1093–1101', 'Hamberg-van Reenen HH et al. (2007) Pain 130(1–2):93–107']
   }
 ];
 
