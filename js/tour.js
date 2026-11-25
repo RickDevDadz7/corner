@@ -22,6 +22,7 @@ export const TOUR = [
   { r: 'treino', s: '#t-semana', t: 'Esta semana', d: 'Quantos treinos você já fez dos planejados. A rotina não tem dia fixo: fez, conta.' },
   { r: 'treino', s: '#t-hist,#t-evo', t: 'Histórico e evolução', d: 'Cada treino salvo vira histórico, e cada exercício ganha gráfico de evolução e recordes.' },
   { r: 'treino', s: '#nav a[href="#esporte"]', t: 'Seu esporte', d: 'Gerador de rounds e de corrida com timer, técnicas animadas e registro das sessões.' },
+  { r: 'esporte-corrida', s: '#g-start', t: 'Corrida com GPS', d: 'Escolha o modo (livre, distância, tempo, ritmo, intervalado…) e comece: o app mede distância, ritmo e percurso, fala cada km e salva sozinho no fim. Recordes e semana logo abaixo.' },
   { r: 'treino', s: '#nav a[href="#coach"]', t: 'Coach', d: 'Tire dúvidas de treino e dieta com quem conhece o seu plano.' },
   { r: 'treino', s: '#topbar a[href="#perfil"]', t: 'Perfil', d: 'Minha semana, objetivo, dores do dia, saúde e restrições. Mudou algo lá, o plano se ajusta na hora. Bom treino.' }
 ];

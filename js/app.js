@@ -13,6 +13,7 @@ import { CONDITIONS, COND_GROUPS, BODY, condsOf, condFlag, condRestr, bodyOf, ca
 import { habits, daySchedule, hm } from './schedule.js';
 import { startTour, tourSeen, touring } from './tour.js';
 import * as RT from './rtimer.js';
+import * as G from './gps.js';
 import { MOB, MOB_IDS, MCATS, REGIONS, MOMENTS, LVL, SPORT_REG, buildRoutine, phasesOfRoutine, cleanRoutineMob, regionsOfMuscles } from './mobility.js';
 import { VERT, VY, VR, SAG0, spineOf, spineEmpty, dragSpine, spineSummary, complements, spineTips } from './spine.js';
 const buildPlan = p => plan_(p, S.prog);
@@ -601,7 +602,7 @@ views.hoje = () => {
   <div class="card ${viewDay ? '' : 'panel'}" id="h-treino">
     <small class="cat">${viewDay ? 'Treinos do dia' : 'Seu treino de hoje'}</small>
     ${planLine}
-    ${doneTrain ? `<ul class="done">${todayW.map(x => `<li>✓ <b>${esc(x.name)}</b> <span class="muted small">· força</span></li>`).join('')}${todayS.map(b => `<li>✓ <b>${esc(SPORTS[b.sport]?.n || '')}</b> <span class="muted small">· ${esc(typesOf(b.sport, b).map(k => SPORTS[b.sport]?.types[k]?.n).filter(Boolean).join(' + '))} · ${b.min} min${b.km > 0 ? ` · ${fmt(b.km, 1)} km${b.min > 0 ? ` · ${paceTxt(b.min * 60 / b.km)}/km` : ''}` : ''} · ~${fmt(b.kcal, 0)} kcal</span></li>`).join('')}</ul>` : viewDay ? `<p class="muted small">Nenhuma sessão registrada nesse dia.</p>` : ''}
+    ${doneTrain ? `<ul class="done">${todayW.map(x => `<li>✓ <b>${esc(x.name)}</b> <span class="muted small">· força</span></li>`).join('')}${todayS.map(b => `<li>✓ <b>${esc(SPORTS[b.sport]?.n || '')}</b> <span class="muted small">· ${esc(typesOf(b.sport, b).map(k => SPORTS[b.sport]?.types[k]?.n).filter(Boolean).join(' + '))} · ${b.min} min${b.km > 0 ? ` · ${fmt(b.km, 1)} km${b.min > 0 ? ` · ${paceTxt((+b.sec || b.min * 60) / b.km)}/km` : ''}` : ''} · ~${fmt(b.kcal, 0)} kcal</span></li>`).join('')}</ul>` : viewDay ? `<p class="muted small">Nenhuma sessão registrada nesse dia.</p>` : ''}
     ${viewDay ? '' : P ? `<div class="tmain"><small class="muted tcat">${doneTrain ? 'Quer mais? ' : ''}${esc(P.cat)}</small><h3>${esc(P.title)}</h3>
       <p class="small muted">${esc(P.desc)}</p><p class="small tmeta mono">${esc(P.meta)}</p>
       <a class="btn primary block" href="${P.href}">${P.cta} →</a></div>
@@ -1741,6 +1742,462 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden && RU
 setTimeout(restRestore, 400);
 if (RUN) { if (RUN.done) { RUN = null; RT.persist(null); } else { runLoop(true); setTimeout(() => { tick(); paintRun(); }, 300); } }
 
+// ---------------- Corrida com GPS ----------------
+// Motor em gps.js (filtro dos pontos, distância, parciais, recordes). Aqui: tela da corrida, voz, mapa, histórico.
+// No app instalado pelo navegador o celular para o GPS com a tela bloqueada: a tela fica acesa (wake lock)
+// e, se a pessoa bloquear mesmo assim, o trecho sem sinal entra em linha reta e tracejado.
+const GMODES = { livre: 'Livre', dist: 'Distância', tempo: 'Tempo', leve: 'Leve', ritmo: 'Ritmo', intervalado: 'Intervalado', tiros: 'Tiros' };
+const GMODE_TIP = { livre: 'Corre do seu jeito; o app só marca.', dist: 'Avisa quanto falta e quando bater a meta.', tempo: 'Avisa na metade e no fim do tempo.', leve: 'Ritmo de conversa: dá pra falar frases inteiras.', ritmo: 'Avisa quando você sai do ritmo-alvo.', intervalado: 'Blocos fortes e trote, com o timer falando cada parte.', tiros: 'Tiros curtos e rápidos com recuperação.' };
+const GTILES = { url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', att: '© OpenStreetMap' }; // trocar pelo MapTiler antes de escalar (e liberar o domínio na CSP)
+let GPS = G.restore(), GRT = GPS && !GPS.done ? RT.restore('ronin:gpsrt') : null;
+const GV = { watch: null, acc: 0, fixAt: 0, err: '', min: false, endArm: 0, delArm: 0, cd: 0, pocket: false, map: null, lay: null, follow: true, saved: null, prs: [], lastKm: 0, warned: {}, paceAt: 0, persistAt: 0, iv: null, state: 'idle' };
+function gpsOpt() {
+  const o = S.ui.gps && typeof S.ui.gps === 'object' ? S.ui.gps : {};
+  return { mode: GMODES[o.mode] ? o.mode : 'livre', km: +o.km > 0 && +o.km <= 100 ? +o.km : 5, min: +o.min >= 5 && +o.min <= 300 ? +o.min : 30,
+    pace: +o.pace >= 150 && +o.pace <= 900 ? +o.pace : 360, every: [0, 0.5, 1].includes(+o.every) ? +o.every : 1, auto: !!o.auto, goal: +o.goal >= 0 && +o.goal <= 300 ? +o.goal : 0,
+    sync: o.sync !== false, hide: o.hide !== false };
+}
+const setGps = patch => { S.ui.gps = { ...gpsOpt(), ...patch }; save(true); };
+const hms = s => { s = Math.max(0, Math.round(s)); const h = Math.floor(s / 3600); return h ? `${h}:${String(Math.floor(s % 3600 / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}` : mmss(s); };
+const kmTxt = (km, d = 2) => (Math.floor(km * 10 ** d) / 10 ** d).toFixed(d).replace('.', ',');
+const speakTime = s => { s = Math.round(s); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60; return [h ? `${h} ${h > 1 ? 'horas' : 'hora'}` : '', m ? `${m} ${m > 1 ? 'minutos' : 'minuto'}` : '', !h && x ? `${x} segundos` : ''].filter(Boolean).join(' e ') || 'zero'; };
+const speakPace = s => `${Math.floor(s / 60)} e ${String(Math.round(s % 60)).padStart(2, '0')} por quilômetro`;
+// corridas registradas (GPS ou manuais com distância)
+const runLog = () => S.logs.sessions.filter(s => s.sport === 'corrida' && +s.km > 0).sort((a, b) => (b.date || '').localeCompare(a.date || '') || (+b.start || 0) - (+a.start || 0));
+const runSec = r => +r.sec > 0 ? +r.sec : (+r.min || 0) * 60;
+const mondayOf = d => { const x = new Date(d + 'T12:00'); x.setDate(x.getDate() - (x.getDay() + 6) % 7); return dayKey(x); };
+function weekKm(back = 0) { const m = new Date(mondayOf(today()) + 'T12:00'); m.setDate(m.getDate() - 7 * back); const a = dayKey(m); m.setDate(m.getDate() + 6); const b = dayKey(m);
+  return runLog().filter(r => r.date >= a && r.date <= b).reduce((s, r) => s + (+r.km || 0), 0); }
+// melhores marcas: melhor trecho de cada distância (corridas com GPS) + corrida manual com a distância certinha
+function runBests(list = runLog()) {
+  const out = {};
+  for (const r of list) {
+    const be = r.be && typeof r.be === 'object' ? r.be : {};
+    for (const L of G.EFFORTS) {
+      let s = Number(be[L]); if (!(s > 0) && !r.rt && Math.abs(r.km * 1000 - L) <= L * 0.01) s = runSec(r);
+      if (s > 0 && s < 86400 && (!out[L] || s < out[L].s)) out[L] = { s, id: r.id, date: r.date };
+    }
+  }
+  return out;
+}
+function runPredict() {
+  const lim = dayKey(new Date(Date.now() - 120 * 864e5)), b = runBests(runLog().filter(r => r.date >= lim));
+  const src = [5000, 10000, 3000, 21097.5].find(L => b[L]); if (!src) return null;
+  return { src, s: b[src].s, out: [5000, 10000, 21097.5, 42195].filter(L => L !== src).map(L => [L, G.riegel(b[src].s, src, L)]) };
+}
+// desenho do percurso (SVG, sem mapa): miniaturas, resumo sem internet e imagem de compartilhar
+function routeSVG(coords, cut = [], gap = [], w = 120, h = 80, cls = '') {
+  if (coords.length < 2) return `<svg class="rsvg ${cls}" viewBox="0 0 ${w} ${h}"></svg>`;
+  const k = Math.cos(coords[0][0] * Math.PI / 180), xs = coords.map(p => p[1] * k), ys = coords.map(p => -p[0]);
+  const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys), pad = 8;
+  const sc = Math.min((w - 2 * pad) / ((x1 - x0) || 1e-9), (h - 2 * pad) / ((y1 - y0) || 1e-9)), ox = (w - (x1 - x0) * sc) / 2, oy = (h - (y1 - y0) * sc) / 2;
+  const P = p => `${((p[1] * k - x0) * sc + ox).toFixed(1)},${((-p[0] - y0) * sc + oy).toFixed(1)}`;
+  const segs = G.segments(coords, cut, gap);
+  const path = segs.filter(s => !s.dash).map(s => 'M' + s.pts.map(P).join('L')).join(''), dash = segs.filter(s => s.dash).map(s => 'M' + s.pts.map(P).join('L')).join('');
+  const a = P(coords[0]).split(','), z = P(coords[coords.length - 1]).split(',');
+  return `<svg class="rsvg ${cls}" viewBox="0 0 ${w} ${h}" aria-hidden="true"><path class="r-u" d="${path}"/><path class="r-o" d="${path}"/>${dash ? `<path class="r-d" d="${dash}"/>` : ''}
+    <circle class="r-a" cx="${a[0]}" cy="${a[1]}" r="3.5"/><rect class="r-z" x="${z[0] - 3.5}" y="${z[1] - 3.5}" width="7" height="7"/></svg>`;
+}
+const runCoords = r => r && typeof r.rt === 'string' ? G.decode(r.rt) : [];
+const idxList = v => Array.isArray(v) ? v.filter(n => Number.isInteger(n) && n > 0 && n < 50000) : [];
+
+// --- Leaflet (carrega só quando precisa) ---
+let leafletP = null;
+function loadLeaflet() {
+  if (window.L) return Promise.resolve(window.L);
+  return leafletP ||= new Promise((ok, no) => {
+    const c = document.createElement('link'); c.rel = 'stylesheet'; c.href = 'vendor/leaflet/leaflet.css'; document.head.appendChild(c);
+    const s = document.createElement('script'); s.src = 'vendor/leaflet/leaflet.js'; s.onload = () => ok(window.L); s.onerror = () => { leafletP = null; no(new Error('mapa')); }; document.head.appendChild(s);
+  });
+}
+// mapa num elemento: percurso (preto por baixo, vermelho por cima), início, fim/posição atual
+function mapInto(el, coords, cut, gap, live) {
+  return loadLeaflet().then(L => {
+    if (!el.isConnected) return null;
+    const m = L.map(el, { zoomControl: false, attributionControl: true, preferCanvas: false });
+    m.attributionControl.setPrefix(false);
+    L.tileLayer(GTILES.url, { maxZoom: 19, attribution: GTILES.att, crossOrigin: false }).addTo(m);
+    const g = { m, under: L.polyline([], { className: 'r-u', interactive: false }).addTo(m), over: L.polyline([], { className: 'r-o', interactive: false }).addTo(m),
+      dash: L.polyline([], { className: 'r-d', interactive: false }).addTo(m), a: null, me: null, ring: null };
+    if (!live) m.dragging.enable();
+    m.on('dragstart', () => { if (live) { GV.follow = false; paintGps(); } });
+    drawRoute(g, coords, cut, gap, live);
+    if (!coords.length) m.setView([-15.79, -47.88], 4);
+    return g;
+  }).catch(() => { el.innerHTML = routeSVG(coords, cut, gap, 360, 240, 'big'); el.classList.add('nomap'); return null; });
+}
+function drawRoute(g, coords, cut = [], gap = [], live = false) {
+  if (!g) return;
+  const L = window.L, segs = G.segments(coords, cut, gap), solid = segs.filter(s => !s.dash).map(s => s.pts), dash = segs.filter(s => s.dash).map(s => s.pts);
+  g.under.setLatLngs(solid); g.over.setLatLngs(solid); g.dash.setLatLngs(dash);
+  if (coords.length && !g.a) g.a = L.circleMarker(coords[0], { radius: 6, className: 'r-a', interactive: false }).addTo(g.m);
+  const last = coords[coords.length - 1];
+  if (last) {
+    if (!g.me) g.me = L.circleMarker(last, { radius: live ? 8 : 6, className: live ? 'r-me' : 'r-z', interactive: false }).addTo(g.m); else g.me.setLatLng(last);
+    if (live) { if (!g.ring) g.ring = L.circle(last, { radius: GV.acc || 10, className: 'r-ring', interactive: false }).addTo(g.m); else g.ring.setLatLng(last).setRadius(GV.acc || 10); }
+    if (live && GV.follow) g.m.setView(last, Math.max(g.m.getZoom() || 0, 16), { animate: false });
+    if (!live) g.m.fitBounds(window.L.latLngBounds(coords), { padding: [18, 18] });
+  }
+}
+
+// --- GPS do aparelho ---
+function gpsWatch(on) {
+  if (!on) { if (GV.watch != null) { try { navigator.geolocation.clearWatch(GV.watch); } catch (e) { } } GV.watch = null; return; }
+  if (GV.watch != null) return;
+  if (!('geolocation' in navigator)) { GV.err = 'Este aparelho não tem GPS disponível no navegador.'; paintGps(); return; }
+  GV.watch = navigator.geolocation.watchPosition(gpsFix, e => {
+    GV.err = e.code === 1 ? 'Localização bloqueada. Libere a localização pro RONIN nas configurações do navegador e tente de novo.' : e.code === 3 ? '' : 'Sem sinal de GPS. Vá pra um lugar aberto.';
+    if (e.code === 1) gpsWatch(false);
+    paintGps();
+  }, { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 });
+}
+function gpsFix(pos) {
+  const c = pos.coords; GV.acc = Math.round(c.accuracy || 99); GV.fixAt = Date.now(); GV.err = '';
+  GV.here = [c.latitude, c.longitude];
+  if (!GPS || GPS.done) { paintGps(); return; }
+  const before = GPS.dist, r = G.addFix(GPS, { lat: c.latitude, lon: c.longitude, acc: c.accuracy, alt: c.altitude, altAcc: c.altitudeAccuracy, t: pos.timestamp || Date.now() });
+  if (r === 'ok' || r === 'gap' || r === 'start' || r === 'jumpseg' || r === 'still') {
+    if (GPS.dist !== before) gpsVoiceKm();
+    if (Date.now() - GV.persistAt > 5000) { GV.persistAt = Date.now(); G.persist(GPS); }
+  }
+  paintGps();
+}
+const gpsCoords = () => GPS ? GPS.pts.map(p => [p[0], p[1]]) : [];
+const gpsMarks = () => { const cut = [], gap = []; (GPS?.pts || []).forEach((p, i) => { if (i && p[4] === 1) cut.push(i); if (p[4] === 2) gap.push(i); }); return { cut, gap }; };
+
+// --- voz ---
+function gpsVoiceKm() {
+  const o = GPS.cfg, km = GPS.dist / 1000, step = o.every || 0;
+  if (step && Math.floor(km / step) > GV.lastKm) {
+    GV.lastKm = Math.floor(km / step);
+    const t = G.activeSec(GPS), d = GV.lastKm * step, avg = t / km;
+    say(`${String(d).replace('.', ',')} ${d === 1 ? 'quilômetro' : 'quilômetros'}. Tempo ${speakTime(t)}. Ritmo médio ${speakPace(avg)}.`);
+  }
+  if (o.mode === 'dist' || o.mode === 'ritmo') {
+    const left = o.km * 1000 - GPS.dist;
+    if (left <= 500 && left > 0 && !GV.warned.d500 && o.km >= 2) { GV.warned.d500 = 1; setTimeout(() => say('Faltam 500 metros.'), 2500); }
+    if (left <= 0 && !GV.warned.dgo) { GV.warned.dgo = 1; bell(2); setTimeout(() => say(`Meta concluída: ${String(o.km).replace('.', ',')} quilômetros em ${speakTime(G.activeSec(GPS))}.`), 2600); }
+  }
+}
+function gpsTick() {
+  if (!GPS) return;
+  const now = Date.now(), o = GPS.cfg;
+  if (!GPS.done) {
+    if (o.auto && G.autoCheck(GPS, now)) { say('Pausa automática'); G.persist(GPS); if (GRT && !GRT.paused) RT.pause(GRT); }
+    if (o.auto && !GPS.paused && GRT?.paused && !GV.userPaused) RT.resume(GRT);
+    const t = G.activeSec(GPS, now);
+    if ((o.mode === 'tempo' || o.mode === 'leve') && !GPS.paused) {
+      if (t >= o.min * 30 && !GV.warned.half && o.min >= 10) { GV.warned.half = 1; say(`Metade do tempo. ${kmTxt(GPS.dist / 1000, 1).replace(',', ' vírgula ')} quilômetros.`); }
+      if (t >= o.min * 60 && !GV.warned.tgo) { GV.warned.tgo = 1; bell(2); setTimeout(() => say(`Tempo concluído. ${kmTxt(GPS.dist / 1000, 2).replace(',', ' vírgula ')} quilômetros.`), 2600); }
+    }
+    // ritmo-alvo: avisa no máximo a cada 40 s, só depois do primeiro km
+    if (o.mode === 'ritmo' && !GPS.paused && GPS.dist > 1000 && now - GV.paceAt > 40000) {
+      const p = G.curPace(GPS, now, 40);
+      if (p && p > o.pace + 15) { GV.paceAt = now; say('Acelera um pouco. Tá abaixo do ritmo.'); }
+      else if (p && p < o.pace - 15) { GV.paceAt = now; say('Segura. Tá mais rápido que o ritmo.'); }
+    }
+    if (GRT && !GRT.done) {
+      const ev = RT.catchUp(GRT);
+      if (ev.length) { const p = ev[ev.length - 1];
+        if (p.k === 'done') { bell(3); say('Fim dos blocos. Pode trotar leve e encerrar quando quiser.'); }
+        else { const b = o.prog[(p.r || 1) - 1]; if (p.k === 'round') { bell(1); if (b?.t) setTimeout(() => say(b.t), 1500); } else { bell(2); setTimeout(() => say('Trote leve. ' + (o.prog[p.r - 1]?.t ? 'Próximo: ' + o.prog[p.r - 1].t : '')), 1700); } } }
+      else if (!GRT.paused) { const p = RT.cur(GRT), left = RT.leftOf(GRT); if (p.k !== 'round' && left <= 3 && left >= 1 && GV.cd !== left + 'r' + GRT.i) { GV.cd = left + 'r' + GRT.i; beep(); } }
+    }
+    if (now - GV.persistAt > 15000) { GV.persistAt = now; G.persist(GPS); }
+  }
+  paintGps();
+}
+function gpsLoop(on) { clearInterval(GV.iv); GV.iv = on ? setInterval(gpsTick, 1000) : null; }
+
+// --- abrir, começar, pausar, encerrar ---
+function gpsOpen(prog = null) {
+  if (GPS && !GPS.done) { GV.min = false; paintGps(); return; }
+  GPS = null; GV.saved = null; GV.prs = []; GV.state = S.ui.gpsOk ? 'ready' : 'consent'; GV.prog = prog; GV.min = false; GV.follow = true; GV.err = '';
+  audio(); paintGps();
+  if (GV.state === 'ready') { gpsWatch(true); lockScreen(true); }
+}
+function gpsGo() {
+  if (GV.state === 'count') return;
+  const o = gpsOpt(); GV.state = 'count'; let n = 3; beep(); paintGps();
+  if (S.timer.voice && 'speechSynthesis' in window) { try { speechSynthesis.getVoices(); } catch (e) { } }
+  const step = () => {
+    n--; if (GV.state !== 'count') return;
+    if (n > 0) { GV.cd = n; beep(); paintGps(); setTimeout(step, 1000); return; }
+    beep(true);
+    const prog = GV.prog || (o.mode === 'intervalado' || o.mode === 'tiros' ? runSession({ minutes: o.min, kind: o.mode }) : null);
+    const cfg = { mode: GV.prog ? 'intervalado' : o.mode, km: o.km, min: o.min, pace: o.pace, every: o.every, auto: o.auto, prog: prog ? prog.map(b => ({ t: b.t, f: b.f, work: b.work, rest: b.rest })) : null };
+    GPS = G.newTrack(cfg); GV.lastKm = 0; GV.warned = {}; GV.paceAt = Date.now(); GV.userPaused = false; GV.endArm = 0;
+    if (cfg.prog) { GRT = RT.start(RT.phasesOf(cfg.prog.length, r => cfg.prog[r - 1], 0), { gps: 1 }, Date.now(), 'ronin:gpsrt'); if (cfg.prog[0]?.t) say(cfg.prog[0].t); }
+    else say(cfg.mode === 'leve' ? 'Valendo. Ritmo de conversa.' : 'Valendo.');
+    if (GV.here && Date.now() - GV.fixAt < 5000) G.addFix(GPS, { lat: GV.here[0], lon: GV.here[1], acc: GV.acc, t: Date.now() });
+    GV.state = 'run'; G.persist(GPS); gpsWatch(true); lockScreen(true); gpsLoop(true); paintGps();
+  };
+  setTimeout(step, 1000);
+}
+function gpsPause() {
+  if (!GPS || GPS.done) return;
+  if (GPS.paused) { G.resume(GPS); GV.userPaused = false; if (GRT?.paused) RT.resume(GRT); lockScreen(true); say('Voltando'); }
+  else { G.pause(GPS); GV.userPaused = true; if (GRT && !GRT.done) RT.pause(GRT); try { speechSynthesis.cancel(); } catch (e) { } }
+  G.persist(GPS); paintGps();
+}
+function gpsEnd() {
+  if (!GPS || GPS.done) { gpsClose(); return; }
+  if (Date.now() - GV.endArm > 3000) { GV.endArm = Date.now(); paintGps(); return; }
+  G.finish(GPS); gpsLoop(false); gpsWatch(false); lockScreen(false);
+  if (GRT) { RT.persist(null, 'ronin:gpsrt'); GRT = null; }
+  const sum = G.summary(GPS, latestWeight());
+  if (GPS.dist < 100 || sum.sec < 60) { G.persist(null); GPS = null; GV.state = 'idle'; toast('Corrida curta demais: não registrei.'); gpsClose(); return; }
+  const before = runBests(), o = GPS.cfg;
+  const rec = { id: newId(), sport: 'corrida', date: dayKey(new Date(GPS.start)), start: GPS.start, src: 'gps', mode: o.mode, type: o.mode === 'intervalado' || o.mode === 'tiros' ? 'intervalado' : sum.km >= 15 ? 'longo' : 'leve', ...sum };
+  rec.types = [rec.type];
+  if (!(rec.up > 0)) delete rec.up;
+  S.logs.sessions.push(rec); save();
+  GV.prs = Object.entries(rec.be || {}).filter(([L, s]) => !before[L] || s < before[L].s).map(([L, s]) => [+L, s]);
+  if (!(before[10000] || before[5000] || before[1000])) GV.prs = GV.prs.filter(([L]) => L >= 5000); // primeira corrida: não enche de "recorde"
+  GV.saved = rec.id; GV.state = 'done'; G.persist(null); GPS = null;
+  bell(3); say(`Corrida registrada. ${kmTxt(rec.km).replace(',', ' vírgula ')} quilômetros em ${speakTime(rec.sec)}.${GV.prs.length ? ' Recorde pessoal!' : ''}`);
+  paintGps();
+}
+function gpsClose() {
+  if (GPS && !GPS.done) return;
+  gpsLoop(false); gpsWatch(false); lockScreen(false); try { speechSynthesis.cancel(); } catch (e) { }
+  GV.state = 'idle'; GV.map?.m?.remove(); GV.map = null; GV.pocket = false; GV.saved = null;
+  $('#gps')?.remove(); $('#gpsbar')?.remove(); $('#gpsPocket')?.remove(); document.body.classList.remove('running', 'runmin');
+  if (location.hash.startsWith('#esporte') || location.hash.startsWith('#corrida')) render();
+}
+
+// --- tela ---
+function gpsStats() {
+  const t = G.activeSec(GPS), km = GPS.dist / 1000, cur = G.curPace(GPS), avg = km > 0.05 ? t / km : 0;
+  return { t, km, cur, avg, kcal: G.kcalRun(latestWeight(), GPS.dist, t, GPS.up || 0), up: GPS.up };
+}
+function paintGps() {
+  if (GV.state === 'idle') return;
+  let el = $('#gps'), bar = $('#gpsbar');
+  const live = GPS && !GPS.done, s = live ? gpsStats() : null;
+  if (GV.min && live) {
+    el?.remove(); GV.map?.m?.remove(); GV.map = null; document.body.classList.remove('running'); document.body.classList.add('runmin');
+    if (!bar) { bar = document.createElement('button'); bar.id = 'gpsbar'; bar.dataset.act = 'gpsOpen'; document.body.appendChild(bar); }
+    bar.className = 'runbar gbar' + (GPS.paused ? '' : ' ph-round');
+    bar.innerHTML = `<span>${GPS.paused ? 'Pausado' : 'Correndo'} · ${kmTxt(s.km)} km</span><b class="mono">${hms(s.t)}</b><span aria-hidden="true">▴</span>`;
+    return;
+  }
+  bar?.remove(); document.body.classList.add('running'); document.body.classList.remove('runmin');
+  if (!el) {
+    el = document.createElement('div'); el.id = 'gps'; el.className = 'gps'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', 'Corrida');
+    el.innerHTML = '<div class="g-top"></div><div class="gmap-wrap"><div id="gmap" class="gmap"></div><button class="g-ctr" data-act="gpsCenter" hidden>◎ Centralizar</button></div><div class="g-body"></div>';
+    document.body.appendChild(el); GV.map = null;
+  }
+  const rec = GV.saved ? S.logs.sessions.find(x => x.id === GV.saved) : null;
+  const sig = !GV.fixAt || Date.now() - GV.fixAt > 15000 ? 0 : GV.acc <= 10 ? 3 : GV.acc <= 20 ? 2 : GV.acc <= G.MAXACC ? 1 : 0;
+  el.className = 'gps st-' + GV.state + (live && GPS.paused ? ' paused' : '');
+  el.querySelector('.g-top').innerHTML = `<button class="linkbtn" data-act="${GV.state === 'done' || !live ? 'gpsClose' : 'gpsMin'}">${GV.state === 'done' || !live ? '× Fechar' : '▾ Corrida'}</button>
+    <span class="kanji-run" aria-hidden="true">走</span>
+    ${GV.state === 'done' ? '' : `<span class="gsig s${sig}" title="Sinal do GPS"><i></i><i></i><i></i> ${sig ? `GPS ${GV.acc} m` : GV.watch == null && GV.state === 'consent' ? 'GPS' : 'Procurando GPS…'}</span>`}`;
+  // mapa
+  const mw = el.querySelector('.gmap-wrap'); mw.hidden = GV.state === 'consent';
+  el.querySelector('.g-ctr').hidden = !(live && !GV.follow);
+  if (GV.state !== 'consent') {
+    const coords = rec ? runCoords(rec) : gpsCoords(), mk = rec ? { cut: idxList(rec.cut), gap: idxList(rec.gap) } : gpsMarks();
+    const showC = coords.length ? coords : GV.here ? [GV.here] : [];
+    if ($('#gmap').classList.contains('nomap')) $('#gmap').innerHTML = routeSVG(showC, mk.cut, mk.gap, 360, 240, 'big');
+    else if (!GV.map && !GV.mapP) { GV.mapP = mapInto($('#gmap'), showC, mk.cut, mk.gap, !rec).then(g => { GV.map = g; GV.mapP = null; GV.mapFor = GV.saved; }); }
+    else if (GV.map) { if (GV.mapFor !== GV.saved) { GV.map.m.remove(); GV.map = null; GV.mapFor = GV.saved; GV.mapP = mapInto($('#gmap'), showC, mk.cut, mk.gap, !rec).then(g => { GV.map = g; GV.mapP = null; }); } else drawRoute(GV.map, showC, mk.cut, mk.gap, !rec); }
+  }
+  const o = live ? GPS.cfg : gpsOpt(), body = el.querySelector('.g-body');
+  if (GV.state === 'consent') {
+    body.innerHTML = `<div class="g-consent"><h2>Corrida com GPS</h2>
+      <p>O RONIN usa a localização do celular <b>só enquanto a corrida está aberta</b>, pra medir distância, ritmo e desenhar o percurso.</p>
+      <ul class="small"><li>O percurso fica no seu aparelho e na sua conta. Dá pra guardar só no aparelho e apagar quando quiser (na página da corrida).</li>
+      <li>Com a tela bloqueada o celular para o GPS: o app deixa a tela acesa durante a corrida.</li></ul>
+      <button class="btn primary block run-main" data-act="gpsAllow">Permitir localização</button><button class="btn ghost block" data-act="gpsClose">Agora não</button></div>`;
+    return;
+  }
+  if (GV.state === 'ready' || GV.state === 'count') {
+    const prog = GV.prog || ((o.mode === 'intervalado' || o.mode === 'tiros') ? runSession({ minutes: o.min, kind: o.mode }) : null);
+    body.innerHTML = `${GV.err ? `<p class="warn small">${esc(GV.err)}</p>` : ''}
+      <div class="g-goal"><b>${esc(GV.prog ? 'Treino do gerador' : GMODES[o.mode])}</b><span class="small">${esc(GV.prog || o.mode === 'intervalado' || o.mode === 'tiros' ? `${prog.length} blocos · ~${Math.round(prog.reduce((a, x) => a + x.work + x.rest, 0) / 60)} min` : o.mode === 'dist' ? `${kmTxt(o.km, 1)} km` : o.mode === 'tempo' || o.mode === 'leve' ? `${o.min} min` : o.mode === 'ritmo' ? `${paceTxt(o.pace)}/km · ${kmTxt(o.km, 1)} km` : GMODE_TIP.livre)}</span></div>
+      ${GV.state === 'count' ? `<div class="g-count mono">${GV.cd || 3}</div>` : `<button class="btn primary block run-main g-go" data-act="gpsGo">${sig ? '▶ Começar' : 'Começar sem esperar o GPS'}</button>
+      <p class="small muted center">${sig ? 'Sinal bom. Pode ir.' : 'Fique num lugar aberto uns segundos pro GPS achar você.'}</p>
+      <button class="btn ghost block" data-act="gpsClose">Cancelar</button>`}`;
+    return;
+  }
+  if (GV.state === 'done' && rec) {
+    const sp = Array.isArray(rec.sp) ? rec.sp.filter(x => x > 0) : [];
+    body.innerHTML = `<div class="g-done"><h2>${GV.prs.length ? '<span class="pr">Recorde!</span> ' : ''}Corrida registrada</h2>
+      <div class="g-grid"><div><small>Distância</small><b class="big">${kmTxt(rec.km)}<i>km</i></b></div><div><small>Tempo</small><b class="big mono">${hms(rec.sec)}</b></div>
+      <div><small>Ritmo médio</small><b>${paceTxt(rec.sec / rec.km)}<i>/km</i></b></div><div><small>Gasto</small><b>~${rec.kcal}<i>kcal</i></b></div></div>
+      ${GV.prs.length ? `<p class="prs">${GV.prs.map(([L, x]) => `<span>★ ${esc(G.EFF_N[L])} em <b>${hms(x)}</b></span>`).join('')}</p>` : ''}
+      ${sp.length ? splitBars(sp, 4) : ''}
+      <div class="run-ctl"><button class="btn primary block" data-act="mobPost" data-gclose="1" data-sport="corrida">Desaceleração · 5 min</button>
+      <div class="row gap"><a class="btn grow" href="#corrida-${esc(rec.id)}" data-act="gpsClose">Ver detalhes</a><button class="btn grow ghost" data-act="gpsShare" data-id="${esc(rec.id)}">Compartilhar</button></div></div></div>`;
+    return;
+  }
+  if (!live) { body.innerHTML = ''; return; }
+  const goal = o.mode === 'dist' || o.mode === 'ritmo' ? [GPS.dist / 1000 / o.km, `${kmTxt(Math.max(0, o.km - s.km), 2)} km pra meta`] : o.mode === 'tempo' || o.mode === 'leve' ? [s.t / 60 / o.min, `${hms(Math.max(0, o.min * 60 - s.t))} pra meta`] : null;
+  const blk = GRT ? (() => { if (GRT.done) return '<div class="g-blk done"><b>Blocos concluídos</b><span>trote leve e encerre quando quiser</span></div>';
+    const p = RT.cur(GRT), b = o.prog[(p.r || 1) - 1] || {}, N = RT.roundsTotal(GRT);
+    return `<div class="g-blk ${p.k === 'round' ? 'on' : ''}"><div><small>${p.k === 'round' ? `Bloco ${p.r}/${N}` : `Trote · próximo ${p.r}/${N}`}</small><b>${esc(p.k === 'round' ? b.t || 'Forte' : 'Recupera')}</b></div><b class="mono">${mmss(RT.leftOf(GRT))}</b></div>`; })() : '';
+  const armed = GV.endArm && Date.now() - GV.endArm < 3000;
+  body.innerHTML = `${blk}
+    <div class="g-main"><div class="g-km"><small>Distância</small><b class="big">${kmTxt(s.km)}</b><i>km</i></div><div class="g-t"><small>${GPS.paused ? (GPS.auto ? 'Pausa automática' : 'Pausado') : 'Tempo'}</small><b class="big mono">${hms(s.t)}</b></div></div>
+    <div class="g-grid g3"><div><small>Ritmo agora</small><b>${s.cur ? paceTxt(s.cur) : '–:––'}<i>/km</i></b></div><div><small>Médio</small><b>${s.avg ? paceTxt(s.avg) : '–:––'}<i>/km</i></b></div>
+      <div><small>${s.up != null ? 'Subida' : 'Velocidade'}</small><b>${s.up != null ? Math.round(s.up) + '<i>m</i>' : (s.avg ? (3600 / s.avg).toFixed(1).replace('.', ',') : '0') + '<i>km/h</i>'}</b></div></div>
+    ${goal ? `<div class="g-prog"><i style="width:${Math.min(100, goal[0] * 100).toFixed(1)}%"></i><span class="small">${goal[0] >= 1 ? 'Meta batida ✓' : esc(goal[1])}</span></div>` : ''}
+    ${o.mode === 'ritmo' ? `<p class="small center g-alvo">Alvo ${paceTxt(o.pace)}/km</p>` : ''}
+    ${GV.err ? `<p class="warn small">${esc(GV.err)}</p>` : ''}
+    <div class="run-ctl"><button class="btn primary run-main" data-act="gpsPause">${GPS.paused ? '▶ Continuar' : '❚❚ Pausar'}</button>
+      <div class="row gap"><button class="btn grow" data-act="gpsPocket">Tela escura</button><button class="btn grow ${armed ? 'danger' : 'ghost'}" data-act="gpsEnd">${armed ? 'Encerrar?' : 'Encerrar'}</button></div>
+      <div class="row gap run-sw"><label class="switch"><input type="checkbox" data-act="voiceToggle" ${S.timer.voice ? 'checked' : ''}> Voz</label></div></div>`;
+  // tela escura: economiza bateria com a tela acesa
+  let pk = $('#gpsPocket');
+  if (GV.pocket) {
+    if (!pk) { pk = document.createElement('div'); pk.id = 'gpsPocket'; pk.className = 'gpocket'; pk.dataset.act = 'gpsWake'; document.body.appendChild(pk); }
+    pk.innerHTML = `<b class="mono">${kmTxt(s.km)} km</b><span class="mono">${hms(s.t)}</span><small>Toque 2 vezes pra voltar</small>`;
+  } else pk?.remove();
+}
+function splitBars(sp, max = 99) {
+  const lo = Math.min(...sp), hi = Math.max(...sp), list = sp.length > max ? sp.slice(0, max) : sp;
+  return `<div class="splits"><div class="row between small"><b>Parciais</b><span class="muted">por km</span></div>${list.map((x, i) => `<div class="sp ${x === lo && sp.length > 1 ? 'best' : ''}"><span class="mono">${i + 1}</span><i style="width:${(40 + 60 * (hi === lo ? 1 : (hi - x) / (hi - lo) * 0.8 + 0.2)).toFixed(0)}%"></i><b class="mono">${paceTxt(x)}</b></div>`).join('')}${sp.length > max ? `<p class="small muted">+ ${sp.length - max} km</p>` : ''}</div>`;
+}
+
+// --- página da corrida (dentro do esporte) ---
+function runCards() {
+  const o = gpsOpt(), list = runLog(), W8 = [0, 1, 2, 3, 4, 5, 6, 7].map(b => weekKm(b)), wk = W8[0], avg4 = (W8[1] + W8[2] + W8[3] + W8[4]) / 4, mx = Math.max(1, ...W8);
+  const bests = runBests(), pred = runPredict(), last = list.slice(0, 5);
+  const inp = (n, v, ph) => `<input data-gin="${n}" inputmode="decimal" value="${esc(v)}" placeholder="${ph}">`;
+  return `<div class="card panel" id="g-start"><small class="cat">GPS</small><h3>Corrida com GPS</h3>
+    <div class="chips gmodes">${Object.entries(GMODES).map(([k, n]) => `<button class="chipbtn ${o.mode === k ? 'on' : ''}" data-act="gpsMode" data-v="${k}">${n}</button>`).join('')}</div>
+    <p class="small muted">${esc(GMODE_TIP[o.mode])}</p>
+    <div class="grid2 form">${o.mode === 'dist' || o.mode === 'ritmo' ? `<label>Distância (km)${inp('km', String(o.km).replace('.', ','), '5')}</label>` : ''}
+      ${o.mode === 'ritmo' ? `<label>Ritmo-alvo (min/km)${inp('pace', paceTxt(o.pace), '5:30')}</label>` : ''}
+      ${o.mode === 'tempo' || o.mode === 'leve' ? `<label>Minutos${inp('min', o.min, '30')}</label>` : ''}
+      ${o.mode === 'intervalado' || o.mode === 'tiros' ? `<label>Duração${sel('gmin', { 20: '20 min', 30: '30 min', 45: '45 min', 60: '60 min' }, [20, 30, 45, 60].includes(o.min) ? o.min : 30, 'data-gin="min"')}</label>` : ''}
+      <label>Aviso de voz${sel('gevery', { 1: 'A cada 1 km', 0.5: 'A cada 500 m', 0: 'Desligado' }, o.every, 'data-gin="every"')}</label></div>
+    <label class="switch"><input type="checkbox" data-act="gpsAuto" ${o.auto ? 'checked' : ''}> Pausa automática quando parar</label>
+    <button class="btn primary block mt" data-act="gpsStart">▶ Começar corrida</button>
+    <p class="small muted">Mantenha a tela ligada durante a corrida: com a tela bloqueada o celular para o GPS.</p></div>
+
+  <div class="card" id="g-week"><div class="row between"><h3>Sua semana</h3><label class="small g-goalin">Meta (km)<input data-gin="goal" inputmode="numeric" value="${o.goal || ''}" placeholder="—"></label></div>
+    <div class="g-wk"><b class="big">${kmTxt(wk, 1)}</b><span>km nesta semana${o.goal ? ` de ${o.goal}` : ''}</span></div>
+    ${o.goal ? `<div class="g-prog"><i style="width:${Math.min(100, wk / o.goal * 100).toFixed(1)}%"></i><span class="small">${wk >= o.goal ? 'Meta da semana batida ✓' : `faltam ${kmTxt(o.goal - wk, 1)} km`}</span></div>` : ''}
+    <div class="wkbars" aria-hidden="true">${[7, 6, 5, 4, 3, 2, 1, 0].map(b => { const v = W8[b]; return `<i class="${b ? '' : 'on'}" style="height:${Math.max(4, v / mx * 100).toFixed(0)}%" title="${kmTxt(v, 1)} km"></i>`; }).join('')}</div>
+    <p class="small muted">Últimas 8 semanas</p>
+    ${avg4 >= 5 && wk > avg4 * 1.3 ? `<p class="note small">Você já passou ${Math.round((wk / avg4 - 1) * 100)}% da sua média das últimas 4 semanas. Subir o volume rápido demais aumenta o risco de lesão em quem está começando. Base: ${esc(ev('corrida-volume')?.title || '')}.</p>` : ''}
+  </div>
+
+  ${list.length ? `<div class="card" id="g-hist"><h3>Suas corridas</h3><ul class="list runs">${last.map(r => runRow(r)).join('')}</ul>
+    ${list.length > 5 ? `<details><summary class="small"><b>Ver todas (${list.length})</b></summary><ul class="list runs">${list.slice(5, 60).map(r => runRow(r)).join('')}</ul></details>` : ''}</div>` : ''}
+
+  ${Object.keys(bests).length ? `<div class="card" id="g-pr"><h3>Recordes</h3><table class="tbl small">${G.EFFORTS.filter(L => bests[L]).map(L => `<tr><td>${esc(G.EFF_N[L])}</td><td class="mono"><b>${hms(bests[L].s)}</b></td><td class="mono">${paceTxt(bests[L].s / L * 1000)}/km</td><td><a href="#corrida-${esc(bests[L].id)}">${esc(fmtDay(bests[L].date))}</a></td></tr>`).join('')}
+    ${(() => { const lg = list.reduce((a, r) => +r.km > (+a?.km || 0) ? r : a, null); return lg ? `<tr><td>Mais longa</td><td class="mono"><b>${kmTxt(+lg.km, 1)} km</b></td><td></td><td><a href="#corrida-${esc(lg.id)}">${esc(fmtDay(lg.date))}</a></td></tr>` : ''; })()}</table>
+    ${pred ? `<p class="small"><b>Previsão</b> pelos seus ${esc(G.EFF_N[pred.src])} (${hms(pred.s)}): ${pred.out.map(([L, x]) => `${esc(G.EFF_N[L])} ~${hms(x)}`).join(' · ')}</p><p class="small muted">Estimativa (fórmula de Riegel): acerta mais pra distâncias perto da que você já correu.</p>` : ''}</div>` : ''}
+
+  <details class="card" id="g-priv" ${GV.delArm && Date.now() - GV.delArm < 3500 ? 'open' : ''}><summary><h3>Privacidade do GPS</h3></summary>
+    <label class="switch"><input type="checkbox" data-act="gpsSync" ${o.sync ? 'checked' : ''}> Guardar os percursos na minha conta (outros aparelhos)</label>
+    <label class="switch"><input type="checkbox" data-act="gpsHide" ${o.hide ? 'checked' : ''}> Esconder 200 m do início e do fim na imagem compartilhada</label>
+    <p class="small muted">A localização só é usada com a corrida aberta. Distância, tempo e ritmo ficam mesmo se você apagar os percursos.</p>
+    ${list.some(r => r.rt) ? `<button class="btn small ${GV.delArm && Date.now() - GV.delArm < 3500 ? 'danger' : 'ghost'}" data-act="gpsDelRoutes">${GV.delArm && Date.now() - GV.delArm < 3500 ? 'Apagar todos os percursos?' : 'Apagar todos os percursos'}</button>` : ''}</details>`;
+}
+function runRow(r) {
+  const c = runCoords(r);
+  return `<li><a class="grow runrow" href="#corrida-${esc(r.id)}">${c.length > 1 ? routeSVG(c, idxList(r.cut), idxList(r.gap), 64, 44) : '<span class="rsvg none"></span>'}
+    <span class="grow"><b>${kmTxt(+r.km, 2)} km</b> <span class="mono small">${hms(runSec(r))} · ${paceTxt(runSec(r) / r.km)}/km</span><small>${esc(fmtDay(r.date))} · ${esc(r.src === 'gps' ? GMODES[r.mode] || 'GPS' : 'Registro manual')}</small></span></a></li>`;
+}
+views.corrida = id => {
+  const r = S.logs.sessions.find(x => x.id === id && x.sport === 'corrida');
+  if (!r) { location.hash = '#esporte-corrida'; return ''; }
+  const c = runCoords(r), sec = runSec(r), sp = Array.isArray(r.sp) ? r.sp.filter(x => x > 0) : [], be = r.be && typeof r.be === 'object' ? r.be : {};
+  const bests = runBests(), sim = runLog().filter(x => x.id !== r.id && x.date <= r.date && Math.abs(x.km - r.km) <= r.km * 0.15).slice(0, 1)[0];
+  const diff = sim ? sec / r.km - runSec(sim) / sim.km : 0, armed = GV.delArm === r.id;
+  return `<section class="head"><a class="linkbtn" href="#esporte-corrida">‹ Corrida</a><h1>${kmTxt(+r.km, 2)} km</h1><div class="chip">${esc(fmtDay(r.date))}${+r.start ? ' · ' + new Date(+r.start).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : ''}</div></section>
+  ${c.length > 1 ? `<div class="card gmap-card"><div id="cmap" class="gmap"></div>${+r.gkm > 0 ? `<p class="small muted">Tracejado: ${kmTxt(+r.gkm, 2)} km sem sinal, contados em linha reta.</p>` : ''}</div>` : ''}
+  <div class="card"><div class="g-grid"><div><small>Tempo</small><b class="mono">${hms(sec)}</b></div><div><small>Ritmo médio</small><b>${paceTxt(sec / r.km)}<i>/km</i></b></div>
+    <div><small>Velocidade</small><b>${(r.km / sec * 3600).toFixed(1).replace('.', ',')}<i>km/h</i></b></div><div><small>Gasto</small><b>~${Math.round(+r.kcal || 0)}<i>kcal</i></b></div>
+    ${+r.up > 0 ? `<div><small>Subida</small><b>${Math.round(r.up)}<i>m</i></b></div>` : ''}<div><small>Tipo</small><b class="small">${esc(r.src === 'gps' ? GMODES[r.mode] || 'Livre' : SPORTS.corrida.types[r.type]?.n || 'Manual')}</b></div></div>
+    ${sim ? `<p class="small">Comparada com ${esc(fmtDay(sim.date))} (${kmTxt(+sim.km, 1)} km): <b>${Math.abs(diff) < 2 ? 'mesmo ritmo' : `${Math.round(Math.abs(diff))} s/km ${diff < 0 ? 'mais rápido' : 'mais lento'}`}</b>.</p>` : ''}</div>
+  ${sp.length ? `<div class="card">${splitBars(sp)}</div>` : ''}
+  ${Object.keys(be).length ? `<div class="card"><h3>Melhores trechos</h3><table class="tbl small">${G.EFFORTS.filter(L => +be[L] > 0).map(L => `<tr><td>${esc(G.EFF_N[L])}</td><td class="mono"><b>${hms(+be[L])}</b></td><td>${bests[L]?.id === r.id ? '<span class="pr">★ Recorde</span>' : ''}</td></tr>`).join('')}</table></div>` : ''}
+  <div class="row gap pad">${c.length > 1 ? `<button class="btn grow" data-act="gpsShare" data-id="${esc(r.id)}">Compartilhar imagem</button>` : ''}
+    <button class="btn grow ${armed ? 'danger' : 'ghost'}" data-act="gpsDel" data-id="${esc(r.id)}">${armed ? 'Apagar mesmo?' : 'Apagar corrida'}</button></div>`;
+};
+function bindCorrida(id) {
+  const r = S.logs.sessions.find(x => x.id === id), el = $('#cmap'); if (!r || !el) return;
+  mapInto(el, runCoords(r), idxList(r.cut), idxList(r.gap), false).then(g => { GV.cmap?.m?.remove(); GV.cmap = g; });
+}
+
+// --- imagem pra compartilhar (desenhada no canvas, no estilo do app) ---
+async function gpsShare(id) {
+  const r = S.logs.sessions.find(x => x.id === id); if (!r) return;
+  let c = runCoords(r); const o = gpsOpt();
+  if (o.hide) c = G.trimEnds(c, 200);
+  try { await document.fonts?.load('80px "Dela Gothic One"'); } catch (e) { }
+  const W = 1080, H = 1350, cv = document.createElement('canvas'); cv.width = W; cv.height = H; const x = cv.getContext('2d');
+  x.fillStyle = '#ece5d3'; x.fillRect(0, 0, W, H);
+  x.fillStyle = 'rgba(26,23,20,.13)'; for (let yy = 0; yy < H; yy += 14) for (let xx = (yy / 14 % 2) * 7; xx < W; xx += 14) { x.beginPath(); x.arc(xx, yy, 2, 0, 7); x.fill(); }
+  x.fillStyle = '#c3131b'; x.fillRect(70, 70, W - 120, H - 120); x.fillStyle = '#f7f2e6'; x.fillRect(50, 50, W - 120, H - 120);
+  x.lineWidth = 10; x.strokeStyle = '#1a1714'; x.strokeRect(50, 50, W - 120, H - 120);
+  x.fillStyle = '#1a1714'; x.font = '72px "Dela Gothic One", Impact, sans-serif'; x.fillText('RONIN', 100, 160);
+  x.fillStyle = '#c3131b'; x.font = '72px serif'; x.fillText('走', W - 200, 160);
+  x.fillStyle = '#5e574c'; x.font = '700 34px "Zen Kaku Gothic New", sans-serif'; x.fillText(fmtDay(r.date).toUpperCase(), 102, 210);
+  if (c.length > 1) {
+    const k = Math.cos(c[0][0] * Math.PI / 180), xs = c.map(p => p[1] * k), ys = c.map(p => -p[0]), X0 = Math.min(...xs), X1 = Math.max(...xs), Y0 = Math.min(...ys), Y1 = Math.max(...ys);
+    const bw = W - 260, bh = 640, sc = Math.min(bw / ((X1 - X0) || 1e-9), bh / ((Y1 - Y0) || 1e-9)), ox = 130 + (bw - (X1 - X0) * sc) / 2, oy = 260 + (bh - (Y1 - Y0) * sc) / 2;
+    const segs = G.segments(c, o.hide ? [] : idxList(r.cut), o.hide ? [] : idxList(r.gap));
+    for (const [w, col] of [[26, '#1a1714'], [12, '#c3131b']]) { x.lineWidth = w; x.strokeStyle = col; x.lineJoin = x.lineCap = 'round';
+      for (const s of segs) { x.setLineDash(s.dash ? [24, 22] : []); x.beginPath(); s.pts.forEach((p, i) => { const px = (p[1] * k - X0) * sc + ox, py = (-p[0] - Y0) * sc + oy; i ? x.lineTo(px, py) : x.moveTo(px, py); }); x.stroke(); } }
+    x.setLineDash([]);
+  }
+  const sec = runSec(r), stat = (lab, val, px, py, big) => { x.fillStyle = '#5e574c'; x.font = '700 30px "Zen Kaku Gothic New", sans-serif'; x.fillText(lab, px, py); x.fillStyle = '#1a1714'; x.font = `${big ? 130 : 76}px "Dela Gothic One", Impact, sans-serif`; x.fillText(val, px, py + (big ? 130 : 84)); };
+  stat('DISTÂNCIA', kmTxt(+r.km, 2) + ' km', 100, 960, true);
+  x.fillStyle = '#c3131b'; x.fillRect(100, 1110, 440, 10);
+  stat('TEMPO', hms(sec), 100, 1170); stat('RITMO', paceTxt(sec / r.km) + '/km', 560, 1170);
+  const blob = await new Promise(ok => cv.toBlob(ok, 'image/png')); if (!blob) { toast('Não consegui gerar a imagem'); return; }
+  const file = new File([blob], `ronin-corrida-${r.date}.png`, { type: 'image/png' });
+  try { if (navigator.canShare?.({ files: [file] })) { await navigator.share({ files: [file], title: 'Corrida no RONIN' }); return; } } catch (e) { if (e.name === 'AbortError') return; }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = file.name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
+}
+
+// --- ações ---
+const GACT = {
+  gpsStart: () => gpsOpen(),
+  gpsLoad: () => { if (genSession) gpsOpen(genSession); },
+  gpsAllow: () => { S.ui.gpsOk = Date.now(); save(true); GV.state = 'ready'; gpsWatch(true); lockScreen(true); paintGps(); },
+  gpsGo, gpsPause, gpsEnd, gpsClose,
+  gpsMin: () => { GV.min = true; GV.map?.m?.remove(); GV.map = null; paintGps(); },
+  gpsOpen: () => { GV.min = false; paintGps(); },
+  gpsCenter: () => { GV.follow = true; paintGps(); },
+  gpsPocket: () => { GV.pocket = true; paintGps(); },
+  gpsWake: () => { const n = Date.now(); if (n - (GV.wakeT || 0) < 600) { GV.pocket = false; paintGps(); } GV.wakeT = n; },
+  gpsMode: el => { if (GMODES[el.dataset.v]) { setGps({ mode: el.dataset.v }); render(); } },
+  gpsAuto: el => setGps({ auto: el.checked }),
+  gpsSync: el => { setGps({ sync: el.checked }); toast(el.checked ? 'Percursos vão pra sua conta' : 'Percursos ficam só neste aparelho'); },
+  gpsHide: el => setGps({ hide: el.checked }),
+  gpsShare: el => gpsShare(el.dataset.id),
+  gpsDel: el => { const id = el.dataset.id; if (GV.delArm !== id) { GV.delArm = id; render(); setTimeout(() => { if (GV.delArm === id) { GV.delArm = 0; render(); } }, 3500); return; }
+    GV.delArm = 0; S.logs.sessions = S.logs.sessions.filter(x => x.id !== id); S.del[id] = Date.now(); save(); toast('Corrida apagada'); location.hash = '#esporte-corrida'; },
+  gpsDelRoutes: () => { if (!GV.delArm || Date.now() - GV.delArm > 3500) { GV.delArm = Date.now(); render(); setTimeout(() => render(), 3600); return; }
+    GV.delArm = 0; const t = Date.now(); for (const r of S.logs.sessions) if (r.sport === 'corrida' && r.rt) { delete r.rt; delete r.cut; delete r.gap; r.t = t; } save(); render(); toast('Percursos apagados. As estatísticas ficaram.'); }
+};
+// campos da configuração: salvam ao mudar
+document.addEventListener('change', e => {
+  const k = e.target?.dataset?.gin; if (!k) return;
+  const v = e.target.value;
+  if (k === 'km') { const n = num(v); if (n > 0 && n <= 100) setGps({ km: Math.round(n * 10) / 10 }); else toast('Distância entre 0,1 e 100 km'); }
+  if (k === 'min') { const n = Math.round(num(v) || 0); if (n >= 5 && n <= 300) setGps({ min: n }); else toast('Entre 5 e 300 minutos'); }
+  if (k === 'pace') { const p = parsePace(v, 'minkm'); if (p) setGps({ pace: p }); else toast('Ritmo no formato 5:30'); }
+  if (k === 'every') setGps({ every: +v });
+  if (k === 'goal') { const n = Math.round(num(v) || 0); if (n >= 0 && n <= 300) { setGps({ goal: n }); render(); } else toast('Meta entre 0 e 300 km'); }
+});
+// voltou pro app: o celular pode ter parado o GPS; o próximo ponto decide se liga em linha reta
+document.addEventListener('visibilitychange', () => {
+  if (!GPS || GPS.done) return;
+  if (document.hidden) { GPS.hid = Date.now(); G.persist(GPS); }
+  else { gpsWatch(false); gpsWatch(true); if (!GPS.paused) lockScreen(true); gpsTick(); }
+});
+// corrida em andamento quando o app fechou: volta pra ela
+if (GPS) { if (GPS.done) { G.persist(null); GPS = null; } else { GV.state = 'run'; GV.lastKm = Math.floor(GPS.dist / 1000 / (GPS.cfg.every || 1)); GPS.hid = Date.now(); setTimeout(() => { gpsWatch(true); lockScreen(true); gpsLoop(true); paintGps(); }, 400); } }
+
 // ---------------- Mobilidade ----------------
 // aquecimento, alongamento, mobilidade e desaceleração (dados e gerador em mobility.js; cronômetro no rtimer)
 const MOB_KEY = 'ronin:mob';
@@ -1896,6 +2353,7 @@ views.esporte = arg => {
   const eqp = equipment(S.profile);
   return `<section class="head"><h1>${esc(SP.n)}</h1><div class="chip">${week.length} sessões / 7 dias</div></section>
   ${ms.length > 1 ? `<div class="chips tabs">${ms.map(s => `<button class="chipbtn ${s === id ? 'on' : ''}" data-act="sport" data-id="${s}"><b class="mk">${SPORTS[s].mark}</b> ${esc(SPORTS[s].n)}</button>`).join('')}</div>` : ''}
+  ${id === 'corrida' ? runCards() + '<small class="cat pad">Treino em blocos (esteira ou sem GPS)</small>' : ''}
   <div class="card panel center" id="timerCard">
     <div id="timer" class="timer"><svg viewBox="0 0 260 260"><circle cx="130" cy="130" r="${r}" class="t-bg"/><circle cx="130" cy="130" r="${r}" class="t-arc" style="stroke-dasharray:${circ}"/></svg>
       <div class="t-center"><div class="t-time mono">0:00</div><div class="t-lab">Pronto</div></div></div>
@@ -1932,7 +2390,7 @@ views.esporte = arg => {
     </form>
     ${genSession ? `<div class="row between genbar"><b class="small">${genSession.length} ${id === 'corrida' ? 'blocos' : 'rounds'} · ~${Math.round(genSession.reduce((a, x) => a + x.work + x.rest, 0) / 60)} min</b><div class="row gap"><button class="btn small ghost" data-act="genShut">${S.ui.genShut ? 'Mostrar' : 'Recolher'}</button><button class="btn small ghost" data-act="genClear">Apagar</button></div></div>
     ${S.ui.genShut ? '' : `<ol class="rounds">${genSession.map((x, i) => `<li><span class="mono">${id === 'corrida' ? 'B' : 'R'}${i + 1}</span><div><b>${esc(x.t)}</b><small>${esc(x.f)}</small></div><span class="mono small">${x.work / 60 | 0}:${String(x.work % 60).padStart(2, '0')}${x.calls ? ' 🗣' : ''}</span></li>`).join('')}</ol>`}
-      <button class="btn primary block" data-act="loadProg">Carregar no timer ↑</button>` : `<p class="small muted">${SP.combos ? 'Monta os rounds com tema, foco e combinações faladas, usando seus pontos fracos marcados abaixo.' : id === 'corrida' ? 'Monta aquecimento, blocos e volta à calma com o timer marcando cada parte.' : 'Monta os rounds com drills, posições e o foco nos seus pontos fracos.'}</p>`}
+      ${id === 'corrida' ? '<button class="btn primary block" data-act="gpsLoad">▶ Correr com GPS</button><button class="btn block" data-act="loadProg">Carregar no timer ↑</button>' : '<button class="btn primary block" data-act="loadProg">Carregar no timer ↑</button>'}` : `<p class="small muted">${SP.combos ? 'Monta os rounds com tema, foco e combinações faladas, usando seus pontos fracos marcados abaixo.' : id === 'corrida' ? 'Monta aquecimento, blocos e volta à calma com o timer marcando cada parte.' : 'Monta os rounds com drills, posições e o foco nos seus pontos fracos.'}</p>`}
   </div>
 
   <a class="card link mobl" href="#mobilidade"><b>Mobilidade</b><span class="go">→</span></a>
@@ -2028,7 +2486,8 @@ function coachContext() {
 REGRAS: Baseie-se em evidência científica. Use as cartas de evidência abaixo como base principal e cite-as pelo título e autor/ano. Se algo não estiver bem estabelecido na literatura, diga que a evidência é limitada. Nunca invente estudos. Não faça diagnósticos médicos; para dor persistente, sintomas após pancada na cabeça, condições de saúde ou cortes de peso agressivos, recomende um profissional. Respostas curtas e práticas (leitura no celular).
 PERFIL: ${p.sex === 'f' ? 'mulher' : 'homem'}, ${p.age} anos, ${p.height} cm, ${latestWeight()} kg${p.bf ? `, ${p.bf}% gordura` : ''}. Objetivo: ${GOALS[p.goal]}. Experiência: ${p.experience}.${activeRestr().length ? ` RESTRIÇÕES (não sugerir nada com isso): ${(() => { const r = restrOfProfile(); return [r.perm.length ? 'para sempre: ' + r.perm.map(k => RESTR[k].n).join(', ') : '', tempOn(r) ? 'temporárias' + (r.until ? ` até ${r.until}` : '') + ': ' + r.temp.map(k => RESTR[k].n).join(', ') : ''].filter(Boolean).join('; '); })()}.` : ''}
 ESPORTES: ${Object.entries(sp).map(([id, s]) => `${SPORTS[id]?.n} ${s.days}x/semana, ${s.min} min, ${typesOf(id, s).map(k => SPORTS[id]?.types[k]?.n).join(' + ')}, ${s.where}`).join('; ') || 'nenhum'}.
-SEMANA: ${(() => { const w = weekOf(p); return w.explicit ? w.days.map((l, i) => `${WEEKDAYS[i]}: ${l.length ? l.map(x => (x.a === 'forca' ? 'força' : SPORTS[x.a]?.n) + (x.h ? ' ' + x.h : '')).join(', ') : 'descanso'}`).join('; ') : 'dias não marcados'; })()}. HORÁRIOS DE COSTUME (dos registros): ${(() => { const h = habits(S.logs, today()); const l = Object.entries(h.meals).map(([k, m]) => `${MEALS.find(x => x.id === k)?.n || k} ${hm(m)}`); if (h.lift != null) l.push('força ' + hm(h.lift)); return l.join(', ') || 'ainda sem dados'; })()}.
+${sp.corrida || runLog().length ? `CORRIDA (registros): km por semana, da mais recente: ${[0, 1, 2, 3].map(b => kmTxt(weekKm(b), 1)).join(', ')}. Últimas: ${runLog().slice(0, 3).map(r => `${r.date} ${kmTxt(+r.km, 1)} km em ${hms(runSec(r))} (${paceTxt(runSec(r) / r.km)}/km)`).join('; ') || 'nenhuma'}. Recordes: ${Object.entries(runBests()).map(([L, b]) => `${G.EFF_N[L]} ${hms(b.s)}`).join(', ') || 'nenhum'}.
+` : ''}SEMANA: ${(() => { const w = weekOf(p); return w.explicit ? w.days.map((l, i) => `${WEEKDAYS[i]}: ${l.length ? l.map(x => (x.a === 'forca' ? 'força' : SPORTS[x.a]?.n) + (x.h ? ' ' + x.h : '')).join(', ') : 'descanso'}`).join('; ') : 'dias não marcados'; })()}. HORÁRIOS DE COSTUME (dos registros): ${(() => { const h = habits(S.logs, today()); const l = Object.entries(h.meals).map(([k, m]) => `${MEALS.find(x => x.id === k)?.n || k} ${hm(m)}`); if (h.lift != null) l.push('força ' + hm(h.lift)); return l.join(', ') || 'ainda sem dados'; })()}.
 FORÇA: ${p.liftDays}x/semana (${p.env === 'casa' ? 'em casa; equipamento: ' + ((p.equip || []).map(k => EQUIP[k]).join(', ') || 'só peso corporal/calistenia') : 'academia'}). ${Math.round(+p.liftMin) || 45} min/sessão. Objetivo do treino: ${TGOALS[tgoalOf(p)].n}.${injuriesOf(p).length ? ' Poupar: ' + injuriesOf(p).map(k => INJURIES[k].n).join(', ') + '.' : ''}${focusOf(p).length ? ' Prioridade: ' + focusOf(p).map(m => MUSCLES[m]).join(', ') + '.' : ''}${condsOf(p).length ? ' Condições de saúde: ' + condsOf(p).map(k => CONDITIONS[k].n).join(', ') + '.' : ''}${spineSummary(spineOf(p)).length ? ' Coluna (desenho do usuário, estimativa): ' + spineSummary(spineOf(p)).join(' ') : ''}${bodyOf(p).length ? ' Corpo: ' + bodyOf(p).map(k => BODY[k]).join(', ') + ' (adapte exercícios).' : ''}
 METAS: ${t.kcal} kcal, P ${t.protein} g, C ${t.carbs} g, G ${t.fat} g, água ${t.water} ml. Gasto estimado ${Math.round(t.tdee)} kcal (${t.source}).
 HOJE: consumido ${Math.round(dayFood().k)} kcal, P ${Math.round(dayFood().p)} g.
@@ -2192,10 +2651,11 @@ function render() {
   const spLabel = one ? SPORTS[one].n : 'Esporte';
   ICONS.esporte = one === 'corrida' ? SHOE : one === 'jiu' ? BELT : one && SPORTS[one].combat ? GLOVE : TROPHY;
   const tabs = [['hoje', 'Hoje'], ['nutri', 'Nutrição'], ['treino', 'Força'], ['esporte', spLabel], ['coach', 'Coach']];
-  $('#nav').innerHTML = tabs.map(([id, label]) => `<a href="#${id}" class="${(v === id || ((v === 'sessao' || v === 'rotinas' || v === 'rotina' || v === 'ver' || v === 'resumo' || v === 'wk' || v === 'evo' || v === 'demo' || v === 'coluna') && id === 'treino') || (v === 'cardapio' && id === 'nutri') || ((v === 'tecnica' || v === 'tecnicas') && id === 'esporte')) ? 'on' : ''}"><svg viewBox="0 0 24 24"><path d="${ICONS[id]}"/></svg><span>${esc(label)}</span></a>`).join('');
+  $('#nav').innerHTML = tabs.map(([id, label]) => `<a href="#${id}" class="${(v === id || ((v === 'sessao' || v === 'rotinas' || v === 'rotina' || v === 'ver' || v === 'resumo' || v === 'wk' || v === 'evo' || v === 'demo' || v === 'coluna') && id === 'treino') || (v === 'cardapio' && id === 'nutri') || ((v === 'tecnica' || v === 'tecnicas' || v === 'corrida') && id === 'esporte')) ? 'on' : ''}"><svg viewBox="0 0 24 24"><path d="${ICONS[id]}"/></svg><span>${esc(label)}</span></a>`).join('');
   bindAfter(v, arg);
   if (window.scrollY !== keepY) window.scrollTo(0, keepY);
   if (v === 'esporte') paintTimer();
+  if (v === 'corrida') bindCorrida(arg);
   if (v === 'perfil' && arg === 'conta') requestAnimationFrame(() => $('#conta')?.scrollIntoView({ behavior: 'smooth' }));
 }
 let rendered = '';
@@ -2620,7 +3080,8 @@ document.addEventListener('click', async e => {
   if (a === 'mobMin') { MV.min = true; paintMob(); }
   if (a === 'mobOpen') { MV.min = false; paintMob(); }
   if (a === 'mobPre') mobQuick('antes', el.dataset.sport || 'geral', el.dataset.sid);
-  if (a === 'mobPost') { if (el.dataset.close && RUN) runClose(); mobQuick('depois', el.dataset.sport || 'geral'); }
+  if (a.startsWith('gps') && GACT[a]) { GACT[a](el); return; }
+  if (a === 'mobPost') { if (el.dataset.gclose) gpsClose(); if (el.dataset.close && RUN) runClose(); mobQuick('depois', el.dataset.sport || 'geral'); }
   if (a === 'runPause') runPause();
   if (a === 'runSkip' && RUN) { RT.skipRest(RUN); onPhase(RT.cur(RUN)); tick(); }
   if (a === 'runNext' && RUN) { RT.nextRound(RUN); onPhase(RUN.done ? { k: 'done' } : RT.cur(RUN)); tick(); }

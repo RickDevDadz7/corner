@@ -286,6 +286,14 @@ export const EVIDENCE = [
     refs: ['Guest NS et al. (2021) J Int Soc Sports Nutr 18:1']
   },
   {
+    id: 'corrida-volume', cat: 'Corrida', tags: ['corrida', 'correr', 'volume', 'km', 'quilometragem', 'lesao', 'lesão', 'semana', 'aumentar', 'iniciante'],
+    title: 'Quanto aumentar os km por semana',
+    do: 'Suba o volume de corrida aos poucos. Evite passar de ~30% acima do que vinha correndo nas últimas semanas, principalmente se você está começando.',
+    why: 'Num estudo com 873 corredores iniciantes, quem aumentou a distância semanal em mais de 30% teve mais lesões ligadas a volume (joelho, banda iliotibial, quadril) do que quem aumentou menos de 10%. A famosa "regra dos 10%" é mais conservadora do que a evidência exige, mas saltos grandes pesam.',
+    level: 'B',
+    refs: ['Nielsen RO et al. (2014) J Orthop Sports Phys Ther 44(10):739–747']
+  },
+  {
     id: 'core-gordura', cat: 'Core', tags: ['abdominal', 'abdomen', 'abdômen', 'barriga', 'gordura', 'definicao', 'definição', 'queimar', 'core', 'crunch'],
     title: 'Abdominal queima a gordura da barriga?',
     do: 'Não conte com isso. A gordura da barriga sai com déficit de calorias e com o treino do corpo todo, e o abdômen só aparece quando a gordura está baixa. Abdominal fortalece o músculo, não derrete a gordura em cima dele.',

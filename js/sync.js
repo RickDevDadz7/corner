@@ -31,18 +31,22 @@ export const newId = () => Date.now().toString(36) + Math.random().toString(36).
 export function payloadOf(S) {
   const o = {}; for (const k of [...PREFS, 'prog', 'logs', 'del', 'meta']) o[k] = clone(S[k]);
   if (o.timer) o.timer.program = null;
+  // percursos só no aparelho, se a pessoa escolheu (distância/tempo/ritmo continuam sincronizando)
+  if (S.ui?.gps?.sync === false && o.logs?.sessions) o.logs.sessions = o.logs.sessions.map(x => { if (!x || !x.rt) return x; const { rt, cut, gap, ...r } = x; return r; });
   return o;
 }
 
 // Segurança: tudo que chega da nuvem passa por aqui antes de virar tela.
 // id só com letras/números/-/_ e campos numéricos viram número de verdade (bloqueia HTML injetado).
-const ID_OK = /^[A-Za-z0-9_-]{1,64}$/;
-const NUMS = ['k', 'p', 'c', 'f', 'fb', 'g', 'q', 'st', 't', 'ml', 'kg', 'min', 'rpe', 'kcal', 'rounds', 'sets', 'reps', 'load', 'dur', 'start', 'km'];
+const ID_OK = /^[A-Za-z0-9_-]{1,64}$/, RT_OK = /^[\x3f-\x7e]{0,200000}$/;
+const NUMS = ['k', 'p', 'c', 'f', 'fb', 'g', 'q', 'st', 't', 'ml', 'kg', 'min', 'rpe', 'kcal', 'rounds', 'sets', 'reps', 'load', 'dur', 'start', 'km', 'sec', 'up', 'gkm'];
 function clean(it) {
   if (!it || typeof it !== 'object' || typeof it.id !== 'string' || !ID_OK.test(it.id)) return null;
   const o = { ...it };
   for (const k of NUMS) if (k in o) { const n = Number(o[k]); o[k] = Number.isFinite(n) ? n : 0; }
-  for (const k of Object.keys(o)) if (typeof o[k] === 'string' && o[k].length > 500) o[k] = o[k].slice(0, 500);
+  // percurso da corrida (polyline): só caracteres do formato, nunca vira HTML (é decodificado em números)
+  if ('rt' in o && (typeof o.rt !== 'string' || !RT_OK.test(o.rt))) delete o.rt;
+  for (const k of Object.keys(o)) if (k !== 'rt' && typeof o[k] === 'string' && o[k].length > 500) o[k] = o[k].slice(0, 500);
   return o;
 }
 function unionById(x = [], y = [], del = {}) {
