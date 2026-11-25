@@ -2480,7 +2480,7 @@ views.esporte = arg => {
   <a class="card link mobl" href="#mobilidade"><b>Mobilidade</b><span class="go">→</span></a>
 <!--@tec-->
   ${techs.length ? `<a class="card link panel" href="#tecnicas"><small class="cat">Biblioteca</small><h3>${techs.length} técnicas de ${esc(SP.n.toLowerCase())}</h3>
-    <div class="techgrid mini">${techs.slice(0, 3).map(t => `<span class="tech"><span class="tech-thumb">${thumbSVG(t)}</span><b>${esc(t.n)}</b></span>`).join('')}</div>
+    <div class="techgrid mini">${techs.slice(0, 3).map(t => `<span class="tech"><span class="tech-thumb">${thumbImg(t)}</span><b>${esc(t.n)}</b></span>`).join('')}</div>
     <p class="small muted">${[...new Set(techs.map(t => t.cat))].join(' · ')}</p><span class="go">Abrir →</span></a>` : ''}
   ${SP.legend ? numTable(id) : ''}
 
@@ -2541,6 +2541,31 @@ function numTable(sid) {
     <p class="small muted">Guarda ortodoxa. Canhoto: tudo espelhado (o 1 sai com a direita). ⇄ = mesmo movimento, com a outra mão.</p>
   </div>`;
 }
+// miniaturas viram <img> (o celular desenha uma vez e só move ao rolar; SVG solto com ~100 peças cada travava a lista)
+const THUMBS = new Map(); let FIGCSS = '', FIGK = '';
+function figCss() {
+  const dark = document.documentElement.dataset.theme === 'dark', cs = getComputedStyle(document.documentElement), k = dark ? 'd' : 'l';
+  if (FIGK === k) return FIGCSS;
+  let out = '';
+  for (const sh of document.styleSheets) {
+    let rules; try { rules = sh.cssRules; } catch { continue; }
+    for (const r of rules) {
+      let sel = r.selectorText; if (!sel || !sel.includes('.fig')) continue;
+      if (sel.includes('data-theme')) { if (!dark) continue; sel = sel.replace(/:root\[data-theme="?dark"?\]\s*/g, ''); }
+      out += `${sel}{${r.style.cssText}}`;
+    }
+  }
+  FIGCSS = out.replace(/var\((--[\w-]+)\)/g, (_, v) => cs.getPropertyValue(v).trim()); FIGK = k; THUMBS.clear();
+  return FIGCSS;
+}
+function thumbImg(t) {
+  const css = figCss();
+  if (!THUMBS.has(t.id)) {
+    const svg = thumbSVG(t).replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" ').replace(/(<svg[^>]*>)/, `$1<style>${css}</style>`);
+    THUMBS.set(t.id, 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg));
+  }
+  return `<img src="${THUMBS.get(t.id)}" alt="" decoding="async" loading="lazy">`;
+}
 views.tecnicas = () => {
   const id = curSport(), list = techList(), cats = CATS.filter(c => list.some(t => t.cat === c));
   if (!cats.includes(techCat)) techCat = '';
@@ -2549,7 +2574,7 @@ views.tecnicas = () => {
   ${mySports().filter(s => TECHNIQUES.some(t => t.sport.includes(s))).length > 1 ? `<div class="chips tabs">${mySports().filter(s => TECHNIQUES.some(t => t.sport.includes(s))).map(s => `<button class="chipbtn ${s === id ? 'on' : ''}" data-act="sport" data-id="${s}"><b class="mk">${SPORTS[s].mark}</b> ${esc(SPORTS[s].n)}</button>`).join('')}</div>` : ''}
   <div class="segs">${['', ...cats].map(c => `<button class="${c === techCat ? 'on' : ''}" data-act="techCat" data-c="${esc(c)}">${c ? esc(c) : 'Todas'} <small>${c ? list.filter(t => t.cat === c).length : list.length}</small></button>`).join('')}</div>
   ${(techCat ? [techCat] : cats).map(c => `<small class="cat pad">${esc(c)}</small>
-    <div class="techgrid">${shown.filter(t => t.cat === c).map(t => `<a class="tech" href="#tecnica-${t.id}"><span class="tech-thumb">${thumbSVG(t)}</span><b>${esc(t.n)}</b></a>`).join('')}</div>`).join('')}
+    <div class="techgrid">${shown.filter(t => t.cat === c).map(t => `<a class="tech" href="#tecnica-${t.id}"><span class="tech-thumb">${thumbImg(t)}</span><b>${esc(t.n)}</b></a>`).join('')}</div>`).join('')}
   ${!list.length ? '<div class="card"><p class="small muted">Ainda não temos técnicas animadas pra esse esporte.</p></div>' : ''}
   ${SPORTS[id].legend ? numTable(id) : ''}`;
 };

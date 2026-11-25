@@ -1016,3 +1016,5 @@ body.coachv .toast{bottom:calc(172px + var(--safe-b))}
 /* abas da página do esporte: presas embaixo do topo enquanto rola */
 .subtabs{position:sticky;top:calc(62px + var(--safe-t));z-index:20;flex-wrap:nowrap}
 .subtabs button{padding:11px 6px;font-size:13.5px}
+.tech-thumb img{width:100%;height:100%;display:block;object-fit:contain}
+.techgrid .tech{content-visibility:auto;contain-intrinsic-size:auto 150px}
