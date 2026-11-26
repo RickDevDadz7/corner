@@ -106,7 +106,7 @@
     return URL_ + '/auth/v1/authorize?provider=google&redirect_to=' + encodeURIComponent(redirectTo());
   }
   // ID do cliente "Web" do Google (público; é o mesmo configurado no Supabase → Providers → Google)
-  const GOOGLE_WEB_ID = '';
+  const GOOGLE_WEB_ID = '369624154355-kopumpdm9m56dd1i8cqv5nvejf283em8.apps.googleusercontent.com';
   async function signInWithGoogle() {
     const P = NATIVE ? globalThis.Capacitor?.Plugins : null;
     // app Android: janelinha nativa de contas do Google por cima do app; o Supabase troca o token do Google por uma sessão
