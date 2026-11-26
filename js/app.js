@@ -3552,7 +3552,9 @@ let pendingLogin = false;
     document.addEventListener('visibilitychange', () => doSync(true));
   }
 })();
-if ('serviceWorker' in navigator && location.protocol === 'https:') {
+// dentro do app Android os arquivos já vêm no pacote: sem service worker (evita tela velha depois de atualizar)
+const NATIVE = !!window.Capacitor?.isNativePlatform?.();
+if (!NATIVE && 'serviceWorker' in navigator && location.protocol === 'https:') {
   const hadCtrl = !!navigator.serviceWorker.controller;
   let reloaded = false;
   navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadCtrl && !reloaded) { reloaded = true; location.reload(); } });

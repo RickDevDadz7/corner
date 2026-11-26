@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">TAIREN</string>
+    <string name="title_activity_main">TAIREN</string>
+    <string name="package_name">com.tairen.app</string>
+    <string name="custom_url_scheme">com.tairen.app</string>
+</resources>

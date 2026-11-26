@@ -1,0 +1,8 @@
+{
+  "appId": "com.tairen.app",
+  "appName": "TAIREN",
+  "webDir": "www",
+  "android": {
+    "backgroundColor": "#14120f"
+  }
+}

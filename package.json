@@ -1,0 +1,17 @@
+{
+  "name": "tairen",
+  "private": true,
+  "version": "1.0.0",
+  "description": "TAIREN — app Android (Capacitor) em volta do mesmo PWA",
+  "scripts": {
+    "www": "node scripts/build-www.mjs",
+    "android:sync": "npm run www && npx cap sync android"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.6.0"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.6.0",
+    "@capacitor/core": "^8.6.0"
+  }
+}
