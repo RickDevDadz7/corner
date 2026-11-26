@@ -4,6 +4,8 @@ import { SPORTS, SPORT_IDS, combatSession, runSession, paceTxt, paceKmh, parsePa
 import { TECHNIQUES, TIRED, tiredFor, CATS, animate, thumbSVG } from './techniques.js';
 import { hasDemo, exThumb, exAnimate, demoSteps } from './exanim.js';
 import { cloud } from './cloud.js';
+// rodando dentro do app Android (Capacitor) e não no navegador
+const NATIVE = !!window.Capacitor?.isNativePlatform?.();
 import { startScan, lookupBarcode } from './scan.js';
 import { SPLIT_DEFS, genRoutine, recommend, cleanRoutine, alternatives, library, musclesOf, fmtRest, repsOf, restOf } from './routine.js';
 import { pickDay, pickMeal, mealKeys, solveDay, dayTargets, measure, shoppingList, shopQty, swapPick, foodByName, SLOTS, candidates, sameCarb } from './menu.js';
@@ -3565,7 +3567,6 @@ let pendingLogin = false;
   }
 })();
 // dentro do app Android os arquivos já vêm no pacote: sem service worker (evita tela velha depois de atualizar)
-const NATIVE = !!window.Capacitor?.isNativePlatform?.();
 if (!NATIVE && 'serviceWorker' in navigator && location.protocol === 'https:') {
   const hadCtrl = !!navigator.serviceWorker.controller;
   let reloaded = false;
