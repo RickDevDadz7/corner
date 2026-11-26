@@ -30,10 +30,12 @@
 :root[data-theme=dark] .themebtn .sun{display:none}:root[data-theme=dark] .themebtn .moon{display:block}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.5 var(--font)}
-body{min-height:100vh;background:
+/* textura do papel numa camada fixa própria: rolar não redesenha o fundo (background-attachment:fixed travava o celular) */
+body{min-height:100vh;background:transparent}
+body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;transform:translateZ(0);background:
   radial-gradient(120% 80% at 50% 0%,transparent 55%,var(--grain)),
   repeating-linear-gradient(0deg,rgba(80,60,30,.025) 0 1px,transparent 1px 3px),
-  var(--paper);background-attachment:fixed}
+  var(--paper)}
 a{color:var(--acc);text-decoration:none;font-weight:700}
 h1,h2,h3,.big,.logo,.logo-big,.t-time,.combo{font-family:var(--head);font-weight:400}
 h1{font-size:30px;margin:0;letter-spacing:.01em;line-height:1.1;

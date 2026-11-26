@@ -7,7 +7,7 @@
 
   const URL_ = 'https://uutyijvitbeiwbivkfgz.supabase.co';
   const KEY = 'sb_publishable_L0yFkkuLinZN2d8fWCJvKg_nwZH_i1l';
-  const SITE = 'https://rickdevdadz7.github.io/ronin/';
+  const SITE = 'https://rickdevdadz7.github.io/corner/';
   const LS = 'ronin-cloud';
   const ls = () => { try { return globalThis.localStorage; } catch (e) { return null; } };
   let refreshing = null;
