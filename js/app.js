@@ -108,8 +108,8 @@ function cycleBox(plan) {
   const inj = injuriesOf(p), mins = Math.round(+p.liftMin) || 45;
   const bk = plan.bk, na = bodyNA(p), cs = condsOf(p), bd = bodyOf(p);
   const begun = S.logs.workouts.some(w => typeof w?.date === 'string' && w.date >= bk.start);
-  return `<p class="small blkline">${begun ? `<b>Troca de treino prevista ~${esc(bk.until.split('-').reverse().slice(0, 2).join('/'))}</b> · bloco ${bk.n}, semana ${bk.week} de ${bk.len} <span class="muted">(só semanas treinadas contam)</span>` : `<b>Bloco ${bk.n} · ${bk.len} semanas</b> · começa a contar no seu primeiro treino`}</p>
-  <div class="cyc ${ci.deload ? 'dl' : ''}"><div class="row between"><b>Ciclo ${ci.cycle} · semana ${ci.week} de ${ci.total}</b><span class="cyctag">${esc(tag)}</span></div>
+  return `<p class="small blkline">${begun ? `<b>Troca de treino prevista ~${esc(bk.until.split('-').reverse().slice(0, 2).join('/'))}</b> · ${gl('bloco', `bloco ${bk.n}`)}, semana ${bk.week} de ${bk.len} <span class="muted">(só semanas treinadas contam)</span>` : `<b>${gl('bloco', `Bloco ${bk.n}`)} · ${bk.len} semanas</b> · começa a contar no seu primeiro treino`}</p>
+  <div class="cyc ${ci.deload ? 'dl' : ''}"><div class="row between"><b>${gl('ciclo', `Ciclo ${ci.cycle}`)} · semana ${ci.week} de ${ci.total}</b><span class="cyctag">${esc(tag)}</span></div>
     <div class="cycbar">${bar}</div><small>${esc(msg)}</small></div>
   <details class="howplan"><summary>Como o Tairen montou seu treino</summary>
     <p class="small"><b>Objetivo:</b> ${esc(TGOALS[gp.g].n)}. ${esc(TGOALS[gp.g].d)}${TGOALS[p.tgoal2] && p.tgoal2 !== gp.g ? ` <b>Secundário:</b> ${esc(TGOALS[p.tgoal2].n)}, nas sessões alternadas (marcadas com o foco no nome).` : ''}</p>
@@ -548,7 +548,7 @@ views.onboarding = () => {
     </div>
     <fieldset class="equip"><legend>O que você tem em casa?</legend>
       ${Object.entries(EQUIP).map(([k, v]) => `<label class="check"><input type="checkbox" name="equip" value="${k}" ${(p.equip || []).includes(k) ? 'checked' : ''}><span>${esc(v)}</span></label>`).join('')}
-      <small class="muted">Sem nada marcado = só peso corporal (calistenia). O Tairen escolhe os exercícios pelo que você tem.</small>
+      <small class="muted">Sem nada marcado = só peso corporal (${gl('calistenia', 'calistenia')}). O Tairen escolhe os exercícios pelo que você tem.</small>
     </fieldset>
     <label>Objetivo do treino ${sel('tgoal', { '': `Automático (${TGOALS[tgoalOf({ ...p, tgoal: '' })].n.toLowerCase()})`, ...Object.fromEntries(Object.entries(TGOALS).map(([k, v]) => [k, v.n])) }, p.tgoal || '')}</label>
     <label>Objetivo secundário <small>(opcional)</small>${sel('tgoal2', { '': 'Nenhum', ...Object.fromEntries(Object.entries(TGOALS).map(([k, v]) => [k, v.n])) }, p.tgoal2 || '')}<small class="muted">Na rotina recomendada, as sessões alternam: uma no principal, a seguinte no secundário. Dá pra ganhar os dois sem misturar tudo no mesmo treino.</small></label>
@@ -686,7 +686,7 @@ views.nutri = () => {
   <div class="card" id="n-analise">
     <h3>Análise Nutricional</h3>
     <ul class="alist">
-      <li><b>Tendência prevista</b><span class="mono">${t.weekChange > 0 ? '+' : ''}${fmt(t.weekChange, 2)} kg/semana</span>
+      <li><b>${gl('tendencia', 'Tendência prevista')}</b><span class="mono">${t.weekChange > 0 ? '+' : ''}${fmt(t.weekChange, 2)} kg/semana</span>
         <small>Se você bater a meta: (${fmt(t.kcal, 0)} − ${fmt(t.tdee, 0)} kcal de gasto) × 7 dias ÷ 7.700 kcal por kg.</small></li>
       ${ad.ready ? `<li><b>Tendência real</b><span class="mono">${ad.slopeWeek > 0 ? '+' : ''}${fmt(ad.slopeWeek, 2)} kg/semana</span>
         <small>Das suas ${ad.weighIns} pesagens nos últimos 28 dias.</small></li>` : ''}
@@ -1092,7 +1092,7 @@ views.coluna = () => {
     <div class="row gap"><button class="btn small ghost" data-act="spUndo" ${spUndo.length ? '' : 'disabled'}>↶ Desfazer</button><button class="btn small ghost" data-act="spReset">Zerar ${back ? 'este lado' : 'esta vista'}</button></div>
     ${back ? `<div class="spopts"><small>Ombro mais baixo</small>${seg('spSh', s.sh, [['', 'Nenhum'], ['E', 'Esquerdo'], ['D', 'Direito']])}
       <small>Quadril mais alto</small>${seg('spHip', s.hip, [['', 'Nenhum'], ['E', 'Esquerdo'], ['D', 'Direito']])}
-      <label class="small">Ângulo de Cobb do exame <small>(opcional)</small><input id="spCobb" inputmode="numeric" placeholder="ex.: 22" value="${s.cobb || ''}"></label></div>` : ''}
+      <label class="small">${gl('cobb', 'Ângulo de Cobb')} do exame <small>(opcional)</small><input id="spCobb" inputmode="numeric" placeholder="ex.: 22" value="${s.cobb || ''}"></label></div>` : ''}
   </div>
   <div class="card" id="spRead">${spineRead(s)}</div>
   ${S.profile.healthOk ? '' : `<label class="check consent"><input type="checkbox" id="spOk" ${spConsent ? 'checked' : ''}><span>Autorizo o Tairen a guardar essa informação de saúde pra personalizar meu plano (dá pra apagar quando quiser).</span></label>`}
@@ -1290,7 +1290,7 @@ function volumeCard(plan) {
   const ms = Object.keys(MUSCLES).filter(m => m !== 'pescoco' && ((pv[m] || 0) > 0 || (dv[m] || 0) > 0));
   const any = Object.values(dv).some(x => x > 0);
   const flag = v => v < ref.lo ? ['abaixo', 'var(--amber)'] : v > ref.hi ? ['acima', 'var(--red)'] : ['na faixa', 'var(--acc)'];
-  return `<details class="card" id="t-volume" ${S.ui?.volOpen ? 'open' : ''}><summary><h3>Volume semanal por músculo</h3></summary>
+  return `<details class="card" id="t-volume" ${S.ui?.volOpen ? 'open' : ''}><summary><h3>${gl('volume', 'Volume')} semanal por músculo</h3></summary>
     <div class="segs small"><button class="${volMode === 'done' ? 'on' : ''}" data-act="volMode" data-m="done">Feito (7 dias)</button><button class="${volMode === 'plan' ? 'on' : ''}" data-act="volMode" data-m="plan">Planejado na rotina</button></div>
     ${volMode === 'done' && !any ? '<p class="small muted">Nenhuma série registrada nos últimos 7 dias. Conclua um treino e o volume real aparece aqui.</p>' :
     ms.map(m => { const v = src[m] || 0, [t, c] = flag(v); return `<div class="vrow">${bar(MUSCLES[m], v, Math.max(ref.hi, v), '', v ? c : 'var(--muted)')}<small style="color:${v ? c : 'var(--muted)'}">${v ? t : '—'}${volMode === 'done' && pv[m] ? ` · plano ${fmt(pv[m], 1)}` : ''}</small></div>`; }).join('')}
@@ -1356,7 +1356,7 @@ views.evo = (ex) => {
   return `<section class="head"><div><a href="#treino" class="backlink">← Força</a><h1>${esc(e.n)}</h1></div></section>
   ${demoBtn(ex)}
   <div class="card">${h.length ? `<small class="cat">Melhor marca</small><h2 class="mono">${esc(setLbl(top.best))}</h2>
-    ${e.inc && e1rm(top.best) ? `<small class="muted">1RM estimado ≈ ${fmt(e1rm(top.best), 0)} kg (fórmula de Epley, estimativa)</small>` : ''}
+    ${e.inc && e1rm(top.best) ? `<small class="muted">${gl('rm', '1RM estimado')} ≈ ${fmt(e1rm(top.best), 0)} kg (fórmula de Epley)</small>` : ''}
     ${allSets.length ? `<p class="small">${allSets.length - fails} de ${allSets.length} séries completas${fails ? ` · ${fails} não ${fails === 1 ? 'saiu' : 'saíram'}` : ''} · média de ${fmt(avgR, 1)} ${e.u === 's' ? 's' : 'reps'} por série</p>` : ''}
     ${spark}${h.length < 2 ? '<p class="small muted">Só 1 registro. A evolução aparece a partir do segundo.</p>' : ''}` : '<p class="small muted">Nenhuma série registrada desse exercício.</p>'}</div>
   ${h.length ? `<div class="card"><h3>Registros</h3><ul class="list hlist">${h.map(x => `<li><a href="#wk-${esc(x.w.id)}"><div class="grow"><b>${esc(fmtDay(x.w.date))}</b><small>${esc(x.arr.map(setLbl).join(', '))}${failsOf(x.w) ? ` · ${failsOf(x.w)} não saiu` : ''}</small></div>${x === top && h.length > 1 ? '<span class="prtag">melhor</span>' : ''}<span>›</span></a></li>`).join('')}</ul></div>` : ''}`;
@@ -1457,6 +1457,23 @@ function infoBox(title, html) {
   d.addEventListener('click', e => { if (e.target === d || e.target.closest('button')) d.remove(); });
   document.body.appendChild(d); d.querySelector('button').focus({ preventScroll: true });
 }
+// termos técnicos com "?" (mesmo padrão das reps na reserva): o leigo toca e entende, quem já sabe ignora
+const GLOSS = {
+  ciclo: ['Ciclo', '<p>Um pedaço do treino de <b>4 ou 5 semanas</b>. A cada semana entra um pouco mais de trabalho (mais séries), pro corpo continuar evoluindo.</p><p>A última semana é a <b>semana leve</b>: metade das séries e um pouco menos de carga, pro corpo se recuperar e voltar mais forte.</p>'],
+  bloco: ['Bloco', '<p>Um conjunto de ciclos, de <b>10 a 15 semanas</b>, com os mesmos exercícios principais.</p><p>No fim do bloco o Tairen sugere trocar parte dos exercícios. Trocar toda semana atrapalha a evolução; nunca trocar faz o corpo se acostumar.</p>'],
+  volume: ['Volume', '<p>Quantas <b>séries por semana</b> cada músculo recebe, somando todos os treinos.</p><p class="small muted">Pra maioria das pessoas, de 10 a 20 séries por músculo na semana é a faixa que mais dá resultado.</p>'],
+  rm: ['1RM estimado', '<p>A carga máxima que você conseguiria levantar <b>uma única vez</b>.</p><p>O Tairen calcula pelas suas séries (por exemplo, 60 kg × 10 reps ≈ 80 kg), sem você precisar testar o máximo, que é arriscado. Serve pra comparar sua força ao longo do tempo.</p>'],
+  calistenia: ['Calistenia', '<p>Treino com o <b>peso do próprio corpo</b>: flexão, agachamento, barra, prancha.</p><p class="small muted">Funciona pra ganhar força e músculo: o Tairen vai deixando os exercícios mais difíceis conforme você evolui.</p>'],
+  cobb: ['Ângulo de Cobb', '<p>A medida da curva da escoliose, em graus, que o médico tira do <b>raio-X</b>. Costuma vir escrita no laudo.</p><p class="small muted">Menos de 10° é considerado normal; acima de 25° é moderada.</p>'],
+  tendencia: ['Tendência prevista', '<p>Quanto seu peso deve mudar por semana <b>se você comer a meta de calorias</b> todo dia.</p><p class="small muted">Sinal de menos = perder peso. É uma estimativa: o peso real varia com água, sal e intestino.</p>'],
+  previsao: ['Previsão de tempo', '<p>Uma estimativa de quanto tempo você levaria em outras distâncias, calculada pelos seus melhores tempos.</p><p class="small muted">Acerta mais pra distâncias parecidas com as que você já correu.</p>'],
+  pace: ['Pace', '<p>Quantos <b>minutos você leva pra correr 1 km</b>. Ex.: pace 6:00 = 6 minutos por km.</p><p class="small muted">Quanto menor o número, mais rápido você está.</p>'],
+  mov: ['Em movimento', '<p>O tempo em que você estava <b>correndo de fato</b>, sem contar as pausas (sinal, semáforo, descanso).</p>'],
+  rpe: ['Esforço percebido', '<p>Uma nota de <b>0 a 10</b> pra o quanto a corrida pareceu difícil pra você.</p><p class="small muted">1–2 leve (dá pra conversar), 5–6 puxado, 9–10 máximo. Ajuda a ver se você está exagerando.</p>'],
+  faixa: ['Faixa de repetições', '<p>O <b>mínimo e o máximo</b> de repetições por série.</p><p>Comece no mínimo. Quando conseguir o máximo em todas as séries, aumente a carga (ou a dificuldade) e volte pro mínimo.</p>'],
+  pow: ['Explosivo', '<p>Cada repetição na <b>maior velocidade e força</b> que você conseguir, com a técnica certa.</p><p>No salto: sobe o mais alto possível, aterrissa macio e só faz o próximo quando estiver pronto.</p><p class="small muted">Não é pra cansar. Se a velocidade cair, a série acabou. Aqui não tem carga: só anote quantas repetições fez.</p>'],
+};
+const gl = (k, label) => `<button class="rirq" type="button" data-act="gloss" data-k="${k}">${label} <b>?</b></button>`;
 const rirTxt = rir => rir ? ` · <button class="rirq" data-act="rirInfo" data-r="${esc(rir)}">pare com ${esc(rir)} reps na reserva <b>?</b></button>` : '';
 // trocar exercício (vale pra rotina toda; o histórico do antigo continua salvo)
 let swapOpen = null;
@@ -1540,7 +1557,7 @@ views.sessao = (idx) => {
     const rows = Array.from({ length: Math.max(it.sets, got.length) }, (_, s) => {
       const v = got[s] || {}, extra = s >= it.sets;
       return `<div class="set ${v.done ? 'done' : ''} ${v.done && +v.reps === 0 ? 'fail' : ''} ${extra ? 'extra' : ''}"><span class="mono">${s + 1}</span>
-        ${e.inc ? `<input data-set="${esc(it.ex)}|${s}|kg" inputmode="decimal" placeholder="${esc(sg.kg ?? (last ? Math.max(...last.sets.map(x => +x.kg || 0)) || 'kg' : 'kg'))}" value="${esc(v.kg ?? '')}" aria-label="Carga série ${s + 1}">` : `<span class="muted small">${e.band ? 'elástico' : e.t === 'power' ? '<button class="rirq" data-act="powInfo">explosivo <b>?</b></button>' : 'peso corporal'}</span>`}
+        ${e.inc ? `<input data-set="${esc(it.ex)}|${s}|kg" inputmode="decimal" placeholder="${esc(sg.kg ?? (last ? Math.max(...last.sets.map(x => +x.kg || 0)) || 'kg' : 'kg'))}" value="${esc(v.kg ?? '')}" aria-label="Carga série ${s + 1}">` : `<span class="muted small">${e.band ? 'elástico' : e.t === 'power' ? gl('pow', 'explosivo') : 'peso corporal'}</span>`}
         <input data-set="${esc(it.ex)}|${s}|reps" inputmode="numeric" placeholder="${repsOf(it)}" value="${esc(v.reps ?? '')}" aria-label="${unit} série ${s + 1}">
         <button class="sdone" data-act="setDone" data-ex="${esc(it.ex)}" data-s="${s}" data-i="${xi}" aria-label="${v.done ? 'Desmarcar' : 'Concluir'} série ${s + 1}">${v.done ? '✓' : '○'}</button>
         <button class="snote ${v.note ? 'has' : ''}" data-act="setNote" data-k="${esc(it.ex)}|${s}" aria-label="Observação da série ${s + 1}">✎</button></div>
@@ -1555,7 +1572,7 @@ views.sessao = (idx) => {
       ${demoBtn(it.ex)}
       ${swapBlock(it, day, { i: xi })}
       <div class="progbox"><small class="cat">Orientação de progressão</small>
-        <p class="small">Faixa: <b>${repsOf(it)} ${unit}</b>. ${e.vars ? `Quando fizer ${it.hi}+ em todas as séries, avance pro próximo nível.` : e.inc ? `Quando fizer ${it.hi} em todas as séries, suba ${fmt(e.inc)} kg e volte pra ${it.lo}.` : e.t === 'power' ? 'Potência: qualidade acima de cansaço.' : `Quando fizer ${it.hi} em todas as séries, aumente a dificuldade.`}</p>
+        <p class="small">${gl('faixa', 'Faixa')}: <b>${repsOf(it)} ${unit}</b>. ${e.vars ? `Quando fizer ${it.hi}+ em todas as séries, avance pro próximo nível.` : e.inc ? `Quando fizer ${it.hi} em todas as séries, suba ${fmt(e.inc)} kg e volte pra ${it.lo}.` : e.t === 'power' ? 'Potência: qualidade acima de cansaço.' : `Quando fizer ${it.hi} em todas as séries, aumente a dificuldade.`}</p>
         <p class="small sug">${esc(sg.text)}</p>${lv}${stagBox(it, day, plan)}</div>
       <div class="realized"><small class="cat">Realizado</small>${last ? `<small class="muted">Última vez (${last.date.split('-').reverse().slice(0, 2).join('/')}): ${esc(setsTxt(last.sets))}</small>` : ''}
         <div class="sethead"><span>#</span><span>${e.inc ? 'kg' : ''}</span><span>${unit}</span><span></span></div>${rows}
@@ -2186,7 +2203,7 @@ function runCards() {
 
   <!--§evo-->${Object.keys(bests).length ? `<div class="card" id="g-pr"><h3>Recordes</h3><table class="tbl small">${G.EFFORTS.filter(L => bests[L]).map(L => `<tr><td>${esc(G.EFF_N[L])}</td><td class="mono"><b>${hms(bests[L].s)}</b></td><td class="mono">${paceTxt(bests[L].s / L * 1000)}/km</td><td><a href="#corrida-${esc(bests[L].id)}">${esc(fmtDay(bests[L].date))}</a></td></tr>`).join('')}
     ${(() => { const lg = list.reduce((a, r) => +r.km > (+a?.km || 0) ? r : a, null); return lg ? `<tr><td>Mais longa</td><td class="mono"><b>${kmTxt(+lg.km, 1)} km</b></td><td></td><td><a href="#corrida-${esc(lg.id)}">${esc(fmtDay(lg.date))}</a></td></tr>` : ''; })()}</table>
-    ${pred ? `<p class="small"><b>Previsão</b> pelos seus ${esc(G.EFF_N[pred.src])} (${hms(pred.s)}): ${pred.out.map(([L, x]) => `${esc(G.EFF_N[L])} ~${hms(x)}`).join(' · ')}</p><p class="small muted">Estimativa (fórmula de Riegel): acerta mais pra distâncias perto da que você já correu.</p>` : ''}</div>` : ''}
+    ${pred ? `<p class="small"><b>${gl('previsao', 'Previsão')}</b> pelos seus ${esc(G.EFF_N[pred.src])} (${hms(pred.s)}): ${pred.out.map(([L, x]) => `${esc(G.EFF_N[L])} ~${hms(x)}`).join(' · ')}</p><p class="small muted">Estimativa (fórmula de Riegel): acerta mais pra distâncias perto da que você já correu.</p>` : ''}</div>` : ''}
 
   <!--§reg--><details class="card" id="g-shoes" ${shoeList().length ? 'open' : ''}><summary><h3>Tênis</h3></summary>
     ${shoeList().length ? `<ul class="list shoes">${shoeList().map(x => { const k = shoeKm(x.id); return `<li class="${x.off ? 'off' : ''}"><div class="grow"><b>${esc(x.n)}</b>${o.shoe === x.id ? ' <span class="chip">padrão</span>' : ''}<small class="mono">${kmTxt(k, 0)} km${k >= 600 && !x.off ? ' · já rodou bastante: fabricantes costumam indicar troca entre 500 e 800 km' : ''}</small>
@@ -2217,11 +2234,11 @@ views.corrida = id => {
   return `<section class="head"><a class="linkbtn" href="#esporte-corrida">‹ Corrida</a><h1>${esc(runName(r))}</h1><div class="chip">${esc(fmtDay(r.date))}${+r.start ? ' · ' + new Date(+r.start).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : ''}</div></section>
   ${typeof r.nt === 'string' && r.nt.trim() ? `<p class="pad rnote">${esc(r.nt.slice(0, 500))}</p>` : ''}
   ${c.length > 1 ? `<div class="card gmap-card"><div id="cmap" class="gmap"></div>${+r.gkm > 0 ? `<p class="small muted">Tracejado: ${kmTxt(+r.gkm, 2)} km sem sinal, contados em linha reta.</p>` : ''}</div>` : ''}
-  <div class="card"><div class="g-grid g3"><div><small>Distância</small><b>${kmTxt(+r.km, 2)}<i>km</i></b></div><div><small>Pace médio</small><b>${paceTxt(sec / r.km)}<i>/km</i></b></div><div><small>${tot ? 'Em movimento' : 'Tempo'}</small><b class="mono">${hms(sec)}</b></div>
+  <div class="card"><div class="g-grid g3"><div><small>Distância</small><b>${kmTxt(+r.km, 2)}<i>km</i></b></div><div><small>${gl('pace', 'Pace médio')}</small><b>${paceTxt(sec / r.km)}<i>/km</i></b></div><div><small>${tot ? gl('mov', 'Em movimento') : 'Tempo'}</small><b class="mono">${hms(sec)}</b></div>
     ${tot ? `<div><small>Tempo total</small><b class="mono">${hms(tot)}</b></div>` : ''}${mx ? `<div><small>Pace mais rápido</small><b>${paceTxt(mx)}<i>/km</i></b></div>` : ''}
     <div><small>Velocidade</small><b>${(r.km / sec * 3600).toFixed(1).replace('.', ',')}<i>km/h</i></b></div>${mx ? `<div><small>Vel. máxima</small><b>${(3600 / mx).toFixed(1).replace('.', ',')}<i>km/h</i></b></div>` : ''}
     ${+r.up > 0 ? `<div><small>Subida</small><b>${Math.round(r.up)}<i>m</i></b></div>` : ''}<div><small>Gasto</small><b>~${Math.round(+r.kcal || 0)}<i>kcal</i></b></div>
-    ${rpe ? `<div><small>Esforço</small><b>${rpe}<i>/10</i></b></div>` : ''}${sh ? `<div><small>Tênis</small><b class="small">${esc(sh.n)}</b></div>` : ''}</div>
+    ${rpe ? `<div><small>${gl('rpe', 'Esforço')}</small><b>${rpe}<i>/10</i></b></div>` : ''}${sh ? `<div><small>Tênis</small><b class="small">${esc(sh.n)}</b></div>` : ''}</div>
     ${sim ? `<p class="small">Comparada com ${esc(fmtDay(sim.date))} (${kmTxt(+sim.km, 1)} km): <b>${Math.abs(diff) < 2 ? 'mesmo pace' : `${Math.round(Math.abs(diff))} s/km ${diff < 0 ? 'mais rápido' : 'mais lento'}`}</b>.</p>` : ''}
     <button class="linkbtn small" data-act="gpsEdit" data-id="${esc(r.id)}">${GV.edit === r.id ? 'Fechar edição' : '✎ Nome, notas, esforço e tênis'}</button>
     ${GV.edit === r.id ? `<form id="runEdit" class="form mt" data-id="${esc(r.id)}"><label>Nome<input name="nm" maxlength="60" value="${esc(typeof r.nm === 'string' ? r.nm : '')}" placeholder="${esc(runName({ start: r.start }))}"></label>
@@ -3242,7 +3259,7 @@ document.addEventListener('click', async e => {
   if (a === 'clearOk') { S.ui = { ...(S.ui || {}), clearOk: true }; save(true); render(); toast('Combinado. Qualquer sintoma estranho, pare e procure seu médico.'); }
   if (a === 'figMode') { S.ui = { ...(S.ui || {}), figStd: !S.ui?.figStd }; save(); render(); }
   if (a === 'rirInfo') { const r = el.dataset.r || '2', ns = (r.match(/\d+/g) || ['2']).map(Number), ex = [...new Set([12 - Math.max(...ns), 12 - Math.min(...ns)])].join(' ou '); return infoBox('Reps na reserva', `<p>São as repetições que você <b>ainda conseguiria fazer</b> quando para a série.</p><p><b>Pare com ${esc(r)} na reserva</b> = termine a série quando sentir que ainda daria pra fazer mais ${esc(r)}, com a postura certa.</p><p class="small muted">Exemplo: se você aguentaria 12, pare na ${ex}. Assim você treina forte, sem se esgotar nem perder a forma. Com o tempo você aprende a sentir isso.</p>`); }
-  if (a === 'powInfo') return infoBox('Explosivo', '<p>Cada repetição na <b>maior velocidade e força</b> que você conseguir, com a técnica certa.</p><p>No salto: sobe o mais alto possível, aterrissa macio e só faz o próximo quando estiver pronto.</p><p class="small muted">Não é pra cansar. Se a velocidade cair, a série acabou. Aqui não tem carga: só anote quantas repetições fez.</p>');
+  if (a === 'gloss') { e.preventDefault(); const g = GLOSS[el.dataset.k]; if (g) infoBox(g[0], g[1]); return; }
   if (a === 'swapOpen') { swapOpen = swapOpen === el.dataset.k ? null : el.dataset.k; render(); return; }
   if (a === 'exSkip') {
     if (!draft) return; const ex = el.dataset.ex, i = +el.dataset.i;
