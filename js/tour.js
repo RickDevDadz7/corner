@@ -47,24 +47,36 @@ function show(dir = 1) {
     if (s.s && !el) { const n = st.i + dir; if (n < 0 || n >= st.steps.length) return endTour(); st.i = n; return show(dir); } // parte que essa pessoa não tem: pula
     st.el = el;
     if (el && el.tagName === 'DETAILS') el.open = false;
-    if (el) { const r = el.getBoundingClientRect(), fixed = getComputedStyle(el.closest('#nav,#topbar') || el).position === 'fixed' || !!el.closest('#nav,#topbar'); if (!fixed) window.scrollTo(0, Math.max(0, r.top + window.scrollY - (r.height > innerHeight * 0.5 ? 70 : innerHeight * 0.22))); }
     const c = st.root.querySelector('.tr-card');
     c.querySelector('.tr-n').textContent = `${st.i + 1} de ${st.steps.length}`;
-    c.querySelector('.tr-t').textContent = s.t; c.querySelector('.tr-d').textContent = s.d;
+    // título só quando não há parte destacada (senão repete o nome que já está na tela)
+    const tt = c.querySelector('.tr-t'); tt.textContent = el ? '' : s.t; tt.hidden = !!el; c.querySelector('.tr-d').textContent = s.d;
+    if (el && !inBar(el)) {
+      // rola pra parte ficar logo abaixo do topo, com espaço pra explicação embaixo dela
+      c.style.cssText = 'visibility:hidden;top:0'; const ch = c.offsetHeight, r = el.getBoundingClientRect();
+      const fits = r.height + ch + 30 <= barBottom() - TOP;
+      window.scrollTo(0, Math.max(0, r.top + window.scrollY - (fits ? TOP + 14 : 70)));
+    }
     c.querySelector('[data-tr=back]').hidden = st.i === 0;
     c.querySelector('[data-tr=next]').textContent = st.i === st.steps.length - 1 ? 'Concluir' : 'Próximo';
     place(); c.querySelector('[data-tr=next]').focus({ preventScroll: true });
   }));
 }
+const TOP = 64;
+const barBottom = () => { const n = document.querySelector('#nav'); return n ? n.getBoundingClientRect().top - 8 : innerHeight - 8; };
+const inBar = el => !!el.closest('#nav,#topbar');
 function place() {
   if (!st) return;
   const h = st.root.querySelector('.tr-hole'), c = st.root.querySelector('.tr-card');
   st.root.classList.toggle('dim', !st.el);
-  if (!st.el) { h.style.cssText = 'display:none'; c.className = 'tr-card mid'; return; }
+  if (!st.el) { h.style.cssText = 'display:none'; c.style.cssText = ''; c.className = 'tr-card mid'; return; }
   const r = st.el.getBoundingClientRect(), p = 6, top = Math.max(4, r.top - p), bot = Math.min(innerHeight - 4, r.bottom + p);
   h.style.cssText = `display:block;left:${Math.max(4, r.left - p)}px;top:${top}px;width:${Math.min(innerWidth - 8, r.width + 2 * p)}px;height:${Math.max(20, bot - top)}px`;
-  // parte alta (maior que meia tela): explicação embaixo, pra não tapar o começo dela
-  c.className = 'tr-card ' + (r.height > innerHeight * 0.45 ? 'down' : (r.top + r.bottom) / 2 > innerHeight * 0.5 ? 'up' : 'down');
+  // explicação colada na parte, do lado que tiver espaço: embaixo, senão em cima; sem espaço (parte enorme), no rodapé
+  c.className = 'tr-card'; c.style.cssText = 'visibility:hidden;top:0';
+  const ch = c.offsetHeight, below = bot + 10, above = top - 10 - ch, lim = barBottom();
+  const y = below + ch <= lim ? below : above >= TOP ? above : lim - ch;
+  c.style.cssText = `top:${Math.round(y)}px`;
 }
 export function endTour() { try { localStorage.setItem('ronin:tour', 'done'); } catch (e) { } stopTour(); }
 export function stopTour() {
