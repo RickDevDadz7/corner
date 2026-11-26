@@ -124,8 +124,10 @@ export function draw(J, { gloves = true, hi = [], trail = null, trail2 = null, b
   // (corpo montado em figParts)
   let pBack = '', pFront = '';
   // selo fixo no canto (ex.: posição da mão)
+  // o selo ganha uma faixa própria em cima do desenho (assim nunca cobre cabeça nem mãos)
   let badge = '';
-  for (const it of props || []) if (it && it.k === 'badge') badge += badgeSVG(it, -ox, -oy);
+  const BH = (props || []).some(it => it && it.k === 'badge') ? 46 : 0;
+  for (const it of props || []) if (it && it.k === 'badge') badge += badgeSVG(it, -ox, -oy - BH);
   if (props) for (const it of propSVG(props)) { if (it.layer === 'back' || (it.layer !== 'front' && it.z > zMid + 0.02)) pBack += it.svg; else pFront += it.svg; }
   const { back, gBack, torso, frontLegs, trunks, head, front, gFront, shadow } = F1;
   return composeSVG();
@@ -157,11 +159,11 @@ export function draw(J, { gloves = true, hi = [], trail = null, trail2 = null, b
   if (F2 && partner.ord) {
     const part = (F, k) => k === 'b' ? F.back + F.gBack : k === 't' ? F.torso : k === 'l' ? F.frontLegs + F.trunks : k === 'n' ? F.frontLegs : k === 's' ? F.trunks : k === 'h' ? F.head : k === 'f' ? F.front + F.gFront : '';
     const lay = partner.ord.split(/\s+/).map(x => x[0] === 'p' ? `<g class="p2">${part(F2, x[1])}</g>` : part(F1, x[1])).join('');
-    return `<svg viewBox="${-ox} ${-oy} 230 200" class="fig" role="img" aria-hidden="true">
+    return `<svg viewBox="${-ox} ${-oy - BH} 230 ${200 + BH}" class="fig" role="img" aria-hidden="true">
     ${TILT ? '' : `<line x1="${6 - ox - 120}" y1="${GY}" x2="${224 - ox + 120}" y2="${GY}" class="gr"/>`}${shadow}${hl}
     ${pBack}${lay}${pFront}${tg}${fx}${badge}</svg>`;
   }
-  return `<svg viewBox="${-ox} ${-oy} 230 200" class="fig" role="img" aria-hidden="true">
+  return `<svg viewBox="${-ox} ${-oy - BH} 230 ${200 + BH}" class="fig" role="img" aria-hidden="true">
     ${TILT ? '' : `<line x1="${6 - ox - 120}" y1="${GY}" x2="${224 - ox + 120}" y2="${GY}" class="gr"/>`}${shadow}${hl}
     ${pBack}${pf ? '' : p2}${me}${pf ? p2 : ''}${pFront}${tg}${fx}${badge}</svg>`;
   }
