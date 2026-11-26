@@ -1081,7 +1081,7 @@ function restrSummary(r) {
 // saúde e corpo: dado sensível (LGPD), só salva com consentimento
 function healthBox(p) {
   const cs = condsOf(p), bd = bodyOf(p), on = cs.length || bd.length;
-  return `<details class="tfine hbox" id="hbox" ${on ? 'open' : ''}><summary>Saúde e corpo <small>${on ? esc([...cs.map(k => CONDITIONS[k].n.split(' (')[0].split(' /')[0]), ...bd.map(k => BODY[k])].slice(0, 3).join(', ')) + (cs.length + bd.length > 3 ? '…' : '') : 'condições, adaptações'}</small></summary>
+  return `<details class="tfine hbox" id="hbox"><summary>Saúde e corpo <small>${on ? esc([...cs.map(k => CONDITIONS[k].n.split(' (')[0].split(' /')[0]), ...bd.map(k => BODY[k])].slice(0, 3).join(', ')) + (cs.length + bd.length > 3 ? '…' : '') : 'condições, adaptações'}</small></summary>
     <small class="muted">Marque o que vale pra você: o Tairen adapta treino e dieta. Restrições ligadas (ex.: celíaca → sem glúten) são marcadas sozinhas e dá pra desmarcar.</small>
     ${Object.entries(COND_GROUPS).map(([g, gn]) => `<fieldset class="equip"><legend>${esc(gn)}</legend>${Object.entries(CONDITIONS).filter(([, c]) => c.g === g).map(([k, c]) => `<label class="check"><input type="checkbox" name="cond" value="${k}" ${cs.includes(k) ? 'checked' : ''}><span>${esc(c.n)}</span></label>`).join('')}</fieldset>`).join('')}
     <p class="spinelnk" ${cs.some(k => SPINE_CONDS.includes(k)) ? '' : 'hidden'}><button type="button" class="btn small block" data-act="spineGo">${spineEmpty(spineOf(p)) ? 'Desenhar' : 'Ajustar'} minha coluna →</button><small class="muted">Salva o perfil e abre o desenho editável das vértebras.</small></p>
@@ -2935,6 +2935,8 @@ function render() {
   if (route === 'login') { try { history.replaceState(null, '', location.pathname + '#hoje'); } catch (e) { } route = 'hoje'; }
   if (!S.profile) { $('#nav').hidden = true; $('#topbar').hidden = true; app.innerHTML = views.onboarding(); bindAfter('onboarding'); return; }
   $('#nav').hidden = false; $('#topbar').hidden = false;
+  // saiu do Perfil: as seções voltam fechadas na próxima vez
+  if (route !== 'perfil' && Array.isArray(S.ui?.psOpen) && S.ui.psOpen.length) S.ui.psOpen = [];
   if (!isPro() && (ROUTE_GATE[route] || (route === 'tecnica' && !techFree(TECHNIQUES.find(x => x.id === arg))))) { arg = ROUTE_GATE[route] || 'tecnica'; route = 'planos'; }
   const v = views[route] ? route : 'hoje';
   app.innerHTML = views[v](arg);
