@@ -20,7 +20,7 @@ export const MOB = {
   polichinelo: M('Polichinelo', 'aq', ['geral'], 'pe', 45, { warm: true, how: ['Pés juntos, braços ao lado do corpo.', 'Salta abrindo pernas e braços, salta de novo fechando.', 'Ritmo leve: é pra aquecer, não pra cansar.'], err: ['Aterrissar com o calcanhar travado.', 'Começar rápido demais.'], care: 'Joelho ou tornozelo reclamando: troque pela marcha.' }),
   marcha: M('Elevação de joelhos (marcha)', 'aq', ['quadril', 'geral'], 'pe', 40, { warm: true, how: ['Em pé, sobe um joelho até a altura do quadril.', 'Alterna as pernas num ritmo constante, braços acompanhando.', 'Tronco alto, sem jogar o corpo pra trás.'], err: ['Curvar as costas pra subir mais o joelho.'] }),
   pulinhos: M('Pulinhos (ou corda)', 'aq', ['panturrilha', 'tornozelo', 'geral'], 'pe', 45, { warm: true, sp: ['boxe', 'muaythai', 'karate', 'mma', 'corrida'], how: ['Saltos baixos na ponta dos pés, joelho levemente dobrado.', 'Com corda, mesmo ritmo.', 'Respire solto.'], err: ['Saltar alto demais.', 'Cair com o calcanhar.'] }),
-  bracosgiro: M('Rotação de ombros (círculos de braço)', 'aq', ['ombro'], 'pe', 30, { how: ['Braços abertos na altura dos ombros.', 'Círculos pequenos que vão crescendo; depois inverte o sentido.', 'Movimento controlado, sem balançar o tronco.'], err: ['Encolher os ombros perto da orelha.'] }),
+  bracosgiro: M('Rotação de ombros (círculos de braço)', 'aq', ['ombro'], 'pe', 30, { how: ['Braços esticados ao lado do corpo.', 'Círculos grandes, de baixo até em cima, sem pressa; depois inverte o sentido.', 'Movimento controlado, sem balançar o tronco.'], err: ['Encolher os ombros perto da orelha.'] }),
   abraco: M('Abre e fecha os braços', 'aq', ['peito', 'ombro'], 'pe', 30, { how: ['Braços na altura do peito.', 'Abre bem pra trás e fecha cruzando na frente, alternando qual braço passa por cima.', 'Ritmo constante.'], err: ['Arquear a lombar ao abrir.'] }),
   quadrilgiro: M('Rotação de quadril', 'aq', ['quadril', 'lombar'], 'pe', 30, { how: ['Mãos na cintura, pés na largura do quadril.', 'Desenha círculos grandes com o quadril; depois inverte.', 'Joelhos soltos.'], err: ['Mexer só o tronco.'] }),
   balancofrente: M('Balanço de perna (frente e trás)', 'aq', ['quadril', 'posterior'], 'pe', 25, { side: true, lvl: 2, sp: [...KICK, 'corrida'], how: ['Mão apoiada na parede, de lado pra ela.', 'Balança a perna de fora pra frente e pra trás, aumentando aos poucos.', 'Tronco parado, perna de apoio levemente dobrada.'], err: ['Começar já no máximo.', 'Arquear a lombar quando a perna vai pra trás.'] }),
@@ -113,15 +113,17 @@ export function holdOf(id, moment, level = 'intermediario') {
 export const itemSec = (id, moment, level) => holdOf(id, moment, level) * (MOB[id].side ? 2 : 1);
 
 // monta a rotina: { items: [{id, sec}], sec, moment, sport, region }
+// parecidos demais pra entrar na mesma rotina (na tela parecem o mesmo exercício)
+const FAM = { bracosgiro: 'braco', abraco: 'braco' };
 export function buildRoutine({ moment = 'antes', sport = 'geral', region = '', min = 10, level = 'intermediario', regs = null, seed = 1, favs = [] } = {}) {
   const want = region ? [region] : regs?.length ? regs : SPORT_REG[sport] || [];
-  const maxLvl = level === 'iniciante' ? 1 : level === 'avancado' ? 3 : 2, r = rnd(seed), used = new Set(), out = [];
+  const maxLvl = level === 'iniciante' ? 1 : level === 'avancado' ? 3 : 2, r = rnd(seed), used = new Set(), fams = new Set(), out = [];
   const budgetAll = min * 60; let carry = 0;
   for (const [cats, frac, o = {}] of PLAN[moment] || PLAN.antes) {
     let budget = budgetAll * frac + carry;
     const pool = MOB_IDS.filter(id => {
       const m = MOB[id];
-      if (!cats.includes(m.cat) || used.has(id) || m.lvl > maxLvl) return false;
+      if (!cats.includes(m.cat) || used.has(id) || m.lvl > maxLvl || (FAM[id] && fams.has(FAM[id]))) return false;
       if (o.only && !o.only.includes(id)) return false;
       if (o.warm && !m.warm) return false;
       if (o.notWarm && m.warm) return false;
@@ -140,7 +142,8 @@ export function buildRoutine({ moment = 'antes', sport = 'geral', region = '', m
       const sec = itemSec(id, moment, level);
       if (budget <= 10 || (o.warm && block.length >= 2)) break;
       if (sec > budget + 20 && block.length) continue;
-      block.push({ id, sec }); used.add(id); budget -= sec + TRANS;
+      if (FAM[id] && fams.has(FAM[id])) continue;
+      block.push({ id, sec }); used.add(id); if (FAM[id]) fams.add(FAM[id]); budget -= sec + TRANS;
     }
     // menos troca de posição: em pé → parede → chão (aquecimento geral fica no começo)
     const spec = id => +!!MOB[id].sp?.includes(sport) && MOB[id].sp.length < 5; // o mais específico da modalidade fecha o aquecimento

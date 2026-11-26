@@ -1540,7 +1540,7 @@ views.sessao = (idx) => {
     const rows = Array.from({ length: Math.max(it.sets, got.length) }, (_, s) => {
       const v = got[s] || {}, extra = s >= it.sets;
       return `<div class="set ${v.done ? 'done' : ''} ${v.done && +v.reps === 0 ? 'fail' : ''} ${extra ? 'extra' : ''}"><span class="mono">${s + 1}</span>
-        ${e.inc ? `<input data-set="${esc(it.ex)}|${s}|kg" inputmode="decimal" placeholder="${esc(sg.kg ?? (last ? Math.max(...last.sets.map(x => +x.kg || 0)) || 'kg' : 'kg'))}" value="${esc(v.kg ?? '')}" aria-label="Carga série ${s + 1}">` : `<span class="muted small">${e.band ? 'elástico' : e.t === 'power' ? 'explosivo' : 'peso corporal'}</span>`}
+        ${e.inc ? `<input data-set="${esc(it.ex)}|${s}|kg" inputmode="decimal" placeholder="${esc(sg.kg ?? (last ? Math.max(...last.sets.map(x => +x.kg || 0)) || 'kg' : 'kg'))}" value="${esc(v.kg ?? '')}" aria-label="Carga série ${s + 1}">` : `<span class="muted small">${e.band ? 'elástico' : e.t === 'power' ? '<button class="rirq" data-act="powInfo">explosivo <b>?</b></button>' : 'peso corporal'}</span>`}
         <input data-set="${esc(it.ex)}|${s}|reps" inputmode="numeric" placeholder="${repsOf(it)}" value="${esc(v.reps ?? '')}" aria-label="${unit} série ${s + 1}">
         <button class="sdone" data-act="setDone" data-ex="${esc(it.ex)}" data-s="${s}" data-i="${xi}" aria-label="${v.done ? 'Desmarcar' : 'Concluir'} série ${s + 1}">${v.done ? '✓' : '○'}</button>
         <button class="snote ${v.note ? 'has' : ''}" data-act="setNote" data-k="${esc(it.ex)}|${s}" aria-label="Observação da série ${s + 1}">✎</button></div>
@@ -3242,6 +3242,7 @@ document.addEventListener('click', async e => {
   if (a === 'clearOk') { S.ui = { ...(S.ui || {}), clearOk: true }; save(true); render(); toast('Combinado. Qualquer sintoma estranho, pare e procure seu médico.'); }
   if (a === 'figMode') { S.ui = { ...(S.ui || {}), figStd: !S.ui?.figStd }; save(); render(); }
   if (a === 'rirInfo') { const r = el.dataset.r || '2', ns = (r.match(/\d+/g) || ['2']).map(Number), ex = [...new Set([12 - Math.max(...ns), 12 - Math.min(...ns)])].join(' ou '); return infoBox('Reps na reserva', `<p>São as repetições que você <b>ainda conseguiria fazer</b> quando para a série.</p><p><b>Pare com ${esc(r)} na reserva</b> = termine a série quando sentir que ainda daria pra fazer mais ${esc(r)}, com a postura certa.</p><p class="small muted">Exemplo: se você aguentaria 12, pare na ${ex}. Assim você treina forte, sem se esgotar nem perder a forma. Com o tempo você aprende a sentir isso.</p>`); }
+  if (a === 'powInfo') return infoBox('Explosivo', '<p>Cada repetição na <b>maior velocidade e força</b> que você conseguir, com a técnica certa.</p><p>No salto: sobe o mais alto possível, aterrissa macio e só faz o próximo quando estiver pronto.</p><p class="small muted">Não é pra cansar. Se a velocidade cair, a série acabou. Aqui não tem carga: só anote quantas repetições fez.</p>');
   if (a === 'swapOpen') { swapOpen = swapOpen === el.dataset.k ? null : el.dataset.k; render(); return; }
   if (a === 'exSkip') {
     if (!draft) return; const ex = el.dataset.ex, i = +el.dataset.i;

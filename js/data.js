@@ -353,7 +353,7 @@ export const EQUIP = {
 // inc = incremento de carga (kg); vars = progressões de calistenia (fácil → difícil); r = faixa de reps própria
 export const EXERCISES = {
   // Potência
-  jump:     { n: 'Salto vertical / na caixa', m: {}, t: 'power', req: [], cue: 'Máxima intenção. Aterrisse macio. O soco nasce no chão.' },
+  jump:     { n: 'Salto vertical / na caixa', m: {}, t: 'power', req: [], cue: 'Pule o mais alto que puder. Aterrisse macio, com os joelhos alinhados com os pés.' },
   mbr:      { n: 'Arremesso rotacional de medicine ball', m: { core: 1 }, t: 'power', req: ['medball'], u: '/lado', cue: 'Gire o quadril antes dos ombros, como num cruzado.' },
   shadowx:  { n: 'Sombra explosiva: cruzados máximos', m: { core: 0.5 }, t: 'power', req: [], u: '/lado', cue: 'Pé gira, quadril leva. 100% de velocidade, descanse entre séries.' },
   mbc:      { n: 'Arremesso de peito com medicine ball', m: {}, t: 'power', req: ['medball'], cue: 'Explosivo, como um direto com os dois braços.' },
@@ -362,7 +362,7 @@ export const EXERCISES = {
   sq:    { n: 'Agachamento livre com barra', m: { quad: 1, glut: 0.5 }, t: 'comp', req: ['gym'], inc: 5, cue: 'Base firme, tronco travado.' },
   rdl:   { n: 'Levantamento terra romeno', m: { post: 1, glut: 1 }, t: 'comp', req: ['gym'], inc: 5, cue: 'Quadril pra trás, coluna neutra.' },
   lp:    { n: 'Leg press', m: { quad: 1, glut: 0.5 }, t: 'comp', req: ['gym'], inc: 10, cue: 'Amplitude completa sem tirar a lombar do banco.' },
-  ht:    { n: 'Hip thrust', m: { glut: 1, post: 0.5 }, t: 'comp', req: ['gym'], inc: 5, cue: 'Extensão de quadril: o motor do soco de trás.' },
+  ht:    { n: 'Hip thrust', m: { glut: 1, post: 0.5 }, t: 'comp', req: ['gym'], inc: 5, cue: 'Costas no banco, empurre o quadril pra cima e aperte o glúteo no topo.' },
   lc:    { n: 'Mesa flexora', m: { post: 1 }, t: 'iso', req: ['gym'], inc: 2.5, cue: 'Controle a descida.' },
   calf:  { n: 'Panturrilha em pé (máquina)', m: { pant: 1 }, t: 'iso', req: ['gym'], inc: 5, cue: 'Pausa embaixo.' },
   bp:    { n: 'Supino reto', m: { peito: 1, triceps: 0.5, ombros: 0.5 }, t: 'comp', req: ['gym'], inc: 2.5, cue: 'Escápulas travadas, pés firmes.' },
@@ -385,7 +385,7 @@ export const EXERCISES = {
   farm:  { n: 'Caminhada do fazendeiro', m: { core: 1 }, t: 'core', req: ['halteres'], u: 'm', r: [20, 30], cue: 'Pegada e tronco.' },
   // Elástico
   pal:      { n: 'Pallof press', m: { core: 1 }, t: 'core', req: ['elastico'], u: '/lado', cue: 'Anti-rotação: tronco que não gira quando toma o golpe.' },
-  fp:       { n: 'Face pull com elástico', m: { ombros: 1, costas: 0.5 }, t: 'iso', req: ['elastico'], r: [12, 20], cue: 'Ombro posterior: equilibra o volume de socos.' },
+  fp:       { n: 'Face pull com elástico', m: { ombros: 1, costas: 0.5 }, t: 'iso', req: ['elastico'], r: [12, 20], cue: 'Puxe o elástico na altura do rosto, abrindo os cotovelos. Bom pra postura do ombro.' },
   er:       { n: 'Rotação externa com elástico', m: {}, t: 'prehab', req: ['elastico'], r: [15, 20], cue: 'Manguito rotador: seguro do ombro do lutador.' },
   bandrow:  { n: 'Remada com elástico', m: { costas: 1, biceps: 0.5 }, t: 'comp', req: ['elastico'], r: [10, 20], band: true, cue: 'Prenda na porta. Pausa de 1 s atrás.' },
   bandpd:   { n: 'Puxada alta com elástico', m: { costas: 1, biceps: 0.5 }, t: 'comp', req: ['elastico'], r: [10, 20], band: true, cue: 'Elástico no alto da porta, puxe até o peito.' },
