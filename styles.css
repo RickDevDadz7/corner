@@ -1046,3 +1046,14 @@ body.coachv #app>#chat{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-beh
 .chatbar .micbtn{flex:none;padding:0 12px;min-width:46px;min-height:44px;display:grid;place-items:center}
 .chatbar .micbtn.on{background:var(--acc);color:#fff;border-color:var(--acc);animation:micp 1s ease-in-out infinite}
 @keyframes micp{50%{box-shadow:0 0 0 6px rgba(195,19,27,.25)}}
+/* planos e cadeados */
+.tech.locked .tech-thumb{opacity:.4}.tech.locked b::after,.chipbtn.locked::after{content:" 🔒";font-size:.85em}
+.lockmsg{display:flex;flex-direction:column;gap:2px;border-color:var(--acc)}
+.plany{margin:4px 0}.plany small{font-size:11px;opacity:.8}
+.plans{display:flex;flex-direction:column;gap:14px}
+.plan{position:relative}.plan h3{margin:0}
+.plan.top{border-color:var(--acc);box-shadow:5px 5px 0 var(--acc)}
+.plan .ptag{position:absolute;top:-12px;right:14px;background:var(--acc);color:#fff;font:800 11px var(--font);letter-spacing:.08em;text-transform:uppercase;padding:4px 8px}
+.pprice{margin:4px 0 8px;display:flex;align-items:baseline;gap:6px;flex-wrap:wrap}.pprice b{font-size:26px}.pprice small{color:var(--muted)}
+.pl{margin:0 0 12px;padding-left:18px;display:flex;flex-direction:column;gap:5px;font-size:14px}.pl li.no{color:var(--muted)}
+.plan.free{opacity:.9}

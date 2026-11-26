@@ -228,6 +228,43 @@ function tierLine() {
   if (TIER.tier === 'premium') return 'Premium';
   return `${TIER.left} de 3 perguntas este mês`;
 }
+// ---------- Travas Free / Pro / Premium ----------
+// Desligadas até a cobrança da Play Store existir (os testadores não perdem nada). Pra ver como fica: localStorage 'ronin:paywall' = '1'.
+const PAYWALL = (() => { try { return localStorage.getItem('ronin:paywall') === '1'; } catch (e) { return false; } })();
+function tierNow() { if (!PAYWALL) return 'premium'; return cloud.user() && TIER ? TIER.tier : 'free'; }
+const isPro = () => tierNow() !== 'free';
+const FEAT = {
+  cardapio: 'Cardápio do dia e lista de compras', rotina: 'Montar e editar a sua rotina', evo: 'Evolução de cada exercício',
+  tecnica: 'Todas as técnicas e guardas', gpsmode: 'Modos de corrida: distância, tempo, ritmo, intervalado e tiros',
+  share: 'Imagem pra compartilhar a corrida', objetivos: 'Objetivos da luta com drills', mob: 'Mobilidade completa: flexibilidade, descanso e rotinas salvas',
+};
+const ROUTE_GATE = { cardapio: 'cardapio', rotina: 'rotina', rotinas: 'rotina', evo: 'evo' };
+// no Free: as 2 primeiras técnicas de cada categoria
+function techFree(t) { if (!t) return true; const same = TECHNIQUES.filter(x => x.cat === t.cat && x.sport.some(sp => t.sport.includes(sp))); return same.indexOf(t) < 2; }
+const lockTo = feat => { location.hash = '#planos-' + feat; };
+const PRICES = { pro: { m: 19.9, y: 149.9 }, premium: { m: 24.9, y: 179.9 } };
+const brl = v => v.toFixed(2).replace('.', ',');
+function planosView(feat) {
+  const y = !!S.ui.planY, f = FEAT[feat];
+  const per = k => y ? `<b>R$ ${brl(PRICES[k].y)}</b><small>/ano · R$ ${brl(PRICES[k].y / 12)}/mês</small>` : `<b>R$ ${brl(PRICES[k].m)}</b><small>/mês</small>`;
+  const save = k => Math.round((1 - PRICES[k].y / (PRICES[k].m * 12)) * 100);
+  const cur = tierNow(), trial = TIER?.trial;
+  return `<section class="head"><a href="#" class="back" data-act="goBack">←</a><h1>Planos</h1></section>
+  ${f ? `<div class="card lockmsg"><b>🔒 ${esc(f)}</b><span class="small">faz parte do Pro e do Premium.</span></div>` : ''}
+  ${cloud.user() && TIER ? `<p class="small muted pad">Seu plano agora: <b>${trial ? `Teste Premium · ${trialDays()} ${trialDays() === 1 ? 'dia' : 'dias'}` : cur === 'premium' ? 'Premium' : cur === 'pro' ? 'Pro' : 'Free'}</b></p>` : ''}
+  <div class="segs plany"><button class="${!y ? 'on' : ''}" data-act="planY" data-v="0">Mensal</button><button class="${y ? 'on' : ''}" data-act="planY" data-v="1">Anual <small>até −${save('premium')}%</small></button></div>
+  <div class="plans">
+    <div class="card plan top"><span class="ptag">Recomendado</span><h3>Premium</h3><p class="pprice">${per('premium')}</p>
+      <ul class="pl"><li><b>Tudo do Pro</b></li><li><b>Tairen IA</b>: tira dúvida de treino, luta e dieta com quem conhece o seu plano</li></ul>
+      <button class="btn primary block" data-act="subscribe" data-p="premium">Assinar Premium</button></div>
+    <div class="card plan"><h3>Pro</h3><p class="pprice">${per('pro')}</p>
+      <ul class="pl">${Object.values(FEAT).map(x => `<li>${esc(x)}</li>`).join('')}<li class="no">Tairen IA: 3 perguntas por mês</li></ul>
+      <button class="btn block" data-act="subscribe" data-p="pro">Assinar Pro</button></div>
+    <div class="card plan free"><h3>Free</h3><p class="pprice"><b>R$ 0</b></p>
+      <ul class="pl"><li>Treino de força automático</li><li>Comida, água e peso</li><li>Cronômetro de rounds e GPS livre</li><li>Técnicas básicas e Ciência</li><li>Tairen IA: 3 perguntas por mês</li></ul></div>
+  </div>
+  <p class="small muted center pad">Lesões, saúde, restrições e alergias são sempre grátis. Cancele quando quiser pela Play Store.</p>`;
+}
 function paintTier() { const el = $('#tierLine'); if (el) el.textContent = tierLine(); }
 
 // ---------------- Sincronização ----------------
@@ -2174,7 +2211,7 @@ function runCards() {
   const bests = runBests(), pred = runPredict(), last = list.slice(0, 5);
   const inp = (n, v, ph) => `<input data-gin="${n}" inputmode="decimal" value="${esc(v)}" placeholder="${ph}">`;
   return `<div class="card panel" id="g-start"><small class="cat">GPS</small><h3>Corrida com GPS</h3>
-    <div class="chips gmodes">${Object.entries(GMODES).map(([k, n]) => `<button class="chipbtn ${o.mode === k ? 'on' : ''}" data-act="gpsMode" data-v="${k}">${n}</button>`).join('')}</div>
+    <div class="chips gmodes">${Object.entries(GMODES).map(([k, n]) => `<button class="chipbtn ${o.mode === k ? 'on' : ''} ${!isPro() && k !== 'livre' ? 'locked' : ''}" data-act="gpsMode" data-v="${k}">${n}</button>`).join('')}</div>
     <p class="small muted">${esc(GMODE_TIP[o.mode])}</p>
     <div class="grid2 form">${o.mode === 'dist' || o.mode === 'ritmo' ? `<label>Distância (km)${inp('km', String(o.km).replace('.', ','), '5')}</label>` : ''}
       ${o.mode === 'ritmo' ? `<label>Ritmo-alvo (min/km)${inp('pace', paceTxt(o.pace), '5:30')}</label>` : ''}
@@ -2642,7 +2679,7 @@ views.tecnicas = () => {
   ${mySports().filter(s => TECHNIQUES.some(t => t.sport.includes(s))).length > 1 ? `<div class="chips tabs">${mySports().filter(s => TECHNIQUES.some(t => t.sport.includes(s))).map(s => `<button class="chipbtn ${s === id ? 'on' : ''}" data-act="sport" data-id="${s}"><b class="mk">${SPORTS[s].mark}</b> ${esc(SPORTS[s].n)}</button>`).join('')}</div>` : ''}
   <div class="segs">${['', ...cats].map(c => `<button class="${c === techCat ? 'on' : ''}" data-act="techCat" data-c="${esc(c)}">${c ? esc(c) : 'Todas'} <small>${c ? list.filter(t => t.cat === c).length : list.length}</small></button>`).join('')}</div>
   ${(techCat ? [techCat] : cats).map(c => `<small class="cat pad">${esc(c)}</small>
-    <div class="techgrid">${shown.filter(t => t.cat === c).map(t => `<a class="tech" href="#tecnica-${t.id}"><span class="tech-thumb">${thumbImg(t)}</span><b>${esc(t.n)}</b></a>`).join('')}</div>`).join('')}
+    <div class="techgrid">${shown.filter(t => t.cat === c).map(t => `<a class="tech ${isPro() || techFree(t) ? '' : 'locked'}" href="#tecnica-${t.id}"><span class="tech-thumb">${thumbImg(t)}</span><b>${esc(t.n)}</b></a>`).join('')}</div>`).join('')}
   ${!list.length ? '<div class="card"><p class="small muted">Ainda não temos técnicas animadas pra esse esporte.</p></div>' : ''}
   ${SPORTS[id].legend ? numTable(id) : ''}`;
 };
@@ -2663,6 +2700,7 @@ views.tecnica = (tid) => {
 };
 
 // ---------------- Ciência ----------------
+views.planos = planosView;
 let evCat = '';
 views.ciencia = () => {
   const cats = [...new Set(EVIDENCE.map(e => e.cat))];
@@ -2861,6 +2899,7 @@ views.perfil = () => `<section class="head"><h1>Perfil e ajustes</h1></section>
     <div class="segs small" id="themeSeg">${[['auto', 'Automático'], ['light', 'Claro'], ['dark', 'Escuro']].map(([v, n]) => `<button class="${(window.roninTheme?.get() || 'auto') === v ? 'on' : ''}" data-act="themeSet" data-v="${v}">${n}</button>`).join('')}</div></div>
   ${views.onboarding().replace('<section class="head"><h1>Perfil</h1></section>', '')}
   <div class="card row between"><h3>Tutorial</h3><button class="btn small" data-act="tour">Ver o tutorial</button></div>
+  ${PAYWALL ? `<div class="card row between"><div><h3>Seu plano</h3><small class="muted">${esc(tierLine())}</small></div><a class="btn small" href="#planos">Ver planos</a></div>` : ''}
   <div class="card"><h3>Seus dados</h3>
     <div class="row gap wrap"><button class="btn small" data-act="export">Exportar backup</button><label class="btn small ghost">Restaurar<input type="file" accept="application/json" id="importFile" hidden></label><button class="btn small danger" data-act="reset">Apagar tudo</button></div>
   </div>
@@ -2884,6 +2923,7 @@ function render() {
   if (route === 'login') { try { history.replaceState(null, '', location.pathname + '#hoje'); } catch (e) { } route = 'hoje'; }
   if (!S.profile) { $('#nav').hidden = true; $('#topbar').hidden = true; app.innerHTML = views.onboarding(); bindAfter('onboarding'); return; }
   $('#nav').hidden = false; $('#topbar').hidden = false;
+  if (!isPro() && (ROUTE_GATE[route] || (route === 'tecnica' && !techFree(TECHNIQUES.find(x => x.id === arg))))) { arg = ROUTE_GATE[route] || 'tecnica'; route = 'planos'; }
   const v = views[route] ? route : 'hoje';
   app.innerHTML = views[v](arg);
   // um esporte só: a aba leva o nome dele (luva pras lutas com luva, faixa pro jiu-jitsu, tênis pra corrida); mais de um: "Esporte" com troféu
@@ -3152,6 +3192,12 @@ function setAmount(id, amt) {
 document.addEventListener('click', async e => {
   const el = e.target.closest('[data-act]'); if (!el) return;
   const a = el.dataset.act;
+  if (!isPro()) {
+    const g = a === 'gpsMode' && el.dataset.v !== 'livre' ? 'gpsmode' : a === 'gpsShare' ? 'share' : a === 'mobSave' || (a === 'mobOpt' && el.dataset.k === 'moment' && ['flex', 'descanso'].includes(el.dataset.v)) ? 'mob' : a === 'weak' && !S.weak.includes(el.dataset.id) ? 'objetivos' : null;
+    if (g) { e.preventDefault(); lockTo(g); return; }
+  }
+  if (a === 'planY') { S.ui.planY = el.dataset.v === '1'; save(true); render(); return; }
+  if (a === 'subscribe') { toast('A assinatura abre na versão da Play Store.'); return; }
   if (a === 'theme') { const dark = window.roninTheme?.isDark(); window.roninTheme?.set(dark ? 'light' : 'dark'); toast(dark ? 'Modo claro' : 'Modo escuro'); if (location.hash === '#perfil') render(); return; }
   if (a === 'themeSet') { window.roninTheme?.set(el.dataset.v); render(); return; }
   if (a === 'water') addWater(+el.dataset.v);
