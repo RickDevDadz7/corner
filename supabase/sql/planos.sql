@@ -55,3 +55,5 @@ $$;
 -- Ninguém de fora chama essas funções: só a chave secreta do servidor.
 revoke all on function public.tairen_take(uuid, int, int) from public, anon, authenticated;
 revoke all on function public.tairen_give(uuid) from public, anon, authenticated;
+grant execute on function public.tairen_take(uuid, int, int) to service_role;
+grant execute on function public.tairen_give(uuid) to service_role;
