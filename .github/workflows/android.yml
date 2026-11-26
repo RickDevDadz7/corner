@@ -18,8 +18,13 @@ jobs:
         with: { node-version: '22', cache: npm }
       - run: npm ci
       - run: npm run android:sync
+      - name: Chave do app (segredo TAIREN_KS_B64)
+        env: { KS: "${{ secrets.TAIREN_KS_B64 }}" }
+        run: |
+          if [ -n "$KS" ]; then echo "$KS" | base64 -d > "$RUNNER_TEMP/tairen.jks"; echo "TAIREN_KS=$RUNNER_TEMP/tairen.jks" >> "$GITHUB_ENV"; else echo "Sem chave fixa: usando a de teste"; fi
       - name: Montar APK de teste
         working-directory: android
+        env: { TAIREN_KS_PASS: "${{ secrets.TAIREN_KS_PASS }}" }
         run: chmod +x gradlew && ./gradlew assembleDebug --no-daemon
       - uses: actions/upload-artifact@v4
         with:

@@ -16,10 +16,26 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    // chave fixa do TAIREN (vem dos segredos do GitHub): o Google reconhece o app sempre pela mesma assinatura
+    def ks = System.getenv("TAIREN_KS")
+    signingConfigs {
+        tairen {
+            if (ks) {
+                storeFile file(ks)
+                storePassword System.getenv("TAIREN_KS_PASS")
+                keyAlias "tairen"
+                keyPassword System.getenv("TAIREN_KS_PASS")
+            }
+        }
+    }
     buildTypes {
+        debug {
+            if (ks) signingConfig signingConfigs.tairen
+        }
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            if (ks) signingConfig signingConfigs.tairen
         }
     }
 }

@@ -2892,14 +2892,15 @@ views.login = () => `<div class="gate">
   ${GATE.recovery && cloud.user() ? accountCard() : authBlock()}
   <button class="linkbtn gate-skip" data-act="skipLogin">Continuar sem conta</button>
   </div>`;
+let cloudLoading = false;
 async function afterLogin() {
   const u = cloud.user();
   // outra conta? os dados deste aparelho são da conta anterior: descarta antes de juntar
   if (u && S.meta.owner && S.meta.owner !== u.id) { wipeLocal(); toast('Dados da conta anterior removidos deste aparelho.'); }
   if (u) { S.meta.owner = u.id; try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { } }
-  GATE.msg = null; GATE.confirm = false; GATE.busy = true; render();
+  GATE.msg = null; GATE.confirm = false; GATE.busy = true; cloudLoading = true; render();
   await doSync(true);
-  GATE.busy = false;
+  GATE.busy = false; cloudLoading = false;
 
   try { history.replaceState(null, '', location.pathname + (S.profile ? '#hoje' : '#perfil')); } catch (e) { }
   rendered = ''; go(); window.scrollTo(0, 0);
@@ -2931,8 +2932,11 @@ function render() {
   const app = $('#app');
   // Tela inicial: sem conta conectada, o app sempre abre no login (a menos que a pessoa escolha usar sem conta)
   const needLogin = cloud.available() && ((!cloud.user() && (!skipLogin.get() || route === 'login')) || (GATE.recovery && cloud.user()));
+  document.body.classList.toggle('loginv', !!needLogin || (cloudLoading && !S.profile));
   if (needLogin) { $('#nav').hidden = true; $('#topbar').hidden = true; app.innerHTML = views.login(); bindAfter('login'); return; }
   if (route === 'login') { try { history.replaceState(null, '', location.pathname + '#hoje'); } catch (e) { } route = 'hoje'; }
+  // logado mas os dados ainda estão vindo da nuvem: espera em vez de mostrar o cadastro por um instante
+  if (!S.profile && cloudLoading) { $('#nav').hidden = true; $('#topbar').hidden = true; app.innerHTML = `<div class="cloudwait"><span class="gbadge big">鍛</span><p class="muted">Carregando seus dados…</p></div>`; return; }
   if (!S.profile) { $('#nav').hidden = true; $('#topbar').hidden = true; app.innerHTML = views.onboarding(); bindAfter('onboarding'); return; }
   $('#nav').hidden = false; $('#topbar').hidden = false;
   // saiu do Perfil: as seções voltam fechadas na próxima vez
@@ -3477,7 +3481,14 @@ document.addEventListener('click', async e => {
   if (a === 'ask') askCoach(el.dataset.q);
   if (a === 'evCat') { evCat = el.dataset.c; render(); return; }
   if (a === 'clearChat') { S.chat = []; save(); render(); }
-  if (a === 'google') { el.disabled = true; el.lastChild.textContent = 'Abrindo o Google…'; save(); cloud.signInWithGoogle(); }
+  if (a === 'google') {
+    const reset = () => { if (el.isConnected) { el.disabled = false; el.lastChild.textContent = 'Continuar com Google'; } };
+    el.disabled = true; el.lastChild.textContent = 'Abrindo o Google…'; save();
+    const safety = setTimeout(reset, 15000); // nunca fica preso em "Abrindo o Google…"
+    try { const r = await cloud.signInWithGoogle(); clearTimeout(safety); if (r?.native) return afterLogin(); if (r?.browser) reset(); }
+    catch (err) { clearTimeout(safety); reset(); const m = /cancel/i.test(String(err?.message || err)) ? '' : (err?.message || 'Não deu pra entrar com o Google. Tenta com e-mail e senha.'); if (m) { GATE.msg = { ok: false, html: esc(m) }; render(); } }
+    return;
+  }
   if (a === 'gateTab') { const f = $('#authForm'); if (f) GATE.email = f.email.value; GATE.tab = el.dataset.t; GATE.msg = null; render(); }
   if (a === 'showPass') { const i = el.previousElementSibling; i.type = i.type === 'password' ? 'text' : 'password'; el.classList.toggle('on', i.type === 'text'); }
   if (a === 'resend') { try { await cloud.resend($('#authForm').email.value); toast('E-mail de confirmação reenviado.'); } catch (err) { toast(err.message); } }
@@ -3563,7 +3574,7 @@ let pendingLogin = false;
   // tutorial: aparece uma vez pra quem já tem perfil e ainda não viu (pode rever no Perfil)
   if (S.profile && !tourSeen() && /^#?(hoje)?$/.test(location.hash) && !$('#nav').hidden) setTimeout(() => { if (!touring() && !$('#nav').hidden && S.profile) startTour(tourGo); }, 900);
   if (cloud.user()) {
-    if (pendingLogin) afterLogin(); else doSync(true).then(() => { if (!S.profile) render(); });
+    if (pendingLogin) afterLogin(); else { if (!S.profile) { cloudLoading = true; render(); } doSync(true).finally(() => { if (cloudLoading) { cloudLoading = false; render(); } }); }
     setInterval(() => doSync(true), 10 * 60 * 1000);
     document.addEventListener('visibilitychange', () => doSync(true));
   }

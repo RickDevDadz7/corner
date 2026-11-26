@@ -105,11 +105,24 @@
   function googleURL() {
     return URL_ + '/auth/v1/authorize?provider=google&redirect_to=' + encodeURIComponent(redirectTo());
   }
-  function signInWithGoogle() {
-    // no app, o Google não deixa logar dentro do próprio app: abre o navegador do celular e volta pelo APP_BACK
-    const B = NATIVE && globalThis.Capacitor?.Plugins?.Browser;
-    if (B) return B.open({ url: googleURL() });
+  // ID do cliente "Web" do Google (público; é o mesmo configurado no Supabase → Providers → Google)
+  const GOOGLE_WEB_ID = '';
+  async function signInWithGoogle() {
+    const P = NATIVE ? globalThis.Capacitor?.Plugins : null;
+    // app Android: janelinha nativa de contas do Google por cima do app; o Supabase troca o token do Google por uma sessão
+    if (P?.SocialLogin && GOOGLE_WEB_ID) {
+      await P.SocialLogin.initialize({ google: { webClientId: GOOGLE_WEB_ID, mode: 'online' } });
+      const res = await P.SocialLogin.login({ provider: 'google', options: { scopes: ['email', 'profile'], style: 'bottom' } });
+      const idToken = res?.result?.idToken;
+      if (!idToken) throw new Error('O Google não devolveu o login. Tenta de novo.');
+      const r = await call('/auth/v1/token?grant_type=id_token', { method: 'POST', body: { provider: 'google', id_token: idToken } });
+      const s = fromTokens(r); if (!s) throw new Error('Não deu pra entrar com o Google.'); s.provider = 'google'; saveSession(s);
+      return { native: true };
+    }
+    // reserva: navegador do celular voltando pelo APP_BACK
+    if (P?.Browser) { await P.Browser.open({ url: googleURL() }); return { browser: true }; }
     location.href = googleURL();
+    return null;
   }
   /** Links do e-mail (confirmação, nova senha) voltam com os tokens no endereço (#access_token=…). */
   function handleRedirect() {
