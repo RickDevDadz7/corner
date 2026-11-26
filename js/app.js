@@ -201,9 +201,34 @@ function save(prefs = false) {
   if (cloud.user()) { clearTimeout(syncTimer); syncTimer = setTimeout(() => doSync(true), 5000); }
 }
 // modo de teste (chave própria do dono do app, até o servidor do Tairen ficar pronto): localStorage 'ronin:dev' = '1'
-const devMode = () => { try { return localStorage.getItem('ronin:dev') === '1'; } catch (e) { return false; } };
-function getKey() { try { return localStorage.getItem(KEY_API) || localStorage.getItem(OLD_API) || ''; } catch (e) { return ''; } }
-function setKey(v) { try { localStorage.removeItem(OLD_API); v ? localStorage.setItem(KEY_API, v) : localStorage.removeItem(KEY_API); } catch (e) { } }
+// Chave de IA no aparelho não existe mais (o Tairen fala pelo nosso servidor): apaga a que tiver sobrado
+try { localStorage.removeItem(KEY_API); localStorage.removeItem(OLD_API); } catch (e) { }
+
+// ---------------- Plano (Free / Pro / Premium) ----------------
+// Quem decide é o servidor; aqui fica só uma cópia pra mostrar na tela (não vale como permissão)
+const TIER_K = 'ronin:tier', FN_URL = cloud.URL + '/functions/v1/tairen';
+let TIER = (() => { try { const t = JSON.parse(localStorage.getItem(TIER_K) || 'null'); return t && typeof t.tier === 'string' ? t : null; } catch (e) { return null; } })();
+function setTier(t) {
+  TIER = t && ['free', 'pro', 'premium'].includes(t.tier) ? { tier: t.tier, plan: String(t.plan || 'free'), trial: !!t.trial, trial_until: typeof t.trial_until === 'string' ? t.trial_until : null, left: Math.max(0, +t.left || 0), per: t.per === 'day' ? 'day' : 'month', at: Date.now() } : null;
+  try { TIER ? localStorage.setItem(TIER_K, JSON.stringify(TIER)) : localStorage.removeItem(TIER_K); } catch (e) { }
+}
+async function fnCall(body) {
+  const tok = await cloud.token(); if (!tok) throw Object.assign(new Error('signed_out'), { code: 'signed_out' });
+  return fetch(FN_URL, { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + tok, apikey: cloud.PUB }, body: JSON.stringify(body) });
+}
+async function tierRefresh() {
+  if (!cloud.user()) { setTier(null); return; }
+  try { const r = await fnCall({ op: 'status' }); if (r.ok) { setTier(await r.json()); if (location.hash.startsWith('#coach')) paintTier(); } } catch (e) { /* sem internet: fica a cópia */ }
+}
+function trialDays() { return TIER?.trial && TIER.trial_until ? Math.max(1, Math.ceil((Date.parse(TIER.trial_until) - Date.now()) / 864e5)) : 0; }
+function tierLine() {
+  if (!cloud.user()) return 'Entre na sua conta pra conversar';
+  if (!TIER) return 'Seu treinador virtual (IA)';
+  if (TIER.trial) return `Teste Premium · ${trialDays()} ${trialDays() === 1 ? 'dia' : 'dias'}`;
+  if (TIER.tier === 'premium') return 'Premium';
+  return `${TIER.left} de 3 perguntas este mês`;
+}
+function paintTier() { const el = $('#tierLine'); if (el) el.textContent = tierLine(); }
 
 // ---------------- Sincronização ----------------
 let syncState = { busy: false, err: '' };
@@ -213,6 +238,7 @@ async function doSync(quiet = false) {
   try {
     const info = await sync.syncNow(() => S, ns => { S = ns; try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { } });
     syncState.err = '';
+    if (!TIER || Date.now() - TIER.at > 3600e3) tierRefresh();
     if (cloud.user() && S.meta.owner !== cloud.user().id) { S.meta.owner = cloud.user().id; try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { } }
     if (info.changed && !isTyping()) render();
     if (!quiet) toast(info.devices > 1 ? `Sincronizado com ${info.devices - 1} outro(s) aparelho(s)` : 'Sincronizado');
@@ -2607,9 +2633,7 @@ views.ciencia = () => {
 function coachContext() {
   const p = S.profile, t = T(), plan = activePlan(), sp = sportsOf(p);
   const weakAll = allWeak();
-  return `Você é o Tairen, o treinador do app TAIREN: um treinador veterano de academia, durão mas que se importa, especialista em esportes de combate, corrida, força e nutrição esportiva. Fala português do Brasil, de forma direta, informal e inteligente, sem enrolar. Se perguntarem, você é um treinador virtual com inteligência artificial (não diga qual empresa ou modelo).
-REGRAS: Baseie-se em evidência científica. Use as cartas de evidência abaixo como base principal e cite-as pelo título e autor/ano. Se algo não estiver bem estabelecido na literatura, diga que a evidência é limitada. Nunca invente estudos. Não faça diagnósticos médicos; para dor persistente, sintomas após pancada na cabeça, condições de saúde ou cortes de peso agressivos, recomende um profissional. Respostas curtas e práticas (leitura no celular).
-PERFIL: ${p.sex === 'f' ? 'mulher' : 'homem'}, ${p.age} anos, ${p.height} cm, ${latestWeight()} kg${p.bf ? `, ${p.bf}% gordura` : ''}. Objetivo: ${GOALS[p.goal]}. Experiência: ${p.experience}.${activeRestr().length ? ` RESTRIÇÕES (não sugerir nada com isso): ${(() => { const r = restrOfProfile(); return [r.perm.length ? 'para sempre: ' + r.perm.map(k => RESTR[k].n).join(', ') : '', tempOn(r) ? 'temporárias' + (r.until ? ` até ${r.until}` : '') + ': ' + r.temp.map(k => RESTR[k].n).join(', ') : ''].filter(Boolean).join('; '); })()}.` : ''}
+  return `PERFIL: ${p.sex === 'f' ? 'mulher' : 'homem'}, ${p.age} anos, ${p.height} cm, ${latestWeight()} kg${p.bf ? `, ${p.bf}% gordura` : ''}. Objetivo: ${GOALS[p.goal]}. Experiência: ${p.experience}.${activeRestr().length ? ` RESTRIÇÕES (não sugerir nada com isso): ${(() => { const r = restrOfProfile(); return [r.perm.length ? 'para sempre: ' + r.perm.map(k => RESTR[k].n).join(', ') : '', tempOn(r) ? 'temporárias' + (r.until ? ` até ${r.until}` : '') + ': ' + r.temp.map(k => RESTR[k].n).join(', ') : ''].filter(Boolean).join('; '); })()}.` : ''}
 ESPORTES: ${Object.entries(sp).map(([id, s]) => `${SPORTS[id]?.n} ${s.days}x/semana, ${s.min} min, ${typesOf(id, s).map(k => SPORTS[id]?.types[k]?.n).join(' + ')}, ${s.where}`).join('; ') || 'nenhum'}.
 ${sp.corrida || runLog().length ? `CORRIDA (registros): km por semana, da mais recente: ${[0, 1, 2, 3].map(b => kmTxt(weekKm(b), 1)).join(', ')}. Últimas: ${runLog().slice(0, 3).map(r => `${r.date} ${kmTxt(+r.km, 1)} km em ${hms(runSec(r))} (${paceTxt(runSec(r) / r.km)}/km)`).join('; ') || 'nenhuma'}. Recordes: ${Object.entries(runBests()).map(([L, b]) => `${G.EFF_N[L]} ${hms(b.s)}`).join(', ') || 'nenhum'}.
 ` : ''}SEMANA: ${(() => { const w = weekOf(p); return w.explicit ? w.days.map((l, i) => `${WEEKDAYS[i]}: ${l.length ? l.map(x => (x.a === 'forca' ? 'força' : SPORTS[x.a]?.n) + (x.h ? ' ' + x.h : '')).join(', ') : 'descanso'}`).join('; ') : 'dias não marcados'; })()}. HORÁRIOS DE COSTUME (dos registros): ${(() => { const h = habits(S.logs, today()); const l = Object.entries(h.meals).map(([k, m]) => `${MEALS.find(x => x.id === k)?.n || k} ${hm(m)}`); if (h.lift != null) l.push('força ' + hm(h.lift)); return l.join(', ') || 'ainda sem dados'; })()}.
@@ -2632,8 +2656,8 @@ function offlineAnswer(q) {
   return { text: 'Olha o que a ciência diz sobre isso:', cards: scored.map(([e]) => e.id) };
 }
 views.coach = () => {
-  const hasKey = !!getKey();
-  return `<section class="tai-head"><img class="tai-face" src="img/tairen/smile.webp" alt="" width="84" height="84"><div><h1>Tairen</h1><p class="small">Seu treinador virtual (IA)</p></div>${S.chat.length ? '<button class="btn ghost small tai-clear" data-act="clearChat">Limpar</button>' : ''}</section>
+  if (cloud.user() && (!TIER || Date.now() - TIER.at > 60000)) setTimeout(tierRefresh, 0);
+  return `<section class="tai-head"><img class="tai-face" src="img/tairen/smile.webp" alt="" width="84" height="84"><div><h1>Tairen</h1><p class="small" id="tierLine">${esc(tierLine())}</p></div>${S.chat.length ? '<button class="btn ghost small tai-clear" data-act="clearChat">Limpar</button>' : ''}</section>
   <div id="chat" class="chat">${S.chat.map(m => msgHTML(m)).join('')}</div>
   <form id="chatForm" class="chatbar"><textarea name="q" rows="1" placeholder="Fale com o Tairen…"></textarea><button class="btn primary" type="submit" aria-label="Enviar">➤</button></form>`;
 };
@@ -2644,26 +2668,43 @@ function msgHTML(m) {
   return `<div class="msg ${m.role}">${av}<div class="mcol"><div class="bubble">${m.pending ? '<span class="dots"><i></i><i></i><i></i></span>' : md(m.text)}</div>${cards}</div></div>`;
 }
 async function askCoach(q) {
-  q = q.trim(); if (!q) return;
+  q = q.trim().slice(0, 1000); if (!q) return;
+  const history = S.chat.filter(m => !m.pending && m.text).slice(-12).map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.text }));
   S.chat.push({ role: 'user', text: q });
-  const key = getKey();
-  if (!key) { S.chat.push({ role: 'bot', ...offlineAnswer(q) }); save(); render(); scrollChat(); return; }
+  const offline = (text) => { S.chat.push({ role: 'bot', text, cards: offlineAnswer(q).cards }); save(); render(); scrollChat(); };
+  if (!cloud.user()) return offline('Pra conversar comigo, entra na sua conta (Perfil). Enquanto isso, o que a ciência diz:');
   const pending = { role: 'bot', text: '', pending: true }; S.chat.push(pending); render(); scrollChat();
+  const done = () => { pending.pending = false; save(); render(); scrollChat(); };
   try {
-    const history = S.chat.filter(m => !m.pending && m.text).slice(-12).map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.text }));
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
-      body: JSON.stringify({ model: S.settings.model || 'claude-sonnet-5-5', max_tokens: 900, system: coachContext(), messages: history })
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data?.error?.message || ('HTTP ' + res.status));
-    pending.text = data.content.map(c => c.text || '').join('').trim();
+    const res = await fnCall({ op: 'chat', q, history, ctx: coachContext() });
+    if (res.status === 429) {
+      const j = await res.json().catch(() => ({}));
+      if (TIER) { TIER.left = 0; setTier(TIER); }
+      pending.text = j.per === 'day' ? 'Por hoje chega de pergunta, campeão. Amanhã eu volto. Enquanto isso, o que a ciência diz:' : 'Suas 3 perguntas do mês acabaram. No Premium eu respondo tudo que você precisar. Por agora, o que a ciência diz:';
+      pending.cards = offlineAnswer(q).cards; return done();
+    }
+    if (res.status === 401) throw Object.assign(new Error('auth'), { code: 'signed_out' });
+    if (!res.ok || !res.body) throw new Error('HTTP ' + res.status);
+    const rd = res.body.getReader(), dec = new TextDecoder(); let buf = '', bad = false, last = 0;
+    for (;;) {
+      const { value, done: end } = await rd.read(); if (end) break;
+      buf += dec.decode(value, { stream: true });
+      let i; while ((i = buf.indexOf('\n\n')) >= 0) {
+        const line = buf.slice(0, i).trim(); buf = buf.slice(i + 2);
+        if (!line.startsWith('data:')) continue;
+        try { const ev = JSON.parse(line.slice(5)); if (typeof ev.t === 'string') pending.text += ev.t; if (ev.err) bad = true; } catch (e) { }
+      }
+      // pinta só a bolha (sem redesenhar a tela toda a cada pedaço)
+      if (pending.text && Date.now() - last > 60) { last = Date.now(); pending.pending = false; const bs = document.querySelectorAll('#chat .msg.bot .bubble'); const el = bs[bs.length - 1]; if (el) { el.innerHTML = md(pending.text); scrollChat(); } else render(); }
+    }
+    if (!pending.text.trim()) throw new Error(bad ? 'ai' : 'vazio');
+    if (TIER && TIER.left > 0) { TIER.left--; setTier(TIER); }
+    pending.text = pending.text.trim(); delete pending.cards;
   } catch (e) {
-    pending.text = 'Fiquei sem conexão agora. Enquanto isso, o que a ciência diz:';
-    Object.assign(pending, { cards: offlineAnswer(q).cards });
+    pending.text = e.code === 'signed_out' ? 'Sua sessão expirou. Entra de novo na conta (Perfil). Enquanto isso, o que a ciência diz:' : 'Fiquei sem conexão agora. Enquanto isso, o que a ciência diz:';
+    pending.cards = offlineAnswer(q).cards;
   }
-  pending.pending = false; save(); render(); scrollChat();
+  done(); setTimeout(tierRefresh, 1500);
 }
 function scrollChat() { requestAnimationFrame(() => { const c = $('#chat'); if (c) c.scrollTop = c.scrollHeight; }); }
 
@@ -2671,8 +2712,8 @@ function scrollChat() { requestAnimationFrame(() => { const c = $('#chat'); if (
 // Apaga tudo deste aparelho (ao sair da conta ou ao entrar com outra conta)
 function wipeLocal() {
   S = blank();
-  try { for (const k of [KEY, OLD_KEY, KEY_API, OLD_API, 'ronin-sync-last']) localStorage.removeItem(k); } catch (e) { }
-  draft = null; viewDay = null; genSession = null; techCat = '';
+  try { for (const k of [KEY, OLD_KEY, KEY_API, OLD_API, TIER_K, 'ronin-sync-last']) localStorage.removeItem(k); } catch (e) { }
+  TIER = null; draft = null; viewDay = null; genSession = null; techCat = '';
   try { if (RUN) runClose(); } catch (e) { }
 }
 const GATE = { tab: 'in', email: '', msg: null, confirm: false, recovery: false, busy: false };
@@ -2737,12 +2778,6 @@ views.perfil = () => `<section class="head"><h1>Perfil e ajustes</h1></section>
     <div class="segs small" id="themeSeg">${[['auto', 'Automático'], ['light', 'Claro'], ['dark', 'Escuro']].map(([v, n]) => `<button class="${(window.roninTheme?.get() || 'auto') === v ? 'on' : ''}" data-act="themeSet" data-v="${v}">${n}</button>`).join('')}</div></div>
   ${views.onboarding().replace('<section class="head"><h1>Perfil</h1></section>', '')}
   <div class="card row between"><h3>Tutorial</h3><button class="btn small" data-act="tour">Ver o tutorial</button></div>
-  ${getKey() || devMode() ? `  <div class="card form"><h3>Coach com IA</h3>
-    <p class="small muted">Chave da API Anthropic (console.anthropic.com). Cobrança por uso, separada da assinatura do Claude. Fica só neste aparelho e fora dos backups e da sincronização.</p>
-    <input id="apiKey" type="password" placeholder="sk-ant-…" value="${getKey() ? '••••••••' : ''}" autocomplete="off">
-    <label>Modelo<input id="apiModel" value="${esc(S.settings.model)}"></label>
-    <div class="row gap"><button class="btn small" data-act="saveKey">Salvar chave</button>${getKey() ? '<button class="btn small ghost" data-act="delKey">Remover</button>' : ''}</div>
-  </div>` : ''}
   <div class="card"><h3>Seus dados</h3>
     <div class="row gap wrap"><button class="btn small" data-act="export">Exportar backup</button><label class="btn small ghost">Restaurar<input type="file" accept="application/json" id="importFile" hidden></label><button class="btn small danger" data-act="reset">Apagar tudo</button></div>
   </div>
@@ -3282,12 +3317,6 @@ document.addEventListener('click', async e => {
   if (a === 'goBack') { if (history.length > 1) history.back(); else location.hash = '#treino'; }
   if (a === 'ask') askCoach(el.dataset.q);
   if (a === 'clearChat') { S.chat = []; save(); render(); }
-  if (a === 'saveKey') {
-    const v = $('#apiKey').value.trim(); S.settings.model = $('#apiModel').value.trim() || 'claude-sonnet-5-5'; save(true);
-    if (v && !v.startsWith('••')) { setKey(v); toast('Chave salva no aparelho'); } else toast('Modelo salvo');
-    render();
-  }
-  if (a === 'delKey') { setKey(''); toast('Chave removida'); render(); }
   if (a === 'google') { el.disabled = true; el.lastChild.textContent = 'Abrindo o Google…'; save(); cloud.signInWithGoogle(); }
   if (a === 'gateTab') { const f = $('#authForm'); if (f) GATE.email = f.email.value; GATE.tab = el.dataset.t; GATE.msg = null; render(); }
   if (a === 'showPass') { const i = el.previousElementSibling; i.type = i.type === 'password' ? 'text' : 'password'; el.classList.toggle('on', i.type === 'text'); }

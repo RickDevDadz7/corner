@@ -121,4 +121,4 @@
   const user = () => { const s = session(); return s && s.user; };
   const available = () => typeof fetch !== 'undefined' && !globalThis.claude;
 
-export const cloud = { URL: URL_, session, user, token, signUp, signIn, signInWithGoogle, googleURL, resend, recover, updatePassword, signOut, handleRedirect, rest, available, _call: call };
+export const cloud = { URL: URL_, PUB: KEY, session, user, token, signUp, signIn, signInWithGoogle, googleURL, resend, recover, updatePassword, signOut, handleRedirect, rest, available, _call: call };
