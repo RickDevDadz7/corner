@@ -3521,6 +3521,18 @@ document.addEventListener('input', e => {
 });
 
 // ---------------- Início ----------------
+// app Android: o login do Google (e links do e-mail) voltam como com.tairen.app://auth#access_token=…
+if (NATIVE) {
+  try {
+    window.Capacitor.Plugins.App?.addListener('appUrlOpen', ({ url }) => {
+      if (!/^com\.tairen\.app:\/\/auth/.test(url || '')) return;
+      try { window.Capacitor.Plugins.Browser?.close(); } catch (e) { }
+      const frag = url.split('#')[1] || '', q = url.split('?')[1]?.split('#')[0] || '';
+      location.replace(location.pathname + (q ? '?' + q : '') + '#' + frag);
+      setTimeout(() => location.reload(), 50);
+    });
+  } catch (e) { }
+}
 let pendingLogin = false;
 (function start() {
   // volta do login (Google / link do e-mail) com tokens no endereço

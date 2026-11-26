@@ -14,7 +14,11 @@
 
   function session() { try { return JSON.parse(ls().getItem(LS) || 'null'); } catch (e) { return null; } }
   function saveSession(s) { try { if (s) ls().setItem(LS, JSON.stringify(s)); else ls().removeItem(LS); } catch (e) { /* */ } }
+  // dentro do app Android o login volta pro próprio app por este endereço (cadastrado no Supabase e no AndroidManifest)
+  const NATIVE = !!globalThis.Capacitor?.isNativePlatform?.();
+  const APP_BACK = 'com.tairen.app://auth';
   const redirectTo = () => {
+    if (NATIVE) return APP_BACK;
     try { if (/^https?:$/.test(location.protocol) && !/localhost|127\.0\.0\.1/.test(location.hostname)) return location.origin + location.pathname; } catch (e) { /* */ }
     return SITE;
   };
@@ -101,7 +105,12 @@
   function googleURL() {
     return URL_ + '/auth/v1/authorize?provider=google&redirect_to=' + encodeURIComponent(redirectTo());
   }
-  function signInWithGoogle() { location.href = googleURL(); }
+  function signInWithGoogle() {
+    // no app, o Google não deixa logar dentro do próprio app: abre o navegador do celular e volta pelo APP_BACK
+    const B = NATIVE && globalThis.Capacitor?.Plugins?.Browser;
+    if (B) return B.open({ url: googleURL() });
+    location.href = googleURL();
+  }
   /** Links do e-mail (confirmação, nova senha) voltam com os tokens no endereço (#access_token=…). */
   function handleRedirect() {
     let h = ''; try { h = location.hash || ''; } catch (e) { return null; }
