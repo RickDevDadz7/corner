@@ -117,7 +117,7 @@ Deno.serve(async (req) => {
     return json({ tier, plan: paid, trial, trial_until: plan.trial_until, left, per: lim.per_day != null ? 'day' : 'month' }, 200, h);
   }
   if (body?.op !== 'chat') return json({ error: 'op' }, 400, h);
-  if (!AI_KEY) return json({ error: 'config' }, 500, h);
+  if (!AI_KEY) { console.error('Falta o secret ANTHROPIC_API_KEY'); return json({ error: 'config' }, 500, h); }
 
   const q = str(body.q, MAX_Q).trim();
   if (!q) return json({ error: 'empty' }, 400, h);
@@ -127,7 +127,7 @@ Deno.serve(async (req) => {
     method: 'POST', headers: { apikey: SECRET, 'content-type': 'application/json' },
     body: JSON.stringify({ uid, per_day: lim.per_day, per_month: lim.per_month }),
   });
-  if (!take.ok) return json({ error: 'db' }, 500, h);
+  if (!take.ok) { console.error('tairen_take falhou', take.status, await take.text().catch(() => '')); return json({ error: 'db' }, 500, h); }
   if ((await take.json()) === -1) return json({ error: 'limit', tier, per: lim.per_day != null ? 'day' : 'month' }, 429, h);
 
   const ai = await fetch(AI_URL, {
@@ -140,6 +140,7 @@ Deno.serve(async (req) => {
     }),
   });
   if (!ai.ok || !ai.body) {
+    console.error('IA falhou', ai.status, (await ai.text().catch(() => '')).slice(0, 500));
     await fetch(`${SB_URL}/rest/v1/rpc/tairen_give`, { method: 'POST', headers: { apikey: SECRET, 'content-type': 'application/json' }, body: JSON.stringify({ uid }) });
     return json({ error: 'ai', status: ai.status }, 502, h);
   }
