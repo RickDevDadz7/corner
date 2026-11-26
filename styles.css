@@ -1059,3 +1059,13 @@ body.coachv #app>#chat{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-beh
 .plan.free{opacity:.9}
 /* faixa sólida embaixo do menu: o conteúdo não aparece passando por baixo dele */
 body:has(#nav:not([hidden]))::after{content:"";position:fixed;left:0;right:0;bottom:0;height:calc(44px + var(--safe-b));background:var(--paper);z-index:29;pointer-events:none}
+/* topo cabe em qualquer celular: logo encolhe, botões nunca saem da tela */
+.topbar{gap:10px}
+.logo{min-width:0;flex:0 1 auto;overflow:hidden;white-space:nowrap}
+.top-actions{flex:none}
+@media (max-width:440px){
+  .logo{font-size:15px;letter-spacing:.04em;gap:7px}
+  .top-actions{gap:6px}
+  .top-actions a,.top-actions button{padding:8px 9px;font-size:12px;gap:5px}
+}
+@media (max-width:380px){.top-actions a span{display:none}.logo{font-size:14px}}

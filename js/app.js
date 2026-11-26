@@ -609,10 +609,20 @@ views.hoje = () => {
   const nextIdx = nextSessionIdx(plan);
   const next = plan.days[nextIdx];
   const hour = new Date().getHours();
-  const greet = hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite';
   const tip = scienceOfDay();
   const todayS = S.logs.sessions.filter(b => b.date === curDay());
   const todayW = S.logs.workouts.filter(x => x.date === curDay());
+  // saudação pela hora de verdade + o que a semana da pessoa tem pra hoje
+  const greet = (() => {
+    if (hour < 5) return 'Madrugada. Dormir também é treino.';
+    const g = hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite';
+    const plan = weekOf(S.profile).days[weekdayOf(today())] || [];
+    if (todayW.length || todayS.length) return `${g} · treino de hoje feito ✓`;
+    if (!plan.length) return `${g} · hoje é descanso`;
+    const x = plan.find(y => y.h && hOk(y.h) && +y.h.slice(0, 2) * 60 + +y.h.slice(3, 5) >= hour * 60 + new Date().getMinutes() - 30) || plan[0];
+    const n = x.a === 'forca' ? 'força' : (SPORTS[x.a]?.n || '').toLowerCase();
+    return `${g} · hoje tem ${n}${x.h && hOk(x.h) ? ` às ${x.h}` : ''}`;
+  })();
   const wl = S.logs.water[curDay()] || [];
   const cs = curSport(), SP = SPORTS[cs], spMin = sportsOf(S.profile)[cs]?.min || 60;
   const items = S.logs.food[curDay()] || [], mealsDone = new Set(items.map(i => i.m || 'extra'));
