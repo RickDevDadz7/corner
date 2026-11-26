@@ -1057,3 +1057,5 @@ body.coachv #app>#chat{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-beh
 .pprice{margin:4px 0 8px;display:flex;align-items:baseline;gap:6px;flex-wrap:wrap}.pprice b{font-size:26px}.pprice small{color:var(--muted)}
 .pl{margin:0 0 12px;padding-left:18px;display:flex;flex-direction:column;gap:5px;font-size:14px}.pl li.no{color:var(--muted)}
 .plan.free{opacity:.9}
+/* faixa sólida embaixo do menu: o conteúdo não aparece passando por baixo dele */
+body:has(#nav:not([hidden]))::after{content:"";position:fixed;left:0;right:0;bottom:0;height:calc(44px + var(--safe-b));background:var(--paper);z-index:29;pointer-events:none}
