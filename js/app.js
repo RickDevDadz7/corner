@@ -2703,16 +2703,40 @@ function offlineAnswer(q) {
 // ditado por voz no Coach: usa o reconhecimento do próprio navegador (sem custo; some onde não existe)
 const SR = (() => { try { return window.SpeechRecognition || window.webkitSpeechRecognition || null; } catch (e) { return null; } })();
 const MIC = '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" fill="currentColor"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
-let rec = null;
+const MIC_STOP = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2" fill="currentColor"/></svg>';
+// nomes que o reconhecimento costuma errar
+const voiceFix = t => t.replace(/\b(ta[iy]\s?-?r[eêé]ne?|tai\s?wren|tyren)\b/gi, 'Tairen').replace(/\s{2,}/g, ' ');
+let rec = null, recOn = false;
+// grava até a pessoa tocar no ■ (pausa na fala não encerra); o texto vai pra caixa e só é enviado no ➤
 function micToggle(ta, btn) {
-  if (rec) { try { rec.stop(); } catch (e) { } return; }
-  const r = new SR(); rec = r;
-  r.lang = 'pt-BR'; r.interimResults = true; r.continuous = false; r.maxAlternatives = 1;
+  if (recOn) { recOn = false; try { rec?.stop(); } catch (e) { } return; }
+  recOn = true;
   const base = ta.value.trim() ? ta.value.trim() + ' ' : '';
-  r.onresult = ev => { let t = ''; for (const res of ev.results) t += res[0].transcript; ta.value = base + t; ta.dispatchEvent(new Event('input')); };
-  r.onerror = ev => { if (ev.error === 'not-allowed' || ev.error === 'service-not-allowed') toast('Libere o microfone pro Tairen nas permissões do navegador'); else if (ev.error === 'no-speech') toast('Não ouvi nada. Tenta de novo.'); else if (ev.error !== 'aborted') toast('Não deu pra usar o microfone agora. O microfone do teclado também funciona.'); };
-  r.onend = () => { rec = null; btn.classList.remove('on'); btn.setAttribute('aria-label', 'Falar'); ta.focus({ preventScroll: true }); };
-  try { r.start(); btn.classList.add('on'); btn.setAttribute('aria-label', 'Parar'); } catch (e) { rec = null; toast('Não deu pra usar o microfone agora.'); }
+  let done = '';
+  const ph = ta.placeholder;
+  const finish = () => { rec = null; recOn = false; btn.classList.remove('on'); btn.innerHTML = MIC; btn.setAttribute('aria-label', 'Falar'); ta.placeholder = ph; ta.value = voiceFix(ta.value.trim()); ta.dispatchEvent(new Event('input')); };
+  const start = () => {
+    const r = new SR(); rec = r;
+    r.lang = 'pt-BR'; r.interimResults = true; r.continuous = true; r.maxAlternatives = 1;
+    let fin = '';
+    r.onresult = ev => {
+      let f = '', mid = '';
+      for (let i = 0; i < ev.results.length; i++) {
+        const t = ev.results[i][0].transcript.trim(); if (!t) continue;
+        if (ev.results[i].isFinal) f = f && t.toLowerCase().startsWith(f.toLowerCase()) ? t : (f ? f + ' ' : '') + t; // alguns Android repetem o trecho anterior
+        else mid = t;
+      }
+      fin = f; ta.value = voiceFix(base + done + f + (mid ? ' ' + mid : '')); ta.dispatchEvent(new Event('input'));
+    };
+    r.onerror = ev => {
+      if (ev.error === 'not-allowed' || ev.error === 'service-not-allowed') { recOn = false; toast('Libere o microfone pro Tairen nas permissões do navegador'); }
+      else if (ev.error === 'network' || ev.error === 'audio-capture') { recOn = false; toast('Não deu pra usar o microfone agora. O microfone do teclado também funciona.'); }
+    };
+    r.onend = () => { if (fin) done += fin + ' '; if (recOn) { try { start(); } catch (e) { finish(); } } else finish(); };
+    r.start();
+  };
+  try { start(); ta.blur(); btn.classList.add('on'); btn.innerHTML = MIC_STOP; btn.setAttribute('aria-label', 'Parar de gravar'); ta.placeholder = 'Ouvindo… toque no ■ pra parar'; }
+  catch (e) { finish(); toast('Não deu pra usar o microfone agora.'); }
 }
 views.coach = () => {
   if (cloud.user() && (!TIER || Date.now() - TIER.at > 60000)) setTimeout(tierRefresh, 0);
@@ -3066,7 +3090,7 @@ function bindAfter(v, arg) {
     f.addEventListener('submit', e => { e.preventDefault(); const q = ta.value; ta.value = ''; askCoach(q); });
     ta.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !('ontouchstart' in window)) { e.preventDefault(); f.requestSubmit(); } });
     const mb = $('#micBtn'); if (mb) mb.addEventListener('click', () => micToggle(ta, mb));
-    f.addEventListener('submit', () => { if (rec) try { rec.abort(); } catch (e) { } }, true);
+    f.addEventListener('submit', () => { if (recOn) { recOn = false; try { rec?.stop(); } catch (e) { } } }, true);
   }
   if (v === 'login') bindAuth();
   if (v === 'perfil') {
