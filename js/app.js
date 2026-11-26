@@ -309,6 +309,7 @@ function cleanStreak() {
 }
 const dayWater = (d = curDay()) => (S.logs.water[d] || []).reduce((a, w) => a + (w.ml || 0), 0);
 function latestWeight() { const ks = Object.keys(S.logs.weights).sort(); return ks.length ? S.logs.weights[ks[ks.length - 1]] : S.profile?.weight; }
+const SC_N = { grip: 'pegada', neck: 'pescoço', adductor: 'adutor', calf: 'panturrilha', pogo: 'saltinhos' };
 const mySports = () => Object.keys(sportsOf(S.profile || {})).filter(id => SPORTS[id]);
 // esporte da aba: o que a pessoa escolheu hoje; senão o esporte marcado pra hoje na semana; senão o último aberto
 function curSport() {
@@ -554,7 +555,7 @@ views.onboarding = () => {
     <label class="check"><input type="checkbox" name="autoVol" ${p.autoVol === false ? '' : 'checked'}><span>Subir o volume sozinho em ciclos (com semana leve)</span></label>`)}
     ${healthBox(p)}
     ${restrBox(restrOfProfile(p))}
-    ${S.profile ? '<p class="small muted pfst" id="pfStatus" aria-live="polite">Mudou, salvou: o plano se ajusta sozinho.</p>' : '<button class="btn primary" type="submit">Montar meu plano</button>'}
+    ${S.profile ? '<p class="small muted pfst" id="pfStatus" aria-live="polite"></p>' : '<button class="btn primary" type="submit">Montar meu plano</button>'}
     <p class="muted small">Não substitui nutricionista ou médico se você tem alguma condição de saúde.</p>
   </form>`;
 };
@@ -1223,7 +1224,7 @@ views.treino = () => {
   </div>
 
   ${compCard(S.profile)}
-  ${r.auto && extras.length ? `<p class="note small">Inclui exercícios específicos pra ${esc(extras.join(' e '))} (pegada, adutor, panturrilha, pescoço…).</p>` : ''}
+  ${r.auto && extras.length ? `<p class="note small">Inclui exercícios específicos pra ${esc(extras.join(' e '))} (${esc([...new Set(mySports().flatMap(id => SPORTS[id].sc.map(x => SC_N[x[0]] || x[0])))].join(', '))}).</p>` : ''}
   ${weekCard(plan)}
   ${volumeCard(plan)}
   ${historyCard()}
@@ -1428,12 +1429,12 @@ views.demo = (ex) => {
   return `<section class="head"><div><button class="backlink linkbtn" data-act="goBack">← Voltar</button><h1>${esc(e.n)}</h1></div></section>
   <div class="card panel techcard">
     <div id="techFig" class="techfig"></div>
-${t.still ? '' : `<div class="segs speed"><button data-act="techPause">❚❚ Pausar</button><button class="on" data-act="techSpeed" data-s="1">Normal</button><button data-act="techSpeed" data-s="2.5">Lento</button><button data-act="techSpeed" data-s="5">Bem lento</button></div>`}
+    <div class="segs speed"><button data-act="techPause">❚❚ Pausar</button><button class="on" data-act="techSpeed" data-s="1">Normal</button><button data-act="techSpeed" data-s="2.5">Lento</button><button data-act="techSpeed" data-s="5">Bem lento</button></div>
     ${ex === 'shadowx' ? '<p class="small muted">Mesmo movimento do cruzado da aba de luta, só que em séries curtas e 100% de velocidade.</p>' : ''}
     ${bodyFig(S.profile) && S.profile.bodyFig !== false ? `<button class="chip figmode" data-act="figMode">${S.ui?.figStd ? 'Ver com o meu corpo' : 'Ver boneco padrão'}</button>` : ''}
     ${bodyLabel(ex, S.profile) ? `<p class="small note">Pra você: ${esc(bodyLabel(ex, S.profile))}. ${esc(bodyCare(ex, S.profile) || 'Mesmo movimento, só do lado que trabalha; troque de lado se tiver os dois.')}</p>` : bodyCare(ex, S.profile) ? `<p class="small note">${esc(bodyCare(ex, S.profile))}</p>` : ''}
   </div>
-  <div class="card"><h3>${t.still ? 'Como é' : 'Passo a passo'}</h3><ol class="steps" id="techSteps">${steps.map((t, i) => `<li data-i="${i}">${esc(t)}</li>`).join('')}</ol>
+  <div class="card"><h3>Passo a passo</h3><ol class="steps" id="techSteps">${steps.map((t, i) => `<li data-i="${i}">${esc(t)}</li>`).join('')}</ol>
     <p class="small"><b>Dica:</b> ${esc(e.cue)}</p></div>
   <div class="card"><h3>O que trabalha</h3>
     <p class="small">${prim.length ? `<b>Principal:</b> ${esc(prim.join(', '))}` : ''}${sec.length ? `<br><b>Ajuda:</b> ${esc(sec.join(', '))}` : ''}${!prim.length && !sec.length ? esc(e.t === 'power' ? 'Potência: corpo inteiro.' : 'Corpo inteiro.') : ''}</p>
@@ -2500,7 +2501,7 @@ views.esporte = arg => {
     </form>
     ${genSession ? `<div class="row between genbar"><b class="small">${genSession.length} ${id === 'corrida' ? 'blocos' : 'rounds'} · ~${Math.round(genSession.reduce((a, x) => a + x.work + x.rest, 0) / 60)} min</b><div class="row gap"><button class="btn small ghost" data-act="genShut">${S.ui.genShut ? 'Mostrar' : 'Recolher'}</button><button class="btn small ghost" data-act="genClear">Apagar</button></div></div>
     ${S.ui.genShut ? '' : `<ol class="rounds">${genSession.map((x, i) => `<li><span class="mono">${id === 'corrida' ? 'B' : 'R'}${i + 1}</span><div><b>${esc(x.t)}</b><small>${esc(x.f)}</small></div><span class="mono small">${x.work / 60 | 0}:${String(x.work % 60).padStart(2, '0')}${x.calls ? ' 🗣' : ''}</span></li>`).join('')}</ol>`}
-      ${id === 'corrida' ? '<button class="btn primary block" data-act="gpsLoad">▶ Correr com GPS</button><button class="btn block" data-act="loadProg">Carregar no timer ↑</button>' : '<button class="btn primary block" data-act="loadProg">Carregar no timer ↑</button>'}` : `<p class="small muted">${SP.combos ? 'Monta os rounds com tema, foco e combinações faladas, usando seus pontos fracos marcados abaixo.' : id === 'corrida' ? 'Monta aquecimento, blocos e volta à calma com o timer marcando cada parte.' : 'Monta os rounds com drills, posições e o foco nos seus pontos fracos.'}</p>`}
+      ${id === 'corrida' ? '<button class="btn primary block" data-act="gpsLoad">▶ Correr com GPS</button><button class="btn block" data-act="loadProg">Carregar no timer ↑</button>' : '<button class="btn primary block" data-act="loadProg">Carregar no timer ↑</button>'}` : `<p class="small muted">${SP.combos ? 'Monta os rounds com tema, foco e combinações faladas, usando os pontos fracos marcados em Objetivos.' : id === 'corrida' ? 'Monta aquecimento, blocos e volta à calma com o timer marcando cada parte.' : 'Monta os rounds com drills, posições e o foco nos seus pontos fracos.'}</p>`}
   </div>
 
   <a class="card link mobl" href="#mobilidade"><b>Mobilidade</b><span class="go">→</span></a>
@@ -2621,12 +2622,15 @@ views.tecnica = (tid) => {
 };
 
 // ---------------- Ciência ----------------
+let evCat = '';
 views.ciencia = () => {
   const cats = [...new Set(EVIDENCE.map(e => e.cat))];
+  if (!cats.includes(evCat)) evCat = '';
   return `<section class="head"><h1>Ciência</h1><div class="chip">${EVIDENCE.length} cartas</div></section>
-  <p class="small muted pad">Cada recomendação do app vem daqui. Nível <b>A</b>: meta-análises / position stands. <b>B</b>: revisões e ensaios com limitações. <b>C</b>: dados observacionais ou de outra população.</p>
+  <p class="small muted pad">Nível <b>A</b>: meta-análises e posições oficiais · <b>B</b>: revisões e ensaios · <b>C</b>: dados observacionais ou de outro público.</p>
   <input id="evSearch" placeholder="Buscar (proteína, sono, chute, corrida…)" autocomplete="off">
-  <div id="evList">${cats.map(c => `<small class="cat pad">${esc(c)}</small>${EVIDENCE.filter(e => e.cat === c).map(e => evCard(e)).join('')}`).join('')}</div>`;
+  <div class="chips evcats"><button class="chipbtn ${!evCat ? 'on' : ''}" data-act="evCat" data-c="">Todas</button>${cats.map(c => `<button class="chipbtn ${c === evCat ? 'on' : ''}" data-act="evCat" data-c="${esc(c)}">${esc(c)}</button>`).join('')}</div>
+  <div id="evList" class="grouped">${(evCat ? [evCat] : cats).map(c => `<small class="cat pad">${esc(c)}</small>${EVIDENCE.filter(e => e.cat === c).map(e => evCard(e)).join('')}`).join('')}</div>`;
 };
 
 // ---------------- Coach ----------------
@@ -2851,7 +2855,7 @@ function bindAfter(v, arg) {
     pf.querySelectorAll('details.psec').forEach(d => d.addEventListener('toggle', () => { if (!S.profile) return; const o = new Set(Array.isArray(S.ui.psOpen) ? S.ui.psOpen : []); d.open ? o.add(d.id.slice(3)) : o.delete(d.id.slice(3)); S.ui.psOpen = [...o].filter(x => /^[a-z]{2,10}$/.test(x)); }));
     bindRestrBox(pf); bindHealthBox(pf);
     // perfil salva sozinho ao mexer (depois do primeiro cadastro); o botão só existe no primeiro cadastro
-    const pst = (m, bad) => { const el = $('#pfStatus'); if (el) { el.textContent = m; el.classList.toggle('warn', !!bad); } };
+    const pst = (m, bad) => { const el = $('#pfStatus'); if (!el) return; clearTimeout(pst.t); el.textContent = m; el.classList.toggle('warn', !!bad); if (!bad && m !== 'Salvando…') pst.t = setTimeout(() => { if (el.isConnected) el.textContent = ''; }, 1800); };
     const profSave = auto => {
       const warn = (m, open) => { if (auto) pst(m, true); else { toast(m); if (open) $(open).open = true; } };
       const fd = new FormData(pf), g = k => fd.get(k);
@@ -2958,6 +2962,8 @@ function bindAfter(v, arg) {
   if (v === 'ciencia') {
     $('#evSearch').addEventListener('input', e => {
       const q = norm(e.target.value);
+      $('#evList').classList.toggle('grouped', !q); $('.evcats')?.classList.toggle('off', !!q);
+      if (!q) { render(); return; }
       $('#evList').innerHTML = EVIDENCE.filter(x => !q || norm(x.title + x.do + x.why + x.tags.join(' ') + x.refs.join(' ') + x.cat).includes(q)).map(x => evCard(x, !!q)).join('') || '<p class="muted small pad">Nada encontrado.</p>';
     });
   }
@@ -3316,6 +3322,7 @@ document.addEventListener('click', async e => {
   if (a === 'techCat') { techCat = el.dataset.c; render(); }
   if (a === 'goBack') { if (history.length > 1) history.back(); else location.hash = '#treino'; }
   if (a === 'ask') askCoach(el.dataset.q);
+  if (a === 'evCat') { evCat = el.dataset.c; render(); return; }
   if (a === 'clearChat') { S.chat = []; save(); render(); }
   if (a === 'google') { el.disabled = true; el.lastChild.textContent = 'Abrindo o Google…'; save(); cloud.signInWithGoogle(); }
   if (a === 'gateTab') { const f = $('#authForm'); if (f) GATE.email = f.email.value; GATE.tab = el.dataset.t; GATE.msg = null; render(); }

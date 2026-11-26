@@ -1024,3 +1024,8 @@ body.coachv #app{height:100dvh;box-sizing:border-box;overflow:hidden}
 body.coachv #app>*{flex:none}
 body.coachv #app>#chat{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding-bottom:6px}
 .tai-clear{margin-left:auto;align-self:center}
+.pfst:empty{display:none}
+/* Ciência: filtro por tema e cartas sem repetir o tema do título da seção */
+.evcats{display:flex;flex-wrap:nowrap;gap:6px;overflow-x:auto;scrollbar-width:none;margin:0 -14px;padding:2px 14px 6px}.evcats .chipbtn{flex:none}.evcats.off{display:none}
+#evList.grouped .ev summary .cat{display:none}
+#evList .ev{padding-top:12px;padding-bottom:12px}
