@@ -611,7 +611,7 @@ views.hoje = () => {
   <div class="card glow" id="h-nutri">
     <div class="row">
       ${ring(f.k, t.kcal, f.k > t.kcal ? '+' + fmt(f.k - t.kcal, 0) : fmt(Math.max(0, t.kcal - f.k), 0), f.k > t.kcal ? 'kcal acima' : 'kcal restantes')}
-      <div class="grow">${macroBar('Proteína', f.p, t.protein, 'var(--acc)')}${macroBar('Carboidrato', f.c, t.carbs, 'var(--cyan)')}${macroBar('Gordura', f.f, t.fat, 'var(--amber)')}</div>
+      <div class="grow">${macroBar('Proteína', f.p, t.protein, 'var(--acc)')}${macroBar('Carboidrato', f.c, t.carbs, 'var(--cyan)')}${macroBar('Gordura', f.f, t.fat, 'var(--amber)')}${macroBar('Fibras', f.fb, t.fiber, 'var(--ink2)')}</div>
     </div>
     <p class="kcalline small"><b class="mono">${fmt(f.k, 0)}</b> de <b class="mono">${fmt(t.kcal, 0)}</b> kcal consumidas</p>
     <div class="mealrow">${mealsFor().map(m => `<a href="#nutri" class="mchip ${mealsDone.has(m.id) ? 'on' : ''}" title="${esc(m.n)}"><span>${m.ico}</span><small>${esc(m.n.split(' ')[0])}</small></a>`).join('')}</div>
