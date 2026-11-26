@@ -1,10 +1,12 @@
 # Monta o app Android (APK de teste) toda vez que o app muda.
-# O APK aparece em Actions → execução mais recente → Artifacts → "tairen-apk".
+# Link fixo pra baixar no celular: https://github.com/RickDevDadz7/corner/releases/download/apk-teste/tairen-teste.apk
 name: Android
 on:
   push:
     branches: [main]
   workflow_dispatch:
+permissions:
+  contents: write
 jobs:
   apk:
     runs-on: ubuntu-latest
@@ -24,3 +26,9 @@ jobs:
           name: tairen-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
           retention-days: 14
+      - name: Publicar no link fixo de teste
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          cp android/app/build/outputs/apk/debug/app-debug.apk tairen-teste.apk
+          gh release view apk-teste >/dev/null 2>&1 || gh release create apk-teste --prerelease --title "TAIREN — APK de teste" --notes "Versão de teste, atualizada sozinha a cada mudança no app."
+          gh release upload apk-teste tairen-teste.apk --clobber
