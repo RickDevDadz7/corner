@@ -2684,7 +2684,7 @@ ${sp.corrida || runLog().length ? `CORRIDA (registros): km por semana, da mais r
 ` : ''}SEMANA: ${(() => { const w = weekOf(p); return w.explicit ? w.days.map((l, i) => `${WEEKDAYS[i]}: ${l.length ? l.map(x => (x.a === 'forca' ? 'força' : SPORTS[x.a]?.n) + (x.h ? ' ' + x.h : '')).join(', ') : 'descanso'}`).join('; ') : 'dias não marcados'; })()}. HORÁRIOS DE COSTUME (dos registros): ${(() => { const h = habits(S.logs, today()); const l = Object.entries(h.meals).map(([k, m]) => `${MEALS.find(x => x.id === k)?.n || k} ${hm(m)}`); if (h.lift != null) l.push('força ' + hm(h.lift)); return l.join(', ') || 'ainda sem dados'; })()}.
 FORÇA: ${p.liftDays}x/semana (${p.env === 'casa' ? 'em casa; equipamento: ' + ((p.equip || []).map(k => EQUIP[k]).join(', ') || 'só peso corporal/calistenia') : 'academia'}). ${Math.round(+p.liftMin) || 45} min/sessão. Objetivo do treino: ${TGOALS[tgoalOf(p)].n}.${injuriesOf(p).length ? ' Poupar: ' + injuriesOf(p).map(k => INJURIES[k].n).join(', ') + '.' : ''}${focusOf(p).length ? ' Prioridade: ' + focusOf(p).map(m => MUSCLES[m]).join(', ') + '.' : ''}${condsOf(p).length ? ' Condições de saúde: ' + condsOf(p).map(k => CONDITIONS[k].n).join(', ') + '.' : ''}${spineSummary(spineOf(p)).length ? ' Coluna (desenho do usuário, estimativa): ' + spineSummary(spineOf(p)).join(' ') : ''}${bodyOf(p).length ? ' Corpo: ' + bodyOf(p).map(k => BODY[k]).join(', ') + ' (adapte exercícios).' : ''}
 METAS: ${t.kcal} kcal, P ${t.protein} g, C ${t.carbs} g, G ${t.fat} g, água ${t.water} ml. Gasto estimado ${Math.round(t.tdee)} kcal (${t.source}).
-HOJE: consumido ${Math.round(dayFood().k)} kcal, P ${Math.round(dayFood().p)} g.
+HOJE: ${WEEKDAYS[weekdayOf(today())]}, ${(() => { const l = weekOf(p).days[weekdayOf(today())]; return l.length ? 'marcado: ' + l.map(x => x.a === 'forca' ? 'força' : SPORTS[x.a]?.n).join(', ') : 'descanso'; })()}. Consumido ${Math.round(dayFood().k)} kcal, P ${Math.round(dayFood().p)} g.
 CICLO: ${plan.auto ? `ciclo ${plan.ci.cycle}, semana ${plan.ci.week} de ${plan.ci.total}${plan.ci.deload ? ' (semana leve)' : ''}${plan.rd.hold ? ', volume segurado (falhas/dor)' : ''}` : 'progressão automática desligada'}.
 PLANO DE FORÇA: ${plan.split}: ${plan.days.map(d => d.name + ' [' + d.items.map(i => i.name + ' ' + i.sets + 'x' + i.lo + '-' + i.hi).join(', ') + ']').join(' | ')}.
 PONTOS FRACOS: ${S.weak.map(id => { const w = weakAll.find(x => x.id === id); return w ? `${SPORTS[w.sport].n}: ${w.n}` : ''; }).filter(Boolean).join(', ') || 'não informados'}.
@@ -2725,7 +2725,7 @@ async function askCoach(q) {
     if (res.status === 429) {
       const j = await res.json().catch(() => ({}));
       if (TIER) { TIER.left = 0; setTier(TIER); }
-      pending.text = j.per === 'day' ? 'Por hoje chega de pergunta, campeão. Amanhã eu volto. Enquanto isso, o que a ciência diz:' : 'Suas 3 perguntas do mês acabaram. No Premium eu respondo tudo que você precisar. Por agora, o que a ciência diz:';
+      pending.text = j.per === 'day' ? 'Por hoje chega de pergunta. Amanhã tem mais. Enquanto isso, o que a ciência diz:' : 'Suas 3 perguntas do mês acabaram. No Premium eu respondo tudo que você precisar. Por agora, o que a ciência diz:';
       pending.cards = offlineAnswer(q).cards; return done();
     }
     if (res.status === 401) throw Object.assign(new Error('auth'), { code: 'signed_out' });
