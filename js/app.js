@@ -2700,11 +2700,25 @@ function offlineAnswer(q) {
   if (!scored.length) return { text: 'Não achei nada sobre isso na base de ciência. Tenta com outras palavras: proteína, sono, soco, chute, corrida, creatina…' };
   return { text: 'Olha o que a ciência diz sobre isso:', cards: scored.map(([e]) => e.id) };
 }
+// ditado por voz no Coach: usa o reconhecimento do próprio navegador (sem custo; some onde não existe)
+const SR = (() => { try { return window.SpeechRecognition || window.webkitSpeechRecognition || null; } catch (e) { return null; } })();
+const MIC = '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" fill="currentColor"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+let rec = null;
+function micToggle(ta, btn) {
+  if (rec) { try { rec.stop(); } catch (e) { } return; }
+  const r = new SR(); rec = r;
+  r.lang = 'pt-BR'; r.interimResults = true; r.continuous = false; r.maxAlternatives = 1;
+  const base = ta.value.trim() ? ta.value.trim() + ' ' : '';
+  r.onresult = ev => { let t = ''; for (const res of ev.results) t += res[0].transcript; ta.value = base + t; ta.dispatchEvent(new Event('input')); };
+  r.onerror = ev => { if (ev.error === 'not-allowed' || ev.error === 'service-not-allowed') toast('Libere o microfone pro Tairen nas permissões do navegador'); else if (ev.error === 'no-speech') toast('Não ouvi nada. Tenta de novo.'); else if (ev.error !== 'aborted') toast('Não deu pra usar o microfone agora. O microfone do teclado também funciona.'); };
+  r.onend = () => { rec = null; btn.classList.remove('on'); btn.setAttribute('aria-label', 'Falar'); ta.focus({ preventScroll: true }); };
+  try { r.start(); btn.classList.add('on'); btn.setAttribute('aria-label', 'Parar'); } catch (e) { rec = null; toast('Não deu pra usar o microfone agora.'); }
+}
 views.coach = () => {
   if (cloud.user() && (!TIER || Date.now() - TIER.at > 60000)) setTimeout(tierRefresh, 0);
   return `<section class="tai-head"><img class="tai-face" src="img/tairen/smile.webp" alt="" width="84" height="84"><div><h1>Tairen</h1><p class="small" id="tierLine">${esc(tierLine())}</p></div>${S.chat.length ? '<button class="btn ghost small tai-clear" data-act="clearChat">Limpar</button>' : ''}</section>
   <div id="chat" class="chat">${S.chat.map(m => msgHTML(m)).join('')}</div>
-  <form id="chatForm" class="chatbar"><textarea name="q" rows="1" placeholder="Fale com o Tairen…"></textarea><button class="btn primary" type="submit" aria-label="Enviar">➤</button></form>`;
+  <form id="chatForm" class="chatbar"><textarea name="q" rows="1" placeholder="Fale com o Tairen…"></textarea>${SR ? '<button class="btn micbtn" type="button" id="micBtn" aria-label="Falar">' + MIC + '</button>' : ''}<button class="btn primary" type="submit" aria-label="Enviar">➤</button></form>`;
 };
 function md(s) { return esc(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/^#{1,3} (.+)$/gm, '<b>$1</b>').replace(/^[-•] (.+)$/gm, '• $1').replace(/\n/g, '<br>'); }
 function msgHTML(m) {
@@ -3051,6 +3065,8 @@ function bindAfter(v, arg) {
     ta.addEventListener('input', () => { ta.style.height = 'auto'; ta.style.height = Math.min(140, ta.scrollHeight) + 'px'; });
     f.addEventListener('submit', e => { e.preventDefault(); const q = ta.value; ta.value = ''; askCoach(q); });
     ta.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !('ontouchstart' in window)) { e.preventDefault(); f.requestSubmit(); } });
+    const mb = $('#micBtn'); if (mb) mb.addEventListener('click', () => micToggle(ta, mb));
+    f.addEventListener('submit', () => { if (rec) try { rec.abort(); } catch (e) { } }, true);
   }
   if (v === 'login') bindAuth();
   if (v === 'perfil') {

@@ -1042,3 +1042,7 @@ body.coachv #app>#chat{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-beh
 #infobox{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.45);display:grid;place-items:center;padding:16px}
 #infobox .ibx{max-width:420px;width:100%}
 #infobox p{margin:0 0 10px}
+/* botão de falar no Coach */
+.chatbar .micbtn{flex:none;padding:0 12px;min-width:46px;min-height:44px;display:grid;place-items:center}
+.chatbar .micbtn.on{background:var(--acc);color:#fff;border-color:var(--acc);animation:micp 1s ease-in-out infinite}
+@keyframes micp{50%{box-shadow:0 0 0 6px rgba(195,19,27,.25)}}
