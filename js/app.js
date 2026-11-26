@@ -1419,8 +1419,8 @@ views.ver = (idx) => {
   return `<section class="head"><div><a href="#treino" class="backlink">← Força</a><h1>${esc(d.name)}</h1></div></section>
   <p class="small muted pad">${d.items.length} exercícios · ${d.items.reduce((a, b) => a + b.sets, 0)} séries · ${esc(musclesOf(d.items).join(', '))}</p>
   ${d.items.map((it, i) => { const e = EXERCISES[it.ex]; return `<div class="card exv"><div class="row between"><h3>${i + 1}. ${esc(it.name)}</h3><span class="chip">${it.sets}×${repsOf(it)}${e.u && e.u !== 's' && e.u !== 'm' ? e.u : e.u === 's' ? ' s' : ''}</span></div>
-    <p class="small">${esc(e.cue)}</p>${demoBtn(it.ex)}
-    <p class="small muted">Descanso ${esc(it.rest)}${it.rir ? ` · pare com ${it.rir} reps na reserva` : ''}${e.req.length ? ` · precisa: ${esc(e.req.map(k => EQUIP[k] || (k === 'gym' ? 'academia' : k)).join(', '))}` : ''}</p></div>`; }).join('')}
+    <p class="small">${esc(e.cue)}</p>${demoBtn(it.ex)}${swapBlock(it, d)}
+    <p class="small muted">Descanso ${esc(it.rest)}${rirTxt(it.rir)}${e.req.length ? ` · precisa: ${esc(e.req.map(k => EQUIP[k] || (k === 'gym' ? 'academia' : k)).join(', '))}` : ''}</p></div>`; }).join('')}
   ${S.logs.workouts.some(w => w.date === today()) ? '<p class="small muted pad">Força de hoje já feita. Essa sessão libera amanhã.</p>' : d.items.length ? `<a class="btn primary block" href="#sessao-${idx}">Começar este treino</a>` : `<a class="btn block" href="#rotina">Adicionar exercícios</a>`}`;
 };
 
@@ -1449,6 +1449,23 @@ views.demo = (ex) => {
 
 // ---------- Execução do treino ----------
 // rascunho do treino em andamento fica guardado no aparelho (sobrevive a fechar o app no meio da série)
+// ---------- explicações curtas (caixinha por cima da tela) ----------
+function infoBox(title, html) {
+  document.getElementById('infobox')?.remove();
+  const d = document.createElement('div'); d.id = 'infobox'; d.setAttribute('role', 'dialog');
+  d.innerHTML = `<div class="card ibx"><h3>${esc(title)}</h3>${html}<button class="btn primary block" type="button">Entendi</button></div>`;
+  d.addEventListener('click', e => { if (e.target === d || e.target.closest('button')) d.remove(); });
+  document.body.appendChild(d); d.querySelector('button').focus({ preventScroll: true });
+}
+const rirTxt = rir => rir ? ` · <button class="rirq" data-act="rirInfo" data-r="${esc(rir)}">pare com ${esc(rir)} reps na reserva <b>?</b></button>` : '';
+// trocar exercício (vale pra rotina toda; o histórico do antigo continua salvo)
+let swapOpen = null;
+function swapBlock(it, day, skip) {
+  const k = `${day.sid}|${it.ex}`, open = swapOpen === k;
+  const opts = open ? swapOptions(S.profile, it.ex, it.slot, day.items.map(x => x.ex)) : [];
+  return `<div class="exacts"><button class="btn small ghost" data-act="swapOpen" data-k="${esc(k)}">↻ Trocar exercício</button>${skip ? `<button class="btn small ghost" data-act="exSkip" data-ex="${esc(it.ex)}" data-i="${skip.i}">Pular hoje</button>` : ''}</div>
+    ${open ? `<div class="subs"><small class="muted">Não dá pra fazer esse? Troque por um que trabalha o mesmo músculo:</small>${opts.length ? `<div class="chips">${opts.map(o => `<button class="chip" data-act="stagSwap" data-sid="${esc(day.sid)}" data-ex="${esc(it.ex)}" data-to="${esc(o)}">${esc(EXERCISES[o].n)}</button>`).join('')}</div>` : '<p class="small muted">Nenhuma troca que caiba no seu equipamento. Dá pra pular hoje ou marcar mais equipamentos no Perfil.</p>'}</div>` : ''}`;
+}
 const DRAFT_KEY = 'ronin:draft';
 let draft = (() => { try { const d = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null'); if (!d || typeof d.sid !== 'string' || !d.sets || typeof d.sets !== 'object') return null; for (const k of Object.keys(d.sets)) { if (!EXERCISES[k] || !Array.isArray(d.sets[k])) delete d.sets[k]; else d.sets[k] = d.sets[k].map(x => x && typeof x === 'object' ? x : {}); } d.start = Object.values(d.sets).flat().some(x => x && x.done) ? (+d.start || Date.now()) : null; d.date = Object.values(d.sets).flat().some(x => x && x.reps) ? d.date : today(); d.name = String(d.name || 'Treino'); return d; } catch (e) { return null; } })();
 function saveDraft() { try { draft ? localStorage.setItem(DRAFT_KEY, JSON.stringify(draft)) : localStorage.removeItem(DRAFT_KEY); } catch (e) { } }
@@ -1518,7 +1535,8 @@ views.sessao = (idx) => {
     const unit = e.u === 's' ? 's' : e.u === 'm' ? 'm' : 'reps';
     const got = draft.sets[it.ex] || [], dn = got.filter(x => x?.done).length;
     const open = draft.open === xi;
-    if (!open) return `<div class="card ex mini ${dn >= it.sets ? 'complete' : ''}" id="ex-${xi}"><button class="exhead" data-act="exOpen" data-i="${xi}"><span class="mono exn">${xi + 1}</span><span class="grow"><b>${esc(it.name)}</b><small>${dn >= it.sets ? '✓ ' : ''}${dn} de ${it.sets} séries${dn ? ' · ' + esc(setsTxt(got)) : ''}</small></span><span>▾</span></button></div>`;
+    const skipped = Array.isArray(draft.skip) && draft.skip.includes(it.ex) && !dn;
+    if (!open) return `<div class="card ex mini ${dn >= it.sets ? 'complete' : ''} ${skipped ? 'skipped' : ''}" id="ex-${xi}"><button class="exhead" data-act="exOpen" data-i="${xi}"><span class="mono exn">${xi + 1}</span><span class="grow"><b>${esc(it.name)}</b><small>${skipped ? 'Pulado hoje · ' : ''}${dn >= it.sets ? '✓ ' : ''}${dn} de ${it.sets} séries${dn ? ' · ' + esc(setsTxt(got)) : ''}</small></span><span>▾</span></button></div>`;
     const rows = Array.from({ length: Math.max(it.sets, got.length) }, (_, s) => {
       const v = got[s] || {}, extra = s >= it.sets;
       return `<div class="set ${v.done ? 'done' : ''} ${v.done && +v.reps === 0 ? 'fail' : ''} ${extra ? 'extra' : ''}"><span class="mono">${s + 1}</span>
@@ -1532,9 +1550,10 @@ views.sessao = (idx) => {
         <span class="small">Nível ${it.lvl + 1} de ${e.vars.length}${it.lvl < e.vars.length - 1 ? ` · próximo: ${esc(e.vars[it.lvl + 1])}` : ' · último nível'}</span><button class="lvlbtn ${sg.up ? 'hot' : ''}" data-act="lvl" data-ex="${it.ex}" data-d="1" ${it.lvl >= e.vars.length - 1 ? 'disabled' : ''} aria-label="Mais difícil">›</button></div>` : '';
     return `<div class="card ex" id="ex-${xi}"><div class="row between"><h3><span class="mono exn">${xi + 1}</span> ${esc(it.name)}</h3><button class="ibtn" data-act="exOpen" data-i="-1" aria-label="Recolher">▴</button></div>
       ${it.care.length ? `<p class="small care">⚠ Cuidado (${esc(it.care.join(', '))}): carga moderada, técnica perfeita e pare se doer.</p>` : ''}${it.bodyCare ? `<p class="small care">${esc(it.bodyCare)}</p>` : ''}
-      <div class="presc"><small class="cat">Prescrição</small><span><b>${it.sets} séries</b>${it.sets !== it.base ? ` <small>(${it.sets > it.base ? '+' : ''}${it.sets - it.base} esta semana)</small>` : ''} · <b>${repsOf(it)}</b> ${unit}${e.u && !['s', 'm'].includes(e.u) ? ' ' + esc(e.u) : ''} · descanso <b>${esc(it.rest)}</b>${it.rir ? ` · pare com ${it.rir} na reserva` : ''}</span></div>
+      <div class="presc"><small class="cat">Prescrição</small><span><b>${it.sets} séries</b>${it.sets !== it.base ? ` <small>(${it.sets > it.base ? '+' : ''}${it.sets - it.base} esta semana)</small>` : ''} · <b>${repsOf(it)}</b> ${unit}${e.u && !['s', 'm'].includes(e.u) ? ' ' + esc(e.u) : ''} · descanso <b>${esc(it.rest)}</b>${rirTxt(it.rir)}</span></div>
       <p class="small">${esc(e.cue)}${e.req.length ? ` <span class="muted">· ${esc(e.req.map(k => EQUIP[k] || (k === 'gym' ? 'academia' : k)).join(', '))}</span>` : ''}</p>
       ${demoBtn(it.ex)}
+      ${swapBlock(it, day, { i: xi })}
       <div class="progbox"><small class="cat">Orientação de progressão</small>
         <p class="small">Faixa: <b>${repsOf(it)} ${unit}</b>. ${e.vars ? `Quando fizer ${it.hi}+ em todas as séries, avance pro próximo nível.` : e.inc ? `Quando fizer ${it.hi} em todas as séries, suba ${fmt(e.inc)} kg e volte pra ${it.lo}.` : e.t === 'power' ? 'Potência: qualidade acima de cansaço.' : `Quando fizer ${it.hi} em todas as séries, aumente a dificuldade.`}</p>
         <p class="small sug">${esc(sg.text)}</p>${lv}${stagBox(it, day, plan)}</div>
@@ -3222,7 +3241,18 @@ document.addEventListener('click', async e => {
   if (a === 'blockSnooze') { const R = routinesState(), d = new Date(today() + 'T12:00'); d.setDate(d.getDate() + 14); R.block = { ...(R.block || { start: blockNow().start, n: blockNow().n }), snooze: dayKey(d) }; save(true); render(); toast('Beleza: aviso volta em 2 semanas'); }
   if (a === 'clearOk') { S.ui = { ...(S.ui || {}), clearOk: true }; save(true); render(); toast('Combinado. Qualquer sintoma estranho, pare e procure seu médico.'); }
   if (a === 'figMode') { S.ui = { ...(S.ui || {}), figStd: !S.ui?.figStd }; save(); render(); }
-  if (a === 'stagSwap') {
+  if (a === 'rirInfo') { const r = el.dataset.r || '2', ns = (r.match(/\d+/g) || ['2']).map(Number), ex = [...new Set([12 - Math.max(...ns), 12 - Math.min(...ns)])].join(' ou '); return infoBox('Reps na reserva', `<p>São as repetições que você <b>ainda conseguiria fazer</b> quando para a série.</p><p><b>Pare com ${esc(r)} na reserva</b> = termine a série quando sentir que ainda daria pra fazer mais ${esc(r)}, com a postura certa.</p><p class="small muted">Exemplo: se você aguentaria 12, pare na ${ex}. Assim você treina forte, sem se esgotar nem perder a forma. Com o tempo você aprende a sentir isso.</p>`); }
+  if (a === 'swapOpen') { swapOpen = swapOpen === el.dataset.k ? null : el.dataset.k; render(); return; }
+  if (a === 'exSkip') {
+    if (!draft) return; const ex = el.dataset.ex, i = +el.dataset.i;
+    draft.skip = [...new Set([...(Array.isArray(draft.skip) ? draft.skip.filter(k => EXERCISES[k]) : []), ex])];
+    const items = activePlan().days.find(d => d.sid === draft.sid)?.items || [];
+    const nx = items.findIndex((x, j) => j > i && !draft.skip.includes(x.ex) && (draft.sets[x.ex] || []).filter(y => y?.done).length < x.sets);
+    draft.open = nx; saveDraft(); render(); toast('Pulado hoje');
+    if (nx >= 0) requestAnimationFrame(() => $('#ex-' + nx)?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+    return;
+  }
+  if (a === 'stagSwap') { swapOpen = null;
     const from = el.dataset.ex, to = el.dataset.to, sid = el.dataset.sid; if (!EXERCISES[from] || !EXERCISES[to]) return;
     const R = routinesState();
     if (R.active === 'auto' || !R.list[R.active]) { R.swap = { ...swapsOf(), [from]: to }; delete R.swap[to]; save(true); render(); }

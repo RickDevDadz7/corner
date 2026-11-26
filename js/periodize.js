@@ -32,7 +32,7 @@ export const INJURIES = {
 export const FOCUS_MUSCLES = ['peito', 'costas', 'ombros', 'biceps', 'triceps', 'quad', 'post', 'glut', 'pant'];
 const SMALL = new Set(['biceps', 'triceps', 'pant']);
 // exercícios de iniciante/sem carga que não fazem sentido na rotação de quem treina em academia
-const GYM_SKIP = new Set(['pike', 'bwsq', 'pushup', 'chairdip', 'diamond', 'calfbw', 'invrow', 'bandrow', 'bandpd', 'bandcurl', 'bandtri', 'bandlat', 'sgb', 'slide', 'towelgrip']);
+const GYM_SKIP = new Set(['pike', 'bwsq', 'pushup', 'chairdip', 'diamond', 'calfbw', 'invrow', 'towelrow', 'bandrow', 'bandpd', 'bandcurl', 'bandtri', 'bandlat', 'sgb', 'slide', 'towelgrip']);
 const MAIN_SLOTS = new Set(['squat', 'hinge', 'hpush', 'vpull', 'vpush', 'hpull', 'glute']);
 
 const COMBAT = new Set(['boxe', 'muaythai', 'mma', 'jiu']);

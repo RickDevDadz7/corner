@@ -106,7 +106,7 @@ export const NEEDS = {
   pu: N(2, 0), row: N(2, 2, 1), tri: N(1, 0), lmr: N(2, 2, 1), gsq: N(1, 2, 1), dbrdl: N(1, 2, 1), bul: N(0, 2, 1), dbfp: N(1, 0, 0, 1),
   dbi: N(1, 0, 0, 1), dbohp: N(1, 0), dbrow: N(1, 0), lat: N(1, 0), curl: N(1, 0), ham: N(1, 0), farm: N(1, 2, 1), pal: N(1, 0), fp: N(1, 0),
   er: N(1, 0), bandrow: N(1, 0), bandpd: N(1, 0), bandlat: N(1, 0), bandcurl: N(1, 0), bandtri: N(1, 0), pullup: N(2, 0), chin: N(2, 0),
-  hlr: N(2, 2), dip: N(2, 0), pushup: N(2, 0, 0, 1), pike: N(2, 2, 0, 1), chairdip: N(2, 1), diamond: N(2, 0, 0, 1), invrow: N(2, 1, 0, 1),
+  hlr: N(2, 2), dip: N(2, 0), pushup: N(2, 0, 0, 1), pike: N(2, 2, 0, 1), chairdip: N(2, 1), diamond: N(2, 0, 0, 1), invrow: N(2, 1, 0, 1), towelrow: N(2, 1, 0, 1),
   ytw: N(1, 0, 0, 1), bwsq: N(0, 2, 1), afundo: N(0, 2, 1), slide: N(0, 1, 0, 1), sgb: N(0, 1, 0, 1), calfbw: N(0, 1, 1), hollow: N(0, 0, 0, 1),
   plankrot: N(2, 2, 0, 1), hang: N(2, 0), towelgrip: N(2, 0), copen: N(1, 2, 0, 1), pogo: N(0, 2, 1), neck: N(1, 0),
   ext: N(0, 1), hack: N(0, 2, 1), dl: N(2, 2, 1), sumo: N(1, 2, 1), walklunge: N(0, 2, 1), stepup: N(0, 2, 1), singlerdl: N(1, 1, 1),
