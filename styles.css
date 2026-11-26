@@ -1029,3 +1029,7 @@ body.coachv #app>#chat{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-beh
 .evcats{display:flex;flex-wrap:nowrap;gap:6px;overflow-x:auto;scrollbar-width:none;margin:0 -14px;padding:2px 14px 6px}.evcats .chipbtn{flex:none}.evcats.off{display:none}
 #evList.grouped .ev summary .cat{display:none}
 #evList .ev{padding-top:12px;padding-bottom:12px}
+/* Seu dia, hora a hora: próximos itens sempre à mostra, o dia todo recolhido */
+.agall>summary{cursor:pointer;font-weight:800;font-size:14px;color:var(--acc);list-style:none;margin-top:4px}
+.agall>summary::-webkit-details-marker{display:none}
+.agall[open]>summary{margin-bottom:2px}

@@ -1,5 +1,5 @@
 // Service worker: app funciona offline. Mude VERSION a cada publicação.
-const VERSION = 'ronin-v3.42.3';
+const VERSION = 'ronin-v3.42.4';
 const FILES = ['./', 'index.html', 'styles.css', 'manifest.webmanifest', 'js/app.js', 'js/calc.js', 'js/data.js', 'js/sports.js', 'js/techniques.js', 'js/cloud.js', 'js/sync.js', 'js/rig.js', 'js/scan.js', 'js/menu.js', 'js/routine.js', 'js/exanim.js', 'js/periodize.js', 'js/health.js', 'js/spine.js', 'js/schedule.js', 'js/tour.js', 'js/rtimer.js', 'js/mobility.js', 'js/theme.js', 'js/gps.js', 'vendor/leaflet/leaflet.js', 'vendor/leaflet/leaflet.css',
   'icons/icon-192.png', 'img/tairen/smile.webp', 'img/tairen/thinking.webp', 'img/tairen/thumbs.webp', 'img/tairen/pointing.webp', 'img/tairen/laugh.webp', 'img/tairen/celebrate.webp', 'img/tairen/water.webp', 'icons/icon-512.png', 'icons/icon-maskable-512.png'];
 

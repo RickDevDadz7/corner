@@ -482,10 +482,15 @@ function agendaCard() {
   const plan = wk.days[weekdayOf(today())].map(x => ({ a: x.a, h: x.h, n: x.a === 'forca' ? 'Treino de força' : SPORTS[x.a]?.n || '', min: x.a === 'forca' ? Math.round(+p.liftMin) || 45 : +sp[x.a]?.min || 60 }));
   const items = daySchedule(wk.explicit ? plan : [], mealsFor().filter(m => m.id !== 'extra').map(m => m.id), hab, { weight: latestWeight(), water: T().water });
   const noTime = wk.explicit && plan.length && plan.every(x => !x.h);
-  return `<details class="card" id="h-agenda" ${S.ui.agOpen ? 'open' : ''}><summary><h3>Seu dia, hora a hora</h3><small class="muted">${hab.n ? 'com os horários em que você costuma comer' : 'sugestão pelo seu plano'}</small></summary>
-    <ol class="agenda">${items.map(x => `<li class="ag-${x.k}"><span class="mono">${hm(x.m)}</span><span class="agi" aria-hidden="true"></span><span>${esc(x.t)}${x.usual ? ' <small class="muted">(seu horário de costume)</small>' : ''}</span></li>`).join('')}</ol>
+  const li = x => `<li class="ag-${x.k}"><span class="mono">${hm(x.m)}</span><span class="agi" aria-hidden="true"></span><span>${esc(x.t)}${x.usual ? ' <small class="muted">(seu horário de costume)</small>' : ''}</span></li>`;
+  const d = new Date(), now = d.getHours() * 60 + d.getMinutes();
+  const next = items.filter(x => x.m >= now - 20).slice(0, 3);
+  return `<div class="card" id="h-agenda"><small class="cat">Seu dia, hora a hora</small>
+    ${next.length ? `<ol class="agenda">${next.map(li).join('')}</ol>` : '<p class="small muted">Por hoje é isso. Amanhã tem mais.</p>'}
+    <details class="agall" ${S.ui.agOpen ? 'open' : ''}><summary>Ver o dia todo</summary>
+    <ol class="agenda">${items.map(li).join('')}</ol>
     ${!wk.explicit ? '<p class="small muted">Marque seus dias e horários de treino em Perfil › Minha semana pra encaixar pré e pós-treino.</p>' : noTime ? '<p class="small muted">Coloque o horário dos treinos em Perfil › Minha semana pra encaixar pré e pós-treino.</p>' : ''}
-    ${hab.n < 3 ? '<p class="small muted">Registrando refeições e água na hora, o Tairen aprende seus horários e ajusta a sugestão.</p>' : ''}</details>`;
+    ${hab.n < 3 ? '<p class="small muted">Registrando refeições e água na hora, o Tairen aprende seus horários.</p>' : ''}</details></div>`;
 }
 // ---------- Perfil: seções recolhíveis e Minha semana ----------
 // perfil novo: tudo aberto; editando: fechado com resumo de uma linha
@@ -2900,7 +2905,7 @@ function bindAfter(v, arg) {
   }
   if (v === 'coluna') bindSpine();
   if (v === 'hoje') {
-    $('#h-agenda')?.addEventListener('toggle', e => { S.ui.agOpen = e.target.open; });
+    $('#h-agenda .agall')?.addEventListener('toggle', e => { S.ui.agOpen = e.target.open; });
     $('#weighForm').addEventListener('submit', e => {
       e.preventDefault(); const kg = num(e.target.kg.value), d = curDay();
       if (!kg || kg < 30 || kg > 300) { toast('Peso inválido'); return; }
